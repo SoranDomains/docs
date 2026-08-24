@@ -21,8 +21,9 @@ Under the hood, resolution mirrors the contracts byte for byte:
 3. Compute the name node: `sha256(nsNode ‖ sha256(label))`.
 4. Ask the Registry for the namespace's resolver (`resolver_of`).
 5. Ask that resolver for the address (`addr`) — generation-checked on chain.
+6. If the resolver holds no explicit record for the name, fall back to the namespace's Registry-attested Registrar and ask its built-in `resolve` — issuance initializes the built-in target to the holder, so **freshly issued names resolve immediately**, before their holder ever writes a resolver record. The Registrar consulted here is the one the immutable Registry itself deployed and attests; the resolver in step 5 follows the owner-set pointer, and [`assurance()`](/sdk/assurance) tells you whether that pointer is the attested one.
 
-A namespace with no public resolver set is not publicly resolvable. If its owner runs closed resolution through their Registrar instead, pass `registrars: { theirns: "C…" }` in the options and the SDK asks the Registrar's `resolve` directly.
+A namespace with neither a public resolver nor an attested Registrar is not publicly resolvable. If its owner runs closed resolution through a Registrar of their own, pass `registrars: { theirns: "C…" }` in the options and the SDK asks that Registrar's `resolve` directly.
 
 ## record
 
@@ -33,7 +34,7 @@ const r = await soran.record("alice.nova");
 // { name: "alice.nova", address: "G…" | null, node: "ab12…", resolver: "C…" | null }
 ```
 
-`node` is the hex-encoded on-chain node hash; `resolver` is the resolver contract that answered (`null` for closed resolution or when no resolver is set).
+`node` is the hex-encoded on-chain node hash; `resolver` is the resolver contract that answered — or, when `address` is null, the one consulted (`null` when the answer came from the Registrar's built-in resolution or closed resolution).
 
 ## Text records
 
@@ -78,7 +79,7 @@ The SDK draws a hard line between "the chain says no" and "I couldn't ask the ch
 This matters most in pay-to-name flows: a transient RPC failure must never be silently mistaken for "unregistered". Catch `SoranError` and retry or surface it — don't fall through to a default.
 
 ```ts
-import { Soran, SoranError } from "@sorandomains/sdk";
+import { Soran, SoranError } from "@sorandomains/lookup";
 
 try {
   const addr = await soran.resolve(input);

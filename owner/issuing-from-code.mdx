@@ -1,0 +1,86 @@
+---
+title: "Issuing from code"
+description: "Issue names to your users programmatically with @sorandomains/owner — one call per name, or up to 23 per transaction, signed by your own key."
+---
+
+`@sorandomains/owner` is the write-side SDK for namespace owners. Where [`@sorandomains/lookup`](/sdk/installation) reads names trustlessly, this package performs the operations that *running* a namespace requires — starting with the one that matters most: issuing names to your users the moment they sign up.
+
+```bash
+npm install @sorandomains/owner @stellar/stellar-sdk
+```
+
+Every operation is a transaction your own key signs, submitted to any Soroban RPC node. The contracts check the namespace owner's authorization on chain — no Soran account is involved, and nothing here can be done *to* you by anyone else.
+
+## Set up
+
+```ts
+import { SoranOwner, keypairSigner } from "@sorandomains/owner";
+
+const owner = new SoranOwner({
+  signer: keypairSigner(process.env.OWNER_SECRET!), // the namespace owner's key
+});
+```
+
+The default preset targets the public testnet deployment. The namespace's Registrar contract is discovered on chain (`registrar_of`) — you never configure it by hand.
+
+In a browser, pass the wallet instead of a raw key — wallet kits already match the `signTransaction` shape:
+
+```ts
+const owner = new SoranOwner({
+  signer: {
+    publicKey: () => walletAddress,
+    signTransaction: (xdr, opts) => kit.signTransaction(xdr, opts),
+  },
+});
+```
+
+## Issue one name
+
+```ts
+await owner.issue("acme", "alice", "G…ALICE");
+// → { hash, ledger, node } — alice.acme now resolves to G…ALICE
+```
+
+The name's term and reclaimability come from the namespace's immutable policy (`await owner.policy("acme")`). The issued name's built-in resolution target starts as the holder, so it resolves through [`@sorandomains/lookup`](/sdk/resolving-names) immediately.
+
+## Issue in bulk
+
+Up to 23 names per transaction (a contract limit), with an exact per-label outcome report:
+
+```ts
+const batch = await owner.issueBatch("acme", [
+  { label: "alice", holder: "G…A" },
+  { label: "bob",   holder: "G…B" },
+  // …
+]);
+
+for (const o of batch.outcomes) {
+  if (!o.issued) console.warn(`${o.label}: ${o.reason}`); // "taken" | "skipped"
+}
+```
+
+Two properties worth knowing:
+
+- **The `issued` flags come from the transaction's own events.** Each successfully issued name emits an `issued` event; the SDK decodes them from the confirmed transaction (`outcomeSource: "events"`), so which names were issued is exact — no clocks, immune to concurrent activity. The `reason` on non-issued entries is a best-effort classification from informational re-reads. (If an RPC node serves unusable transaction meta, the SDK falls back to state re-reads for everything and says so: `outcomeSource: "reread"`.)
+- **Batches are safe to re-run.** The contract skips already-held labels instead of aborting, so re-submitting a batch after a partial failure issues only what's missing.
+
+## Errors are typed
+
+Every contract rejection surfaces as an `OwnerError` with the contract's own error code and name:
+
+```ts
+try {
+  await owner.issue("acme", "alice", "G…");
+} catch (e) {
+  if (e instanceof OwnerError) console.error(e.codeName); // e.g. "NameTaken"
+}
+```
+
+Calls are simulated before signing, so most failures cost nothing. Two protections are worth calling out:
+
+- **Wrong signer fails fast.** If the operation requires authorization from an address other than your signer, the SDK refuses *before* submission — no fee spent, and the error names both parties.
+- **Failures that reach the network carry `txHash`.** If an error has a `txHash`, check that hash before retrying — the transaction may still have been included.
+
+## What else the package does
+
+Issuance is the start; the same client handles the whole lifecycle — reclaim, renew, treasury routing, namespace transfers, and the one-way permanence door. See [Lifecycle & transfers](/owner/lifecycle-and-transfers).

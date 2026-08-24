@@ -8,17 +8,17 @@ description: "Resolve a Soran name from your app in five minutes — trustlessly
 The SDK's only peer dependency is the Stellar SDK you almost certainly already have.
 
 ```bash
-npm install @sorandomains/sdk @stellar/stellar-sdk
+npm install @sorandomains/lookup @stellar/stellar-sdk
 ```
 
 <Note>
-  Published on npm as [`@sorandomains/sdk`](https://www.npmjs.com/package/@sorandomains/sdk); source on [GitHub](https://github.com/SoranDomains/sdk).
+  Published on npm as [`@sorandomains/lookup`](https://www.npmjs.com/package/@sorandomains/lookup); source on [GitHub](https://github.com/SoranDomains/sdk).
 </Note>
 
 ## 2. Resolve a name
 
 ```ts
-import { Soran } from "@sorandomains/sdk";
+import { Soran } from "@sorandomains/lookup";
 
 const soran = new Soran({ network: "testnet" });
 

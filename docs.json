@@ -27,13 +27,20 @@
         ]
       },
       {
-        "group": "SDK",
+        "group": "Lookup SDK",
         "pages": [
           "sdk/installation",
           "sdk/resolving-names",
           "sdk/reverse-and-primary",
           "sdk/assurance",
           "sdk/reference"
+        ]
+      },
+      {
+        "group": "Owner SDK",
+        "pages": [
+          "owner/issuing-from-code",
+          "owner/lifecycle-and-transfers"
         ]
       },
       {
@@ -60,12 +67,17 @@
     "global": {
       "anchors": [
         {
-          "anchor": "SDK on npm",
-          "href": "https://www.npmjs.com/package/@sorandomains/sdk",
+          "anchor": "Lookup SDK on npm",
+          "href": "https://www.npmjs.com/package/@sorandomains/lookup",
           "icon": "npm"
         },
         {
-          "anchor": "SDK on GitHub",
+          "anchor": "Owner SDK on npm",
+          "href": "https://www.npmjs.com/package/@sorandomains/owner",
+          "icon": "npm"
+        },
+        {
+          "anchor": "SDKs on GitHub",
           "href": "https://github.com/SoranDomains/sdk",
           "icon": "github"
         }

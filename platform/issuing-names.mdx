@@ -3,7 +3,7 @@ title: "Issuing names"
 description: "Activate your registrar once, choose your ownership policy, then issue names one at a time or in bulk — for free, paying only Stellar's own network fees."
 ---
 
-You own a namespace; now give people names in it. Issuance happens in the console's **Issuance** tab (or via the same flows from your own tooling — the contracts are permissionless).
+You own a namespace; now give people names in it. Issuance happens in the console's **Issuance** tab — or programmatically from your own backend with [`@sorandomains/owner`](/owner/issuing-from-code); the contracts are permissionless either way.
 
 ## Activate your registrar (once)
 
@@ -14,7 +14,7 @@ A namespace issues nothing until its own Registrar contract exists. Activation d
     Every name your registrar issues carries this policy, and it's what holders (and their wallets) see as the [ownership guarantee](/concepts/ownership-guarantees):
 
     - **Reclaimable** — you can take an issued name back. Right for names tied to an ongoing relationship (employees, customers, subscriptions).
-    - **Permanent** — issued names can never be reclaimed or expired by anyone, and the contract enforces it.
+    - **Permanent** — issued names carry no expiry and no reclaim path in the deployed code; closing the [one-way door](/concepts/ownership-guarantees#make_permanent-the-one-way-door) later locks that in absolutely — the code freezes, enforced against everyone, including you.
   </Step>
   <Step title="Sign and deploy">
     The console prepares the deploy transaction; your wallet signs it. The registrar lands on chain owned by your wallet, and issuance unlocks. Only the namespace owner's wallet can activate.

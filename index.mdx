@@ -20,7 +20,7 @@ Soran is **namespace infrastructure** — think payments-infrastructure economic
     `yourbrand` is won through a public, timelocked claim window — evidence-backed, objection-guarded — and lands **in the business's own wallet**. It is an on-chain asset, not a subscription.
   </Step>
   <Step title="It issues names to its users">
-    `alice.yourbrand`, `bob.yourbrand` — one call per name, or thousands from a CSV. Names are **free from Soran, forever**: only Stellar's own network fees apply (fractions of a cent per user per year).
+    `alice.yourbrand`, `bob.yourbrand` — one call per name, or thousands from a CSV. Names are **free from Soran, forever**: only Stellar's own network fees apply — about $0.05 per user per year, paid to the network.
   </Step>
   <Step title="Every wallet resolves them — trustlessly">
     Any wallet or app resolves `alice.yourbrand` to a Stellar address **straight from the chain** with the [SDK](/sdk/installation). Soran's servers are not in the trust path. Reverse lookup shows verified names instead of addresses in history — unspoofable by construction.
@@ -59,10 +59,10 @@ That is by design: the permissionless escape hatch is the ceiling on what Soran 
 
 <CardGroup cols={3}>
   <Card title="Wallets & apps" icon="wallet" href="/quickstart">
-    Send-to-name and verified reverse lookup in an afternoon with `@sorandomains/sdk`.
+    Send-to-name and verified reverse lookup in an afternoon with `@sorandomains/lookup`.
   </Card>
   <Card title="Businesses" icon="building" href="/concepts/claiming-a-namespace">
-    Claim `yourbrand`, choose your guarantee, issue names from the console.
+    Claim `yourbrand`, choose your guarantee, issue names from the console — or from code with `@sorandomains/owner`.
   </Card>
   <Card title="Backends" icon="server" href="/api/overview">
     The public HTTP read surface — with the SDK verifying every hint on chain.
