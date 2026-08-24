@@ -1,0 +1,85 @@
+---
+title: "Names and namespaces"
+description: "How Soran names are shaped, hashed, and stored on chain — and the two clocks that keep ownership and storage rent from ever being confused."
+---
+
+Soran names are flat and two-level: a **namespace** (`nova`) and a **name** under it (`alice.nova`). That's the whole grammar — no sub-subdomains, no arbitrary depth. It matches how the names are used: a business owns the namespace, its users hold names under it.
+
+## The three layers
+
+```
+Registry    immutable, platform-deployed
+  namespace node → { owner, resolver }
+  — plus the one-way facts that certify permanence, and nothing else
+
+Registrar   one per namespace, owned by the namespace owner
+  names, policy, issuance, expiry, transfers
+
+Resolver    records: address, text, reverse
+```
+
+The Registry knows nothing about individual names, policy, or expiry — it stores who owns each namespace node, where its resolver points, and the handful of one-way facts that certify [permanence](/concepts/ownership-guarantees). Everything with product substance lives in the namespace's own Registrar, which the namespace owner controls (and may replace). That ignorance is deliberate: it's what lets the Registry ship [immutable](/concepts/trust-model).
+
+## Labels
+
+A label (the part before or after the dot) has exactly one on-chain representation:
+
+- 1–63 bytes
+- lowercase ASCII `a-z`, digits `0-9`, and `-`
+- no leading or trailing hyphen
+
+The contract rejects uppercase, whitespace, and any non-ASCII byte outright, so there is no normalization step to disagree about — a label is valid byte-for-byte or it doesn't exist.
+
+<Warning>
+  Punycode labels like `xn--…` are valid under this grammar, and the contract never decodes them. If your wallet renders punycode as Unicode, any lookalike becomes a homoglyph attack. Show `xn--` prefixes raw; treat decoded rendering as an explicit, warned-about user choice.
+</Warning>
+
+## Namehash
+
+On chain, names are keyed by a 32-byte recursive hash, not by strings:
+
+```
+nsNode   = sha256(ZERO32 ‖ sha256(namespace))   // the Registry key
+nameNode = sha256(nsNode ‖ sha256(label))       // the Registrar key
+```
+
+Hashing keeps every key a fixed 32 bytes and makes a name's node derivable from its parent without any extra on-chain state. The SDK exposes the exact construction — `soran.namehash(ns)` for a namespace, `soran.node(name)` for a full name — so anything you compute locally matches what the contracts compute.
+
+## The two clocks
+
+Every name record involves two completely different clocks, and Soran never conflates them:
+
+| Clock | What it is | Who it belongs to |
+| --- | --- | --- |
+| **Ownership** | `expires_at` inside the name record (`0` = never) | Business truth — the holder |
+| **Storage** | The ledger entry's TTL (rent) | Infrastructure — Stellar's state archival |
+
+Stellar archives ledger entries whose rent lapses. If availability were derived from "is the entry present," a lapsed entry would look unowned — and someone else could register a name that's still yours. That's the name-theft bug, and Soran's contracts are built so it can't happen: **availability and resolution are decided only by `expires_at`, never by whether the entry is currently live in storage.**
+
+### Live and cold names
+
+- **● Live** — the ledger entry is paid up and resolves normally.
+- **◇ Cold** — the entry's storage TTL lapsed and it was archived. The name is **still owned**; ownership didn't change, only its storage state.
+
+A cold name wakes on use: any transaction that reads it restores the entry first, and only then evaluates `expires_at`. Two permissionless keeper calls let anyone pay to keep entries warm — `touch(label)` bumps one name's storage TTL without touching ownership, and `keep_alive()` bumps the Registrar itself (if the Registrar's own entry goes cold, every name under it stops resolving until restored, so anyone may fund it).
+
+<Note>
+  When a name genuinely expires — its `expires_at` passes under a timed policy — that's the ownership clock, not the storage clock. See [ownership guarantees](/concepts/ownership-guarantees) for what each policy allows.
+</Note>
+
+## What this means for integrators
+
+- Resolve by name; the SDK hashes for you. Compare nodes, not strings, if you cache.
+- Never infer availability or expiry from an RPC "entry not found" — a cold entry is not an unowned name. The SDK's `isAvailable()` and `resolve()` already handle this correctly.
+- If you operate a namespace, budget for storage rent or run a keeper that calls `touch` — or let names go cold and wake on use, which is safe by construction.
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Ownership guarantees" href="/concepts/ownership-guarantees" icon="shield-check">
+    Permanent, reclaimable, timed — and how permanence is proven.
+  </Card>
+  <Card title="Claiming a namespace" href="/concepts/claiming-a-namespace" icon="flag">
+    The public window: announce, objections, execution.
+  </Card>
+</CardGroup>

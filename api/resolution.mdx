@@ -1,0 +1,107 @@
+---
+title: "Resolution endpoints"
+description: "Resolve a name to an address, read the full name record and resolver records, and reverse-lookup an address — one GET each, no key."
+---
+
+## Resolve a name
+
+```http
+GET /v1/resolve/{namespace}/{label}
+```
+
+The "one GET, no key" endpoint: resolves `label.namespace` from the read mirror.
+
+```json
+{
+  "name": "alice.nova",
+  "account": "GDHNO4WK…",
+  "ownership": "permanent",
+  "storage": "live",
+  "expires_at": null,
+  "ledger": 55123001
+}
+```
+
+- `account` — the name's **holder** account. For namespaces with resolver records, the on-chain pay-to address can be set separately and may differ from the holder — use [`/v1/records`](#resolver-records) or the SDK's `resolve()` for the pay-to answer, and `verify` before paying.
+- `ownership` — the name's [ownership guarantee](/concepts/ownership-guarantees).
+- `expires_at` — expiry for time-bound names, `null` otherwise. A timed name past its expiry returns `404` with `error: "name_expired"` rather than a stale holder.
+- `ledger` — the ledger the name was issued in.
+
+An unknown name returns `404` with `{ "error": "name_not_found", "name": "…" }`.
+
+<Warning>
+  For payments, verify before you send. The mirror is fast, not authoritative — use the [SDK's `verify`](/quickstart) (a read-only contract simulation) to confirm the name still resolves to the same address at confirm time.
+</Warning>
+
+## Full name record
+
+```http
+GET /v1/names/{namespace}/{label}
+```
+
+The complete record behind a name profile page:
+
+```json
+{
+  "name": "alice.nova",
+  "namespace": "nova",
+  "holder": "GDHNO4WK…",
+  "ownership": "permanent",
+  "expiresAt": null,
+  "storage": "live",
+  "resolutions": 1042,
+  "issuedLedger": 55098773,
+  "issuedAt": "2026-08-01T12:04:55.000Z",
+  "txHash": "b1946ac9…",
+  "operator": "GBLNS4…",
+  "operatorName": "Nova Wallet"
+}
+```
+
+The `404` body distinguishes the two miss cases: `error` is `"name_not_issued"` when the namespace exists but the name doesn't, and `"namespace_not_found"` when the namespace itself is unknown.
+
+## Resolver records
+
+```http
+GET /v1/records/{namespace}/{label}
+```
+
+For namespaces that enable the on-chain Resolver, this reads the name's record set **live from the contracts** (not the mirror): the pay-to address, text records, and two reverse flags.
+
+```json
+{
+  "name": "alice.nova",
+  "node": "9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658",
+  "address": "GDHNO4WK…",
+  "text": { "avatar": "https://…", "url": "https://…" },
+  "displayName": true,
+  "primaryName": false
+}
+```
+
+- `node` — the name's namehash (hex), the key used across the contracts.
+- `address` — the resolver's pay-to address, or `null` if unset.
+- `displayName` — whether this name is the pay-to address's on-chain display name in this namespace's resolver (contract-verified). `null` means there's no pay-to address yet or the read failed — never a false negative.
+- `primaryName` — whether this name is the address's cross-namespace primary name. Same `null` semantics.
+
+Errors: `404` (`name_not_found` / `namespace_not_found`), `409` with `error: "no_resolver"` when the namespace hasn't enabled records, and `502` with `error: "node_lookup_failed"` on a failed contract read.
+
+## Reverse lookup (untrusted hint)
+
+```http
+GET /v1/reverse/{address}
+```
+
+Returns one candidate name whose holder is `address`:
+
+```json
+{ "name": "alice.nova" }
+```
+
+`404` with `{ "error": "no_name" }` when the address holds no name.
+
+<Warning>
+  This is a **hint, not a proof**. The SDK's `reverseLookup` calls this endpoint and then re-verifies the answer on chain before returning it. If you show reverse-resolved names in a UI directly from this endpoint, an out-of-date mirror could show a stale name — resolve the returned name forward and check the holder matches before trusting it.
+</Warning>
+
+For every name an address holds across all namespaces, use the [directory](/api/directory) instead.

@@ -1,0 +1,126 @@
+---
+title: "Marketplace"
+description: "Buy a namespace through money-only escrow: browse listings, mint a deposit intent, pay from your own wallet, accept the on-chain transfer."
+---
+
+The marketplace lets namespace owners sell whole namespaces, settled through a **money-only escrow**: the escrow account custodies the buyer's payment (and the seller's bond) — **never the namespace itself**. Ownership moves buyer-ward through the Registry's own two-step transfer (`propose_transfer` → `accept_transfer`), signed by the seller's and buyer's wallets directly.
+
+<Note>
+  The marketplace ships disabled and is switched on per deployment. When it's off, every endpoint here returns `409` with `{ "error": "market_disabled" }`.
+</Note>
+
+## Browse listings
+
+```http
+GET /v1/market/listings
+```
+
+Active listings, newest first (up to 100):
+
+```json
+{
+  "escrow": "GESCROW…",
+  "listings": [
+    {
+      "id": "lst_…",
+      "namespace": "acme",
+      "node": "9c22ff5f…",
+      "priceXlm": "1250.0000000",
+      "feeBps": 250,
+      "listedAt": "2026-08-20T09:00:00.000Z"
+    }
+  ]
+}
+```
+
+`escrow` is the deployment's escrow account. `feeBps` is the marketplace fee in basis points, taken from the sale proceeds at settlement (the rate is operator-configured per deployment — read it live from this endpoint rather than hard-coding it).
+
+## Mint a deposit intent
+
+```http
+POST /v1/market/listings/{id}/intent
+Content-Type: application/json
+
+{ "account": "GBUYER…" }
+```
+
+Any wallet can buy — no session needed. `account` must be a valid Stellar public key (`400 invalid_account` otherwise). The route is rate-limited (10/min per IP by default), and intents are **idempotent per (listing, buyer)**: repeat calls return your existing intent until it expires (intents live 24 hours; an expired one is rotated to a fresh memo). A listing that's no longer active returns `409 listing_not_active`. Under heavy concurrent requests for the same intent you may rarely see `409 intent_conflict` — that one is transient; retry the call.
+
+```json
+{
+  "intent": { "id": "din_…", "expiresAt": "2026-08-25T09:00:00.000Z" },
+  "pay": {
+    "to": "GESCROW…",
+    "asset": "native",
+    "amountXlm": "1250.0000000",
+    "memoType": "hash",
+    "memoHash": "7f3a…",
+    "note": "pay from a SELF-CUSTODY wallet you control (refunds return to the sending address) — only AFTER the seller's propose_transfer to your address is live, or the deposit bounces back — and pay the full amount in ONE payment (partial payments cannot accumulate; each under-price payment is refunded)"
+  },
+  "settlement": {
+    "node": "9c22ff5f…",
+    "seller": "GSELLER…",
+    "steps": [
+      "seller: propose_transfer(node, your address) on the Registry",
+      "you: pay the deposit with the memo above",
+      "you: accept_transfer(node) — escrow releases to the seller on the ownership flip",
+      "if the SELLER cancels the proposal, re-aims it to someone else, or sells the name elsewhere while your deposit is funded: your deposit auto-refunds in full AND the seller's bond is slashed to you (funded sale not delivered)",
+      "if YOU never accept a live offer that then expires: your deposit auto-refunds in full and the seller keeps the bond (a buyer's own non-acceptance is not the seller's breach)"
+    ]
+  }
+}
+```
+
+## The buyer flow
+
+<Steps>
+  <Step title="Wait for the seller's proposal">
+    The seller calls `propose_transfer(node, your_address)` on the Registry. Don't pay before this is live on chain — a deposit paid against a sale with no standing proposal to you bounces back.
+  </Step>
+  <Step title="Pay the deposit">
+    Send exactly `amountXlm` (native XLM) to the escrow account **with the hash memo** from the intent, in **one payment** — partial payments can't accumulate; an under-price payment is refunded (see the rules below). Pay from a **self-custody wallet you control**: refunds return to the sending address, so paying from an exchange means any refund lands in the exchange's omnibus account.
+  </Step>
+  <Step title="Accept the transfer">
+    Call `accept_transfer(node)` from your wallet. Ownership flips to you on chain, and escrow releases the payment to the seller (minus the fee).
+  </Step>
+</Steps>
+
+## Escrow, refund, and bond rules
+
+Sellers post a performance bond to activate a listing. The rules:
+
+- **Seller fails to deliver a funded sale** — cancels the proposal, re-aims it to someone else, or sells the name elsewhere while your deposit is funded: your deposit **auto-refunds in full** and the seller's bond is **slashed to you**.
+- **You never accept a live offer** and it expires: your deposit auto-refunds in full and the seller keeps the bond — a buyer's own non-acceptance is not the seller's breach.
+- **Overpayment**: the surplus above the price refunds to the sender.
+- **Refunds are never lost.** Auto-refunds cover under-price payments and overpayment surpluses alike. Amounts too small to be worth a network fee, and edge cases needing review, are held for the operator to release — delayed at worst, never absorbed.
+- **Refunds always go to the sending address** — never to whoever currently holds the name.
+
+Bond slashes and refund verdicts are only executed once the deployment has verified delivery state against a caught-up view of the chain — a slash never fires on a stale view.
+
+## Sale history
+
+```http
+GET /v1/market/history/{node}
+```
+
+`node` is the namespace's 64-hex-character namehash (`400 invalid_node` otherwise). Returns escrow-settled sales, newest first (up to 50) — provenance backed by real settled escrow, with wash-flagged sales excluded from the public record:
+
+```json
+{
+  "node": "9c22ff5f…",
+  "sales": [
+    {
+      "namespace": "acme",
+      "priceXlm": "1250.0000000",
+      "seller": "GSELLER…",
+      "buyer": "GBUYER…",
+      "settledAt": "2026-08-21T14:30:00.000Z",
+      "badge": "bdg_…"
+    }
+  ]
+}
+```
+
+## Selling
+
+Listing a namespace is an ownership act done from the hosted console with the namespace's owner wallet — it's part of the authenticated surface, covered in [the marketplace guide](/platform/marketplace).

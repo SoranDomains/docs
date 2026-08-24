@@ -1,0 +1,73 @@
+---
+title: "Billing"
+description: "The optional platform subscription: metered pricing, invoices paid in XLM from your own wallet, and a hard line around what non-payment can ever touch."
+---
+
+Billing has two layers, and the console's **Billing** tab shows both:
+
+- **Chain costs** — Stellar's own fees and storage rent for your names. Always shown, never billed by Soran: the ledger is the invoice. See [what it costs](/platform/issuing-names#what-it-costs).
+- **The platform subscription** — present only **when a deployment enables billing**. It pays for the hosted layer: platform-operated issuance, hosted branding, new webhook subscriptions, directory reach. On deployments without billing, this section simply doesn't exist and nothing below applies.
+
+## Pricing
+
+The subscription is metered: a yearly base floor plus a per-active-name rate — names currently in live storage, so cold names don't count against you. **The specific numbers are set by the deployment's operator**, priced in XLM against an operator-pegged USD/XLM rate, and shown on your Billing tab before you commit to anything. Soran's model is a floor + meter; the amounts are the operator's.
+
+## Paying an invoice
+
+There is no card on file and no payment processor — you pay by sending a plain XLM payment from a wallet you control:
+
+<Steps>
+  <Step title="Create the invoice">
+    From the Billing tab (owner or admin). The console shows exact payment instructions:
+
+    ```
+    To:        G…            (the deployment's fee treasury)
+    Amount:    123.45 XLM    (native)
+    Memo type: hash
+    Memo hash: 9f2c…         (32 bytes, unique to this invoice)
+    ```
+  </Step>
+  <Step title="Send the exact payment">
+    From **any self-custody wallet** — attribution is by the 32-byte `MEMO_HASH`, not the sending address, so it doesn't have to be the owner wallet. Send the full amount in one payment, with the memo exactly as shown.
+  </Step>
+  <Step title="Done">
+    The payment is observed on chain and matched to the invoice automatically — the page updates within about a minute, and the `invoice_paid` [webhook](/platform/webhooks) fires.
+  </Step>
+</Steps>
+
+Open invoices expire after an operator-set window (so a stale quote can't buy back-dated service); if yours has expired, create a fresh one. Invoice history lives on the same tab.
+
+## Entitlement follows the on-chain owner
+
+The subscription attaches to the namespace's **current on-chain owner**, not to whoever once paid. Its status is one of:
+
+| Status | Meaning |
+| --- | --- |
+| `active` | Paid up, bound to the current owner |
+| `suspended_transfer` | The namespace changed hands — hosted extras pause until the new owner re-attests |
+| `lapsed` | The paid period ended |
+
+### Ownership transfers and re-attestation
+
+When your namespace transfers on chain, hosted services suspend — remaining subscription time must not silently serve someone the previous owner didn't choose. The new owner resumes it by **re-attesting** in the console:
+
+1. Sign in with the **owner wallet** (an invited admin or issuer cannot re-bind the entitlement).
+2. On the Billing tab, sign a one-time challenge — the same mechanism as [wallet sign-in](/platform/console#wallet-sign-in). Nothing is submitted on chain.
+3. The subscription re-binds to the new owner and resumes with its remaining term.
+
+Paying an invoice never lifts a suspension — only re-attestation does. Bought the namespace on the [marketplace](/platform/marketplace)? Re-attesting is your first stop.
+
+## What non-payment does — and cannot do
+
+A lapsed subscription degrades **hosted extras only**:
+
+- Platform-relayed operations (platform-path issuance, relayed renew and record writes, hosted-resolver toggling)
+- Hosted branding, creating *new* webhook subscriptions, directory reach
+
+And here is the hard line, enforced in the platform's design, not just policy:
+
+<Note>
+  Non-payment **never touches your namespace or on-chain resolution.** The namespace stays owned by your wallet; issued names stay issued; forward resolution stays open to everyone; existing records keep resolving; existing webhooks keep delivering; secret rotation stays available. Every self-custody flow — your own registrar, your own wallet, your own RPC — is never gated, on any deployment. Stop paying and you lose conveniences, not property.
+</Note>
+
+Deployments may also set a grace window during which nothing is enforced at all — if one is active, the Billing tab says so.

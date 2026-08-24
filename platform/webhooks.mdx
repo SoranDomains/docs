@@ -1,0 +1,78 @@
+---
+title: "Webhooks"
+description: "Signed HTTP notifications for everything that happens in your namespace — on-chain events, archival signals, and billing and marketplace updates."
+---
+
+Webhooks push namespace events to your backend so you don't have to poll. Create them in the console's **Developers** tab: give a public HTTPS endpoint and pick the events you want. Endpoints resolving to private or internal hosts are rejected.
+
+## Event types
+
+| Event | Fires when |
+| --- | --- |
+| `issued` | A name is issued in your namespace (on-chain event) |
+| `reclaimed` | A name is reclaimed from its holder (on-chain event) |
+| `transferred` | A name changes holders (on-chain event) |
+| `went_cold` | A dormant name is archived to cold storage (Soran's archival signal — see [cold names](/platform/issuing-names#cold-names-and-waking)) |
+| `invoice_paid` | A subscription invoice payment was matched (billing-enabled deployments) |
+| `entitlement_suspended` | The subscription was suspended — typically after an ownership transfer, pending [re-attestation](/platform/billing#ownership-transfers-and-re-attestation) |
+| `entitlement_resumed` | A suspended subscription came back |
+| `entitlement_lapsed` | The subscription period ended unpaid |
+| `market_listed` / `market_sold` / `market_refunded` | Marketplace lifecycle for your namespace (marketplace-enabled deployments) |
+
+## Delivery format
+
+Each delivery is a `POST` with a JSON body:
+
+```json
+{
+  "event": "issued",
+  "namespace": "yourbrand",
+  "data": { "name": "alice.yourbrand", "...": "..." },
+  "id": "wd_4f0c2e..."
+}
+```
+
+and two headers:
+
+```
+x-soran-event: issued
+x-soran-signature: sha256=8f3b2a…   ← HMAC-SHA256 of the raw body
+```
+
+Deliveries for the same on-chain event carry a **deterministic `id`**, so if you ever see a repeat (e.g. after an indexer replay), dedupe on `id`.
+
+## Verify the signature
+
+Your signing secret (`whsec_…`) is shown **exactly once** when the webhook is created — store it then, because it is never retrievable afterwards. Compute the HMAC over the raw request body and compare in constant time:
+
+```ts
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+function verifySoranWebhook(rawBody: string, signatureHeader: string, secret: string): boolean {
+  const expected = `sha256=${createHmac("sha256", secret).update(rawBody).digest("hex")}`;
+  const a = Buffer.from(signatureHeader);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+```
+
+<Warning>
+  Sign over the **raw body bytes**, not a re-serialized parse — `JSON.parse` followed by `JSON.stringify` can reorder or reformat and break the comparison.
+</Warning>
+
+### Rotating the secret
+
+If the secret leaks — or you never copied it — rotate it from the Developers tab. Rotation mints a fresh secret (again shown once) and the old one stops validating. Rotation is always available, even when a deployment's billing would otherwise gate console extras: replacing a possibly-compromised key is a security action, never held hostage.
+
+## Retries and timeouts
+
+- Your endpoint must respond with a **2xx within 8 seconds**; anything else counts as a failure.
+- Failed deliveries retry with **exponential backoff** — starting at ~2 seconds and doubling (2s, 4s, 8s, 16s, 32s) — for up to **6 attempts** total, all within roughly the first minute, after which the delivery is marked failed. Webhooks are a live signal: if your endpoint may be down longer than that, reconcile against the [public API](/api/overview) rather than relying on redelivery.
+- Delivery is asynchronous and concurrent: one slow endpoint of yours never delays your other events, and retrying deliveries never starve fresh ones.
+- Delivery records are pruned after about two weeks; treat webhooks as a live signal, not an archive. If you need a full replay, the on-chain history and the [public API](/api/overview) are the source of truth.
+
+Respond fast: accept the payload, enqueue it, return `200`. Do your real work off the request path.
+
+<Note>
+  On billing-enabled deployments, *creating* a new webhook requires an active subscription — but existing webhooks keep delivering regardless (they carry the billing notifications themselves), and rotation stays open.
+</Note>

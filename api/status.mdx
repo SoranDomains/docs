@@ -1,0 +1,99 @@
+---
+title: "Status & allocations"
+description: "Component health with real freshness signals, and the public namespace claim queue with live timelock math."
+---
+
+## Status
+
+```http
+GET /v1/status
+```
+
+Real signals only: the status endpoint measures what it reports — database reachability, RPC reachability, and indexer freshness against the actual chain head — rather than echoing a static "all systems operational".
+
+```json
+{
+  "ledger": 55123001,
+  "components": [
+    { "name": "Database", "state": "operational" },
+    { "name": "Stellar RPC", "state": "operational" },
+    {
+      "name": "Indexer",
+      "state": "operational",
+      "ledger": 55122999,
+      "lag": 2,
+      "processedAt": "2026-08-24T10:15:04.000Z",
+      "deadLetters": 0
+    }
+  ]
+}
+```
+
+### Component semantics
+
+- **Database** — `operational` or `down`.
+- **Stellar RPC** — `operational` when the API can observe a chain head, `down` otherwise.
+- **Indexer** — the honesty signal for the whole read mirror. `lag` is how many ledgers the indexer trails the chain head; `processedAt` is when it last wrote progress. The indexer is `operational` only while its mirror is fresh and keeping pace with the chain head — a wedged indexer shows up as a growing `lag` or stale `processedAt`, never as a quiet chain. `deadLetters` counts unresolved indexing failures; nonzero means some events await operator attention.
+
+### Extra components, when enabled
+
+Deployments with billing or the marketplace enabled report their payment watchers with the same discipline — a stalled watcher must look stalled, never like "no payments today":
+
+```json
+{ "name": "Billing watcher", "state": "operational", "cursorAgeSeconds": 12, "quarantined": 0 }
+```
+
+```json
+{ "name": "Escrow watcher", "state": "operational", "cursorAgeSeconds": 9, "parkedPayouts": 0 }
+```
+
+- `cursorAgeSeconds` — time since the watcher last completed a poll (it heartbeats even on empty polls); a growing age means the watcher is `lagging` or dead, and a watcher that has never run reports `unknown` rather than `operational`.
+- `quarantined` — billing payments needing operator action (e.g. refunds).
+- `parkedPayouts` — escrow payouts that could not be paid out. Any parked payout marks the escrow watcher `degraded` regardless of freshness.
+
+States you may see across components: `operational`, `lagging`, `degraded`, `down`, `unknown`.
+
+## Allocation queue
+
+```http
+GET /v1/allocations
+```
+
+The public queue behind [namespace claiming](/concepts/claiming-a-namespace): recent claims in the announced, objected, and awarded states, grouped by state, with **live timelock math** so you can render a countdown without doing ledger arithmetic. The queue is drawn from the most recent 200 claims; withdrawn and rejected claims are not shown.
+
+```json
+{
+  "ledger": 55123001,
+  "pending": [
+    {
+      "id": "alloc_…",
+      "namespace": "acme",
+      "claimant": "Acme Corp",
+      "claimantAccount": "GACME…",
+      "state": "announced",
+      "basis": ["trademark"],
+      "claimantResponse": null,
+      "evidence": [{ "label": "USPTO filing", "url": "https://…" }],
+      "announcedLedger": 55100000,
+      "deadline": "2026-08-27T09:00:00.000Z",
+      "remainingSeconds": 259140,
+      "elapsed": false,
+      "awardedAt": null,
+      "objections": []
+    }
+  ],
+  "objected": [],
+  "awarded": []
+}
+```
+
+- `pending` / `objected` / `awarded` — claims in the announced window, claims under an active objection, and completed awards.
+- `basis` — an **array** of the claim's asserted basis kinds (e.g. `["trademark", "dns", "first_use"]`); `evidence` — an **array of labeled links**, each a `{ "label", "url" }` object.
+- `deadline`, `remainingSeconds`, `elapsed` — the claim window's timelock, computed at response time. `elapsed: true` means the window has closed.
+- `objections` — **live** objections only (dismissed or timed-out objections are resolved on chain and don't display as active disputes). Each carries the objector's name, the basis, and the objection bond in XLM:
+
+```json
+{ "objector": "Other Corp", "basis": "prior-use", "bondXlm": "100.0000000" }
+```
+
+Poll this endpoint to build claim-tracking UIs; the included `ledger` tells you how fresh the snapshot is.

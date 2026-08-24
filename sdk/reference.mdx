@@ -1,0 +1,102 @@
+---
+title: "SDK reference"
+description: "Every constructor option, method, type, and error in @sorandomains/sdk."
+---
+
+Everything the `Soran` class does is a read-only Soroban RPC simulation. The SDK builds no write transactions — writes (registering, issuing, reverse records, primaries) are address-authorized transactions built and signed by wallets.
+
+## Constructor
+
+```ts
+new Soran(options?: SoranOptions)
+```
+
+| Option | Type | Default | Semantics |
+| --- | --- | --- | --- |
+| `network` | `"testnet"` | `"testnet"` | Deployment preset (`"mainnet"` after launch); fills `rpcUrl`, `passphrase`, `registryId`, and `primaryId` |
+| `rpcUrl` | `string` | preset | Soroban RPC endpoint — any RPC you trust, including your own; `http://` allowed only for localhost |
+| `passphrase` | `string` | preset | Network passphrase |
+| `registryId` | `string` | preset | The immutable Registry contract id |
+| `primaryId` | `string \| null` | preset | PrimaryName contract id; `null` explicitly disables the primary-name feature; malformed ids throw at construction |
+| `registrars` | `Record<string, string>` | `{}` | Registrar ids for namespaces running closed (registrar-side) resolution |
+| `reverseNamespaces` | `string[]` | `[]` | Namespaces `reverseLookup` probes, in priority order; malformed labels throw at construction |
+| `resolverCacheTtlMs` | `number` | `30_000` | Namespace→resolver pointer cache TTL; `0` disables caching |
+| `hintUrl` | `string` | — | Namespace-**list** hint endpoint for `reverseLookup`; liveness-only, never in the trust path |
+
+## Resolution
+
+| Method | Returns | Semantics |
+| --- | --- | --- |
+| `resolve(name)` | `Promise<string \| null>` | The address the name pays to; `null` when unissued, expired, or no resolver — decided by contract logic |
+| `record(name)` | `Promise<NameRecord>` | Full record: `{ name, address, node, resolver }` (node hex-encoded; resolver id that answered, or `null`) |
+| `text(name, key)` | `Promise<string \| null>` | A text record (`"url"`, `"avatar"`, …), or `null` |
+| `verify(name, address)` | `Promise<boolean>` | Does the name resolve to this address right now? The confirm-time pay-to-name safety check |
+| `assurance(name)` | `Promise<NameAssurance>` | Opt-in trust verdict on the namespace's resolver — see [assurance](/sdk/assurance) |
+
+## Reverse and primary
+
+| Method | Returns | Semantics |
+| --- | --- | --- |
+| `reverseLookup(address, namespaces?)` | `Promise<string \| null>` | Primary name first (when `primaryId` set), then per-namespace `name_of` probes in parallel with deterministic priority; every answer contract-verified. Namespace-probe failures throw; a failed *primary* read degrades to the probes |
+| `reverseVerify(address, name)` | `Promise<boolean>` | Verifies the address's contract-verified reverse record is exactly this name; `false` for malformed addresses or resolverless namespaces |
+| `primaryOf(address)` | `Promise<string \| null>` | The declared cross-namespace primary name; self-verifying on chain; read failures **throw**, never masquerade as "no primary"; `null` when the feature is unconfigured |
+
+## Namespace-level reads
+
+| Method | Returns | Semantics |
+| --- | --- | --- |
+| `namespace(ns)` | `Promise<{ owner, resolver } \| null>` | Owner address and resolver id of a namespace; `null` if unregistered |
+| `isAvailable(ns)` | `Promise<boolean>` | `true` when the label is unregistered in the Registry. Reserved labels also read as available but can't be claimed through the open window — the console tells you when a label is reserved |
+
+## Hashing
+
+The exact on-chain hashing, exposed for interoperability:
+
+| Method | Returns | Semantics |
+| --- | --- | --- |
+| `namehash(namespace)` | `Promise<Uint8Array>` | Registry node of a top-level namespace: `sha256(ZERO32 ‖ sha256(ns))` |
+| `node(name)` | `Promise<Uint8Array>` | Full node of `label.namespace`: `sha256(nsNode ‖ sha256(label))` |
+
+## Exported helpers and types
+
+### parseName
+
+```ts
+parseName(name: string): { label: string; namespace: string }
+```
+
+Normalizes case (input is lowercased before validation) and splits `label.namespace`; throws `SoranError` unless both parts are canonical labels (`[a-z0-9-]`, 1–63 chars, no leading or trailing hyphen). The same label validation every name-taking SDK method applies to its input. (Methods taking a bare namespace validate the single label the same way; malformed addresses return `null`/`false` rather than throwing.)
+
+### SoranError
+
+```ts
+class SoranError extends Error { name = "SoranError" }
+```
+
+Thrown whenever a chain read cannot be completed (RPC failure, failed simulation, ABI mismatch) or input is malformed — so a transient error is never silently mistaken for "unregistered" or "no address". A `null` return always means a *successful* read that found nothing.
+
+### NameRecord
+
+```ts
+type NameRecord = {
+  name: string;
+  address: string | null;
+  node: string;             // hex
+  resolver: string | null;  // resolver contract that answered, if any
+};
+```
+
+### NameAssurance
+
+```ts
+type NameAssurance = {
+  resolverAttested: boolean; // live pointer === Registry-attested resolver
+  resolverTainted: boolean;  // attested resolver has upgraded at least once
+  resolverLocked: boolean;   // pointer locked, can no longer change
+  trustworthy: boolean;      // locked ∧ attested ∧ ¬tainted
+};
+```
+
+### DEPLOYMENTS
+
+The known public deployment presets (`testnet` today; `mainnet` at launch), exported so you can read the exact ids the SDK uses — see [installation](/sdk/installation#network-presets).

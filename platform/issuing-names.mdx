@@ -1,0 +1,69 @@
+---
+title: "Issuing names"
+description: "Activate your registrar once, choose your ownership policy, then issue names one at a time or in bulk — for free, paying only Stellar's own network fees."
+---
+
+You own a namespace; now give people names in it. Issuance happens in the console's **Issuance** tab (or via the same flows from your own tooling — the contracts are permissionless).
+
+## Activate your registrar (once)
+
+A namespace issues nothing until its own Registrar contract exists. Activation deploys one — **signed by your wallet, owned by your wallet** — as a one-time step:
+
+<Steps>
+  <Step title="Choose the ownership policy">
+    Every name your registrar issues carries this policy, and it's what holders (and their wallets) see as the [ownership guarantee](/concepts/ownership-guarantees):
+
+    - **Reclaimable** — you can take an issued name back. Right for names tied to an ongoing relationship (employees, customers, subscriptions).
+    - **Permanent** — issued names can never be reclaimed or expired by anyone, and the contract enforces it.
+  </Step>
+  <Step title="Sign and deploy">
+    The console prepares the deploy transaction; your wallet signs it. The registrar lands on chain owned by your wallet, and issuance unlocks. Only the namespace owner's wallet can activate.
+  </Step>
+</Steps>
+
+<Warning>
+  The policy switch is **one-way**. A reclaimable registrar can later be made permanent (an owner-only action), but permanent can never go back to reclaimable — that's the point of the guarantee. Starting reclaimable keeps your options open; starting permanent is a commitment to your holders.
+</Warning>
+
+If the deploy transaction is slow to confirm, the console keeps the attempt pinned — the policy choice locks to the in-flight deploy and the button won't re-arm until the outcome is final, so you can't accidentally race two deploys.
+
+## Issue a single name
+
+Enter a label and the holder's `G…` address; the name is issued as `label.yournamespace`, directly to the holder's wallet. Each name is its own on-chain transaction. On a self-custody namespace your wallet signs it; the console then confirms the name landed with the intended holder before calling it done.
+
+## Issue in bulk from CSV
+
+For onboarding a user base, upload a CSV of rows:
+
+```csv
+alice,GDHNO4WK...
+bob,GBQZDX3M...
+```
+
+One `label,holder` pair per row. The console validates every row up front (bad labels and duplicate rows are counted and skipped), then issues sequentially — each name is still its own transaction, so keep the tab open while the run executes. You get a per-label report at the end: which rows succeeded, which failed and why, and which are uncertain (submitted but not yet confirmed) so you never blind-retry a name that may still land.
+
+## What it costs
+
+**Names are free.** Soran charges nothing per name — the only costs are Stellar's own network fees and storage rent, paid in XLM by whoever signs (your wallet on self-custody namespaces):
+
+| Item | Approximate cost |
+| --- | --- |
+| Issue a name (one-time) | ~0.081 XLM — includes ~180 days of storage rent |
+| Keep a name live | ~0.16 XLM per name per year |
+| Resolution reads | Free |
+
+Figures are benchmarked on testnet; the live numbers for your namespace are on the console's Billing tab. At these rates, issuing 10,000 names costs on the order of 800 XLM once, and roughly 1,600 XLM a year to keep every one of them hot.
+
+## Cold names and waking
+
+Cold is **not** expiry:
+
+- A name idle past the dormancy threshold (**90 days** by default, operator-tunable) is marked **cold**: the platform stops paying its storage rent, and its ledger entry may eventually be archived by the network. It still belongs to its holder. **Ownership is never decided by storage.**
+- A cold name **wakes on its next use**: the next resolution through Soran instantly returns it to live status in the hosted resolver, and the platform's keeper resumes paying its storage rent while its ledger entry is still present on chain. If the network has already archived the entry, the name stays readable through the hosted API, but an explicit on-chain restore is needed before direct contract reads resolve it again — nothing to re-buy either way.
+- A name going cold fires the `went_cold` [webhook](/platform/webhooks), so you can watch dormancy across your namespace.
+
+This means a dormant user costs you nothing, and a returning user's name works again through the hosted path immediately. If you want a name fully hot before a big moment (a campaign, a migration), resolve it once — ideally before its ledger entry archives.
+
+## Reclaiming and transferring
+
+Post-issuance lifecycle lives in the **Names** tab: reclaim (only on reclaimable registrars — issuers can't reclaim, only owners and admins), transfer to a new holder, and per-name detail. On self-custody namespaces these are wallet-signed like everything else.

@@ -1,0 +1,76 @@
+---
+title: "API overview"
+description: "A public, keyless HTTP read surface over Soran's on-chain state — fast to query, verifiable against the chain."
+---
+
+The Soran API is the HTTP counterpart to the [SDK](/sdk/installation): a hosted read mirror of on-chain state, plus a hints layer the SDK can verify. Use it when you want resolution, name records, the directory, or marketplace listings from a backend without running Soroban RPC simulations yourself.
+
+## Base URL
+
+The base URL is **deployment-specific** — each Soran deployment serves its own API host. Use the base URL published by the deployment you integrate with; every path in these docs is relative to it.
+
+## What the API is (and isn't)
+
+The public API is a **read mirror, not the source of truth**. It serves an indexed projection of the contracts — fast, cacheable, and convenient — but the chain is authoritative.
+
+- **Trust-sensitive reads should be verified.** The SDK treats API answers (reverse lookup especially) as *untrusted hints* and re-verifies them against the contracts over Soroban RPC. If you consume the API directly from a backend, apply the same discipline for anything that gates money: confirm the resolution on chain before sending funds.
+- **Convenience reads can be trusted casually.** Browsing listings, showing a directory, rendering a status page — the mirror is fine as-is.
+
+<Note>
+  Authenticated console endpoints (namespace management, issuance, billing, the seller side of the marketplace) exist under separate paths but are out of scope for these docs — they back the hosted console. Everything documented here lives under `/v1` and needs no credentials.
+</Note>
+
+## Access
+
+- **No API key.** Every `/v1` endpoint is public and unauthenticated.
+- **Open CORS.** `/v1/*` and `/health` allow any origin, so you can call them straight from a browser.
+- **Rate limits.** A global per-IP limit applies (600 requests per minute by default; operators can tune it), and sensitive routes carry tighter per-route buckets — for example, minting a marketplace deposit intent is limited to 10 per minute per IP by default. Exceeding a limit returns `429`.
+
+## Conventions
+
+- All responses are JSON.
+- Names are lowercase; name paths take the namespace and label as separate segments: `/v1/resolve/{namespace}/{label}` resolves `label.namespace`.
+- Errors return a machine-readable code, optionally with a human-readable detail:
+
+```json
+{ "error": "name_not_found", "name": "alice.nova" }
+```
+
+- Server-side failures return a generic `500` body — internals are never serialized to the client:
+
+```json
+{ "error": "internal_error", "detail": "the request failed — retry shortly" }
+```
+
+- Several responses include a `ledger` field, and its meaning is per-endpoint. On `/v1/status`, `/v1/allocations`, and `/v1/stats` it's the chain ledger the mirror has observed — useful for judging freshness — and `GET /v1/ledger/head` returns it on its own. On `/v1/resolve`, `ledger` is different: it's the ledger the name was issued in, not the observed head.
+
+## Endpoint map
+
+<CardGroup cols={2}>
+  <Card title="Resolution" icon="bolt" href="/api/resolution">
+    Resolve names, read full name records and resolver record sets, reverse-lookup an address.
+  </Card>
+  <Card title="Directory" icon="address-book" href="/api/directory">
+    The cross-tenant reverse directory: every name an address holds, across all of Soran.
+  </Card>
+  <Card title="Marketplace" icon="tag" href="/api/market">
+    Browse namespace listings, mint a deposit intent, read escrow-settled sale history.
+  </Card>
+  <Card title="Status & allocations" icon="wave-pulse" href="/api/status">
+    Component health with honest freshness signals, plus the public namespace claim queue.
+  </Card>
+</CardGroup>
+
+## Discovery endpoints
+
+Five small endpoints round out the read surface:
+
+- `GET /v1/namespaces` — the public namespace list: label, display name, policy, whether it's activated, and when it was awarded (bounded to 500).
+- `GET /v1/namespaces/{namespace}` — one namespace's record: operator account, policy, on-chain node, award ledger, issued-name count.
+- `GET /v1/lookup?q={query}` — whois-style search across namespaces and names (up to 8 of each; the query is capped at 64 characters).
+- `GET /v1/showcase` — the most-active namespaces (up to 12, ranked by issued-name count) with their logos and name counts — built for landing-page grids.
+- `GET /v1/stats` — headline counts: total namespaces, total names, and the observed chain `ledger`.
+
+## Health
+
+`GET /health` returns `{ "ok": true, "service": "soran-api" }` — a liveness probe only. For real component health, use [`/v1/status`](/api/status).

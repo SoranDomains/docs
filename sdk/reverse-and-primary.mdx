@@ -1,0 +1,86 @@
+---
+title: "Reverse lookup and primary names"
+description: "Show names instead of addresses — with every answer verified by the contracts, never by a hint service."
+---
+
+Reverse resolution turns an address back into a name, so your history view can read `alice.nova` instead of `GDHNO4WK…`. On Soran, every reverse answer is **contract-verified and unspoofable** — here's why, and how to use it.
+
+## Why reverse answers can't be spoofed
+
+Reverse records store the **plaintext name** on chain, on each namespace's resolver. The resolver's `name_of(address)` answers with that name only while two gates both pass, enforced by the contract on every read:
+
+1. **The name is live** — its ownership generation matches (not expired, not reissued, not transferred).
+2. **The forward record matches** — `resolve(name)` still points back at the address.
+
+So a non-null reverse answer is self-contained proof: the address really does own a live name that resolves back to it. A stale or spoofed record returns `null` from the contract itself. There is no hint service, indexer, or SDK heuristic in the trust path, and no client-side re-check needed.
+
+## reverseLookup
+
+```ts
+const name = await soran.reverseLookup(senderAddress);
+// "alice.nova" | null
+```
+
+`reverseLookup(address, namespaces?)` answers in two steps:
+
+<Steps>
+  <Step title="PrimaryName first (when configured)">
+    When `primaryId` is set (the testnet preset ships one), the SDK asks the PrimaryName contract first. A non-null primary wins outright — it is the address's declared cross-namespace display name, and it is already contract-verified (see below).
+  </Step>
+  <Step title="Per-namespace reverse records">
+    With no primary, the SDK probes candidate namespaces' resolvers for `name_of(address)` — in parallel, with deterministic priority: the first non-null answer *in your configured order* wins.
+  </Step>
+</Steps>
+
+Candidate namespaces for step 2 are scoped, in priority order:
+
+1. The per-call `namespaces` param — an explicit list wins outright, and `[]` deliberately disables the namespace probes (the primary step still runs).
+2. The `reverseNamespaces` constructor option.
+3. A namespace **list** fetched from `hintUrl`, if set — liveness only. The hint never carries answers, just which namespaces to ask; a lying or offline hint can hide a name (→ `null`), never forge one. Hinted lists are validated and capped client-side.
+
+With none of the three, `reverseLookup` returns `null`.
+
+### Failure semantics
+
+Namespace-probe failures are fail-closed: a chain-read error **throws** a `SoranError` rather than reporting "no reverse record". The one deliberate exception: if the *primary* read itself fails, the lookup silently falls through to the namespace probes — the optional primary layer must not break the baseline flow that predates it. If you need to distinguish "no primary" from "primary unreadable", call `primaryOf` directly.
+
+## reverseVerify — checking a candidate
+
+When you already have a claimed name for an address (from a payment memo, a directory, user input), verify it in one call:
+
+```ts
+const ok = await soran.reverseVerify("GDHN…", "alice.nova"); // boolean
+```
+
+This reads the contract-verified plaintext from the namespace's resolver and string-compares it — the generation and forward-match gates already ran on chain. This is the call a wallet shows a checkmark on. Malformed addresses or a namespace without a public resolver return `false`; malformed names throw `SoranError`.
+
+## primaryOf — the cross-namespace display name
+
+An address may declare **one** primary name on the platform-deployed, immutable PrimaryName contract — a single display name across namespaces (a user holding `alice.nova` and `alice.stellar` picks one to show everywhere).
+
+```ts
+const name = await soran.primaryOf("GDHN…"); // "alice.nova" | null
+```
+
+The primary adds no new trust: it is only a pointer to a name, and the contract **re-runs the namespace resolver's own `name_of` gates on every read**, answering `null` the moment the stored name stops verifying. The answer arrives pre-verified; no client-side re-check exists or is needed.
+
+`primaryOf` is strictly fail-closed: a transport or ABI failure **throws** `SoranError` and never masquerades as "no primary". It returns `null` only for a genuine no-primary answer, an unconfigured `primaryId`, or a malformed address.
+
+<Note>
+  Setting or clearing a primary (`set_primary` / `clear_primary`) — like writing reverse records — is an address-authorized transaction built and signed by the user's wallet. The SDK only reads.
+</Note>
+
+## Cost and caching for list rendering
+
+Each `primary_of` read performs two cross-contract calls in simulation. When rendering a list of addresses (history, contacts), apply brief client-side caching — seconds, the same discipline as `resolverCacheTtlMs`. Correctness never depends on the cache: the contract re-verifies on every read, so staleness can only delay noticing a change, never produce a wrong name.
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Assurance" href="/sdk/assurance" icon="shield-check">
+    Verify a resolution can't be changed underneath you.
+  </Card>
+  <Card title="SDK reference" href="/sdk/reference" icon="book">
+    Every method, typed.
+  </Card>
+</CardGroup>

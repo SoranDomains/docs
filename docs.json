@@ -1,0 +1,107 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Soran",
+  "colors": {
+    "primary": "#16A34A",
+    "light": "#07C983",
+    "dark": "#15803D"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "pages": [
+      {
+        "group": "Get started",
+        "pages": [
+          "index",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Concepts",
+        "pages": [
+          "concepts/names-and-namespaces",
+          "concepts/ownership-guarantees",
+          "concepts/claiming-a-namespace",
+          "concepts/trust-model"
+        ]
+      },
+      {
+        "group": "SDK",
+        "pages": [
+          "sdk/installation",
+          "sdk/resolving-names",
+          "sdk/reverse-and-primary",
+          "sdk/assurance",
+          "sdk/reference"
+        ]
+      },
+      {
+        "group": "HTTP API",
+        "pages": [
+          "api/overview",
+          "api/resolution",
+          "api/directory",
+          "api/market",
+          "api/status"
+        ]
+      },
+      {
+        "group": "Running a namespace",
+        "pages": [
+          "platform/console",
+          "platform/issuing-names",
+          "platform/webhooks",
+          "platform/billing",
+          "platform/marketplace"
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "SDK on npm",
+          "href": "https://www.npmjs.com/package/@sorandomains/sdk",
+          "icon": "npm"
+        },
+        {
+          "anchor": "SDK on GitHub",
+          "href": "https://github.com/SoranDomains/sdk",
+          "icon": "github"
+        }
+      ]
+    }
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/SoranDomains"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Open the console",
+      "href": "https://soran.domains"
+    }
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "claude",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/SoranDomains"
+    }
+  }
+}

@@ -1,0 +1,86 @@
+---
+title: "Quickstart"
+description: "Resolve a Soran name from your app in five minutes — trustlessly, straight from the chain."
+---
+
+## 1. Install the SDK
+
+The SDK's only peer dependency is the Stellar SDK you almost certainly already have.
+
+```bash
+npm install @sorandomains/sdk @stellar/stellar-sdk
+```
+
+<Note>
+  Published on npm as [`@sorandomains/sdk`](https://www.npmjs.com/package/@sorandomains/sdk); source on [GitHub](https://github.com/SoranDomains/sdk).
+</Note>
+
+## 2. Resolve a name
+
+```ts
+import { Soran } from "@sorandomains/sdk";
+
+const soran = new Soran({ network: "testnet" });
+
+const address = await soran.resolve("alice.nova");
+// "GDHNO4WK…" — or null if unissued, expired, or the namespace has no public resolver
+```
+
+Every call is a **read-only Soroban RPC simulation against the deployed contracts**. Point `rpcUrl` at any RPC you trust — including your own node — and Soran's servers are nowhere in the trust path.
+
+## 3. The wallet pattern: resolve, verify, reverse
+
+```ts
+// Send-to-name: swap the address field for a name field.
+const dest = await soran.resolve(input);
+if (!dest) throw new Error("name doesn't resolve");
+
+// Re-check at CONFIRM time — names can move between keystrokes and confirmation.
+if (!(await soran.verify(input, dest))) throw new Error("resolution changed");
+
+// Show names instead of addresses in history — contract-verified, never spoofable.
+const name = await soran.reverseLookup(senderAddress);
+```
+
+As configured here, `reverseLookup` answers from the address's **primary name** only. To also surface per-namespace reverse records, pass `reverseNamespaces: ["nova", …]` at construction (or a per-call namespace list, or set `hintUrl`) — see [Reverse lookup & primary names](/sdk/reverse-and-primary).
+
+## 4. Show the guarantee
+
+Every name declares what can happen to it, and the resolution layer itself can be proven immutable. `assurance()` runs the on-chain proof:
+
+```ts
+const a = await soran.assurance("alice.nova");
+// {
+//   resolverLocked:   true,  // the resolver pointer can never change again
+//   resolverAttested: true,  // it is the provenance-bound resolver the Registry deployed
+//   resolverTainted:  false, // it has never been upgraded
+//   trustworthy:      true,  // locked ∧ attested ∧ ¬tainted — resolution is immutable
+// }
+```
+
+Gate high-value flows on `trustworthy`, and render the ownership model — served on the name record by the HTTP API's [`/v1/resolve` and `/v1/names` endpoints](/api/resolution), not by the SDK's `record()` — with the glyph language:
+
+| Guarantee | Meaning |
+| --- | --- |
+| ● Permanent | Cannot be reclaimed or expired by anyone — the contract enforces it |
+| ◔ Reclaimable | The issuer can take the name back, and says so up front |
+| ◐ Timed | Ownership until a visible date, never a surprise |
+
+Details: [Assurance](/sdk/assurance).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Reverse lookup & primary names" href="/sdk/reverse-and-primary" icon="arrow-right-arrow-left">
+    Address → name, the verified way.
+  </Card>
+  <Card title="SDK reference" href="/sdk/reference" icon="book">
+    Every method, typed.
+  </Card>
+  <Card title="HTTP API" href="/api/overview" icon="server">
+    The read surface over HTTP, for backends.
+  </Card>
+  <Card title="Run a namespace" href="/concepts/claiming-a-namespace" icon="flag">
+    Claim your brand and issue names.
+  </Card>
+</CardGroup>

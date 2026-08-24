@@ -1,0 +1,107 @@
+---
+title: "Resolving names"
+description: "Turn alice.nova into a Stellar address — trustlessly — and re-verify it at confirm time."
+---
+
+Every call on this page is a read-only Soroban RPC simulation against the deployed contracts. No signer, no fees, no Soran servers in the trust path.
+
+## resolve
+
+```ts
+const address = await soran.resolve("alice.nova");
+// "GDHNO4WK…" — or null
+```
+
+`resolve(name)` returns the address the name currently pays to, or `null`. The null cases are decided **by the contract, not by SDK guesswork**: records are bound to the name's ownership *generation* on chain, so an expired, reissued, or transferred name stops resolving at the source.
+
+Under the hood, resolution mirrors the contracts byte for byte:
+
+1. Split `label.namespace` — both parts must be canonical (`[a-z0-9-]`, 1–63 chars, no leading/trailing hyphen). Input is lowercased first.
+2. Compute the namespace node: `sha256(ZERO32 ‖ sha256(namespace))`.
+3. Compute the name node: `sha256(nsNode ‖ sha256(label))`.
+4. Ask the Registry for the namespace's resolver (`resolver_of`).
+5. Ask that resolver for the address (`addr`) — generation-checked on chain.
+
+A namespace with no public resolver set is not publicly resolvable. If its owner runs closed resolution through their Registrar instead, pass `registrars: { theirns: "C…" }` in the options and the SDK asks the Registrar's `resolve` directly.
+
+## record
+
+When you want more than the address, `record(name)` returns the full resolution record:
+
+```ts
+const r = await soran.record("alice.nova");
+// { name: "alice.nova", address: "G…" | null, node: "ab12…", resolver: "C…" | null }
+```
+
+`node` is the hex-encoded on-chain node hash; `resolver` is the resolver contract that answered (`null` for closed resolution or when no resolver is set).
+
+## Text records
+
+Names can carry text records (`url`, `avatar`, and so on):
+
+```ts
+const url = await soran.text("alice.nova", "url"); // string | null
+```
+
+Returns `null` when the record is unset or the namespace has no public resolver.
+
+## verify — the confirm-time re-check
+
+Names can move between keystrokes and confirmation: they expire, transfer, get reissued. A wallet that resolves once at typing time and pays later is trusting a stale answer. Re-check at confirm time:
+
+```ts
+// At typing time: resolve and show the address.
+const dest = await soran.resolve(input);
+if (!dest) throw new Error("name doesn't resolve");
+
+// At CONFIRM time — immediately before signing:
+if (!(await soran.verify(input, dest))) {
+  throw new Error("resolution changed — re-resolve and show the user");
+}
+```
+
+`verify(name, address)` is exactly `resolve(name) === address` — the address itself is always a fresh chain read, never cached. Note that the namespace→resolver pointer may still be served from the `resolverCacheTtlMs` cache (default 30 seconds); set it to `0` on an instance used for confirm-time checks if you must also notice a resolver repoint instantly.
+
+<Note>
+  For high-value payments, consider also checking [`assurance()`](/sdk/assurance): `verify` confirms what the name resolves to *right now*, while `assurance` tells you whether that mapping can be changed underneath you at all.
+</Note>
+
+## Error semantics: null vs SoranError
+
+The SDK draws a hard line between "the chain says no" and "I couldn't ask the chain":
+
+| Outcome | Meaning |
+| --- | --- |
+| `null` | A **successful** chain read that found nothing: unissued, expired, no resolver, unset record. Safe to treat as "doesn't resolve". |
+| `SoranError` thrown | The read **could not be completed**: RPC down, simulation failed, malformed name, contract ABI mismatch. Never interpret this as "doesn't resolve". |
+
+This matters most in pay-to-name flows: a transient RPC failure must never be silently mistaken for "unregistered". Catch `SoranError` and retry or surface it — don't fall through to a default.
+
+```ts
+import { Soran, SoranError } from "@sorandomains/sdk";
+
+try {
+  const addr = await soran.resolve(input);
+  if (!addr) showNotFound();
+} catch (e) {
+  if (e instanceof SoranError) showTransientError(); // retryable — not "not found"
+  else throw e;
+}
+```
+
+Malformed input is also a `SoranError`, thrown before any network call: `parseName` (exported, if you want the same validation client-side) requires exactly `label.namespace` with canonical labels.
+
+## Caching
+
+The namespace→resolver pointer is cached for `resolverCacheTtlMs` (default 30 seconds, `0` to disable). Addresses themselves are never cached — every `resolve`/`verify` reads live state. The pointer cache can only delay noticing a namespace repointing its resolver; it cannot fabricate a wrong address for a name.
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Reverse lookup & primary names" href="/sdk/reverse-and-primary" icon="arrow-right-arrow-left">
+    Address → name, contract-verified.
+  </Card>
+  <Card title="Assurance" href="/sdk/assurance" icon="shield-check">
+    Is this resolution immutable?
+  </Card>
+</CardGroup>
