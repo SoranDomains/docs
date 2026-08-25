@@ -33,6 +33,7 @@
           "sdk/resolving-names",
           "sdk/reverse-and-primary",
           "sdk/assurance",
+          "sdk/identity",
           "sdk/reference"
         ]
       },

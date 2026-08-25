@@ -22,6 +22,7 @@ new Soran(options?: SoranOptions)
 | `reverseNamespaces` | `string[]` | `[]` | Namespaces `reverseLookup` probes, in priority order; malformed labels throw at construction |
 | `resolverCacheTtlMs` | `number` | `30_000` | Namespace→resolver pointer cache TTL; `0` disables caching |
 | `hintUrl` | `string` | — | Namespace-**list** hint endpoint for `reverseLookup`; liveness-only, never in the trust path |
+| `timeoutMs` | `number` | — | Upper bound on how long any single chain read may keep the caller waiting; on expiry the call rejects with a `SoranError` of code `"TIMEOUT"`. Bounds the wait only — the underlying request is not cancelled. Unset = no bound |
 
 ## Resolution
 
@@ -32,12 +33,26 @@ new Soran(options?: SoranOptions)
 | `text(name, key)` | `Promise<string \| null>` | A text record (`"url"`, `"avatar"`, …), or `null` |
 | `verify(name, address)` | `Promise<boolean>` | Does the name resolve to this address right now? The confirm-time pay-to-name safety check |
 | `assurance(name)` | `Promise<NameAssurance>` | Opt-in trust verdict on the namespace's resolver — see [assurance](/sdk/assurance) |
+| `details(name)` | `Promise<NameDetails>` | The full live picture in one call — resolution, holder, expiry, generation, namespace owner/registrar/resolver, policy, permanence, and assurance. Several parallel chain reads per call; cache briefly on detail pages. Registration *date* is deliberately absent — the chain stores no issue timestamp; derive it from the name's `issued` event via an indexer and treat it as informational |
+
+## Identity & enumeration
+
+All 0.4.0 additions — see [Identity & enumeration](/sdk/identity) for the trust model of each.
+
+| Method | Returns | Trust bucket |
+| --- | --- | --- |
+| `namesOf(address)` | `Promise<NameSummary[]>` | Hint-discovered, **chain-verified** per candidate (`holder_of_node`, contract expiry-gated); needs `hintUrl`, else CONFIG |
+| `reverseNames(address, namespaces?)` | `Promise<ReverseName[]>` | Chain-verified; all reverse claims, primary flagged and always included |
+| `profile(name)` | `Promise<SoranProfile>` | Chain-verified reads of the standard `PROFILE_KEYS`; values are holder-authored free text |
+| `identity(name)` | `Promise<NameIdentity>` | details + profile fail-closed; the three display-name enrichments degrade to null |
+| `walletProfile(address)` | `Promise<WalletProfile>` | primary + reverse + holdings + profile; `names` null without `hintUrl` |
+| `history(name)` | `Promise<NameHistory>` | **Indexed, informational** — entries carry ledger + txHash for independent verification; needs `hintUrl` |
 
 ## Reverse and primary
 
 | Method | Returns | Semantics |
 | --- | --- | --- |
-| `reverseLookup(address, namespaces?)` | `Promise<string \| null>` | Primary name first (when `primaryId` set), then per-namespace `name_of` probes in parallel with deterministic priority; every answer contract-verified. Namespace-probe failures throw; a failed *primary* read degrades to the probes |
+| `reverseLookup(address, namespaces?)` | `Promise<string \| null>` | Primary name first (when `primaryId` set), then per-namespace `name_of` probes in parallel with deterministic priority; every answer contract-verified. Namespace-probe failures throw; a failed *primary* read degrades to the probes. With **no** source at all (no primary, no configured/passed namespaces, no hint) it throws a `SoranError` of code `"CONFIG"` instead of silently answering `null` |
 | `reverseVerify(address, name)` | `Promise<boolean>` | Verifies the address's contract-verified reverse record is exactly this name; `false` for malformed addresses or resolverless namespaces |
 | `primaryOf(address)` | `Promise<string \| null>` | The declared cross-namespace primary name; self-verifying on chain; read failures **throw**, never masquerade as "no primary"; `null` when the feature is unconfigured |
 
@@ -70,10 +85,21 @@ Normalizes case (input is lowercased before validation) and splits `label.namesp
 ### SoranError
 
 ```ts
-class SoranError extends Error { name = "SoranError" }
+class SoranError extends Error {
+  name = "SoranError";
+  code: SoranErrorCode; // machine-readable category
+}
+type SoranErrorCode =
+  | "INVALID_INPUT" // bad name/label/address from the caller
+  | "CONFIG"        // bad or missing constructor options / no reverse source
+  | "RPC"           // network or transport failure
+  | "SIMULATION"    // the node rejected the read
+  | "ARCHIVED"      // the entry exists but its rent lapsed
+  | "ABI"           // a contract answered with an unexpected shape
+  | "TIMEOUT";      // the configured timeoutMs elapsed
 ```
 
-Thrown whenever a chain read cannot be completed (RPC failure, failed simulation, ABI mismatch) or input is malformed — so a transient error is never silently mistaken for "unregistered" or "no address". A `null` return always means a *successful* read that found nothing.
+Thrown whenever a chain read cannot be completed or input is malformed — so a transient error is never silently mistaken for "unregistered" or "no address". A `null` return always means a *successful* read that found nothing. Branch on `code`, not on message text.
 
 ### NameRecord
 
@@ -96,6 +122,10 @@ type NameAssurance = {
   trustworthy: boolean;      // locked ∧ attested ∧ ¬tainted
 };
 ```
+
+### NameDetails / NamespaceDetails
+
+The `details()` aggregate: name-level `{ name, node, address, resolver, holder, expiresAt, generation }` (holder is non-null even for an **expired** name — check `expiresAt`, where `0n` = never expires and `null` = never issued) plus `namespace: { namespace, owner, registrar, resolver, permanent, policy }` and the `assurance` verdict. All live chain reads; nothing indexed.
 
 ### DEPLOYMENTS
 

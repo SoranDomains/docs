@@ -105,3 +105,40 @@ Returns one candidate name whose holder is `address`:
 </Warning>
 
 For every name an address holds across all namespaces, use the [directory](/api/directory) instead.
+
+## Names by holder (untrusted hint)
+
+```http
+GET /v1/names/by-holder/{address}
+```
+
+Every indexed name a wallet holds, newest first, capped at 100:
+
+```json
+{
+  "holder": "G…",
+  "names": [{ "name": "alice.nova", "namespace": "nova", "holder": "G…", "issuedAt": "…", "issuedLedger": 4273379 }],
+  "truncated": false
+}
+```
+
+`400` with `{ "error": "bad_address" }` for a malformed address. Same trust rule as the reverse hint: this is **discovery, not proof** — the SDK's `namesOf` verifies every candidate on chain (`holder_of_node`) before returning it, and your integration should too.
+
+## Name history (indexed)
+
+```http
+GET /v1/names/{namespace}/{label}/history
+```
+
+The name's lifecycle timeline — `issued`, `transferred`, `reclaimed` — projected from chain events, newest first, capped at 100:
+
+```json
+{
+  "name": "alice.nova",
+  "issuedAt": "2026-08-22T09:08:16Z",
+  "issuedLedger": 4273379,
+  "events": [{ "action": "issued", "ledger": 4273379, "txHash": "bc1a…", "at": "…" }]
+}
+```
+
+`404` (`name_not_found`) for unknown names. **Informational, not consensus**: the chain stores no timestamps, so this is the indexer's projection — every entry carries its `ledger` and `txHash` so you can verify independently.
