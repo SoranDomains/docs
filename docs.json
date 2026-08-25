@@ -45,6 +45,12 @@
         ]
       },
       {
+        "group": "Holder SDK",
+        "pages": [
+          "holder/managing-your-name"
+        ]
+      },
+      {
         "group": "HTTP API",
         "pages": [
           "api/overview",
@@ -75,6 +81,11 @@
         {
           "anchor": "Owner SDK on npm",
           "href": "https://www.npmjs.com/package/@sorandomains/owner",
+          "icon": "npm"
+        },
+        {
+          "anchor": "Holder SDK on npm",
+          "href": "https://www.npmjs.com/package/@sorandomains/holder",
           "icon": "npm"
         },
         {

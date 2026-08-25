@@ -45,7 +45,7 @@ await soran.profile("alice.nova");
 **Chain-verified** — each key is a generation-gated resolver read, so records from a previous holder never surface. Two things to hold onto:
 
 - **Values are holder-authored free text.** The chain proves *who published them*, not that they're true. Escape them, and don't auto-link without scheme checks.
-- **Publishing:** the holder signs `set_text` on the namespace's resolver with these keys — from the console or any Soroban client. Use the standard keys and every Soran-aware wallet can render the profile.
+- **Publishing:** the holder signs `set_text` on the namespace's resolver with these keys — one call with [`@sorandomains/holder`'s `setProfile`](/holder/managing-your-name), or any Soroban client. Use the standard keys and every Soran-aware wallet can render the profile.
 
 Arbitrary keys beyond the standard set remain readable with `text(name, key)` but are not enumerable on chain — that's a contract-storage property, not an SDK gap.
 

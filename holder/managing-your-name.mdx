@@ -1,0 +1,70 @@
+---
+title: "Managing your name"
+description: "Records, profile, reverse, primary, and transfers — everything a name holder does with their own key, via @sorandomains/holder."
+---
+
+You hold `alice.nova`. That makes a specific set of powers yours — and only yours, enforced on chain: where the name points, what it publishes, whether your address shows as a name, and whether the name moves. `@sorandomains/holder` is the SDK for exactly that set.
+
+```bash
+npm install @sorandomains/holder @stellar/stellar-sdk
+```
+
+```ts
+import { SoranHolder, keypairSigner } from "@sorandomains/holder";
+
+const me = new SoranHolder({ signer: keypairSigner(MY_SECRET) });
+```
+
+In a browser, pass the wallet — the `TxSigner` shape matches wallet kits directly. Every call is simulated first (typed errors before any fee), and each operation below is authorized on chain against *the current holder*: if the name changes hands, the powers move with it, instantly.
+
+## Where your name points
+
+```ts
+await me.setRecord("alice.nova", "G…COLD");   // explicit resolver record
+await me.setAddress("alice.nova", "G…HOT");   // built-in Registrar target
+```
+
+Two layers, by design: the **explicit resolver record** is what [`lookup.resolve()`](/sdk/resolving-names) prefers; the **built-in target** is the fallback every freshly issued name starts with. Both are generation-gated — records you wrote stop resolving the moment the name is no longer yours, so a past holder can never haunt a name.
+
+## Your profile
+
+```ts
+await me.setProfile("alice.nova", {
+  org: "Alice Co",
+  url: "https://alice.dev",
+  avatar: "https://alice.dev/a.png",
+});
+```
+
+These are the standard [`PROFILE_KEYS`](/sdk/identity#standard-profiles) every Soran-aware wallet reads back with `lookup.profile()`. One transaction per key (a Soroban invocation carries one call), submitted sequentially — a mid-batch failure names the keys already written, and those stay valid. `setText(name, key, value)` writes any other Symbol-legal key.
+
+## Your address as a name
+
+```ts
+await me.setReverse("alice.nova");   // address → name, per namespace
+await me.setPrimary("alice.nova");   // your ONE cross-namespace display name
+```
+
+Reverse claims are **impossible to spoof by contract**: the resolver refuses any name whose forward record doesn't already resolve to your address (`ForwardMismatch`). The primary is a pointer the PrimaryName contract re-verifies on every read — it can never outlive the name it points at. Both are cleared with `clearReverse(namespace)` / `clearPrimary()`.
+
+## Transferring your name
+
+```ts
+await me.proposeNameTransfer("alice.nova", "G…NEWHOLDER");
+await me.pendingNameTransfer("alice.nova");   // visible to both parties
+await me.cancelNameTransfer("alice.nova");    // withdraw while unaccepted
+```
+
+Two-step and accept-to-move — a typo'd recipient can never burn the name. The recipient runs `acceptNameTransfer` with their own signer. Policy-gated: namespaces that forbid transfers answer `NotTransferable`, and expired names can't be moved by their former holder at all.
+
+## Errors are typed
+
+Contract rejections surface as `HolderError` with the contract's own code and name — `NotHolder`, `NameInactive`, `ForwardMismatch`, `NotTransferable` — before any fee is spent. Failures that reached the network carry `txHash`; always re-check a hash before retrying.
+
+## Who does what
+
+| You want to… | Package |
+| --- | --- |
+| Resolve and verify names | [`@sorandomains/lookup`](/sdk/installation) |
+| Run a namespace (issue, reclaim, permanence) | [`@sorandomains/owner`](/owner/issuing-from-code) |
+| Manage a name you hold | `@sorandomains/holder` — this page |
