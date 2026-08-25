@@ -1,0 +1,55 @@
+---
+title: "For AI agents"
+description: "MCP servers and an agent skill give AI agents first-class access to Soran — resolve and verify names, create a wallet, hold a verified on-chain identity."
+---
+
+Most people reach software through an agent now — so Soran treats agents as first-class users. An agent can resolve and verify names trustlessly, look up any wallet's identity, **create its own wallet**, receive a name, and end up with a contract-verified on-chain identity of its own.
+
+## Hosted agents: the remote MCP
+
+For claude.ai connectors and any agent platform that speaks remote MCP — no install, no auth, read tools only:
+
+```
+https://mcp.soran.domains/mcp
+```
+
+Streamable HTTP. Nine trustless tools: `resolve_name`, `verify_name`, `lookup_identity`, `wallet_names`, `reverse_lookup`, `check_availability`, `name_history`, `network_status`, `list_allocations`.
+
+## Agents with a shell: the local MCP
+
+Where the agent can run processes (Claude Code, Cursor, local runtimes), the local server adds **wallet and write tools** — and the key never leaves the machine:
+
+```bash
+claude mcp add soran -- npx -y @sorandomains/mcp
+```
+
+Any other MCP client: command `npx`, args `["-y", "@sorandomains/mcp"]`. Set the env var `SORAN_SECRET` (the agent's Stellar secret) to unlock writes.
+
+## The agent-identity flow
+
+<Steps>
+  <Step title="create_wallet">
+    Generates a keypair and funds it via friendbot (testnet). The tool returns the secret **once** — the agent stores it durably and privately, then restarts the server with `SORAN_SECRET` set.
+  </Step>
+  <Step title="Receive a name">
+    A namespace owner issues one to the agent's address (`issue_name`, the console, or `@sorandomains/owner`) — or the agent accepts a transfer.
+  </Step>
+  <Step title="claim_display_name">
+    One call chains the forward record, the reverse record, and the cross-namespace primary. The agent's address now shows as `agent.yourbrand` everywhere — contract-verified, unspoofable.
+  </Step>
+  <Step title="set_profile">
+    Publish what the agent is: `description`, `url`, `org` — the standard keys every Soran-aware client reads back.
+  </Step>
+</Steps>
+
+## The skill
+
+Teach any skills-capable agent the whole system (MCP setup, SDKs, API, trust model) in one install:
+
+```bash
+npx skills add SoranDomains/agent-skills -s soran
+```
+
+## Trust model, for agents to repeat
+
+Read answers come from the chain; indexer-discovered candidates are verified on-chain before they're returned (`wallet_names` can be hidden from, never forged). `name_history` is the one indexed/informational tool and says so. Write tools sign locally with the agent's own key — **no Soran server ever holds or sees a key**. `create_wallet`'s secret is a credential: store it durably, never log it, never send it anywhere.

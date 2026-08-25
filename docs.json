@@ -51,6 +51,12 @@
         ]
       },
       {
+        "group": "For AI agents",
+        "pages": [
+          "agents/access"
+        ]
+      },
+      {
         "group": "HTTP API",
         "pages": [
           "api/overview",
