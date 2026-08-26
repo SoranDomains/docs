@@ -36,7 +36,7 @@ await me.setProfile("alice.nova", {
 });
 ```
 
-These are the standard [`PROFILE_KEYS`](/sdk/identity#standard-profiles) every Soran-aware wallet reads back with `lookup.profile()`. One transaction per key (a Soroban invocation carries one call), submitted sequentially — a mid-batch failure names the keys already written, and those stay valid. `setText(name, key, value)` writes any other Symbol-legal key.
+These are the standard [`PROFILE_KEYS`](/sdk/identity#standard-profiles) every Soran-aware wallet reads back with `lookup.profile()`. One transaction per key (a Soroban invocation carries one call), submitted sequentially — a mid-batch failure names the keys already written, and those stay valid. `setText(name, key, value)` writes any other Symbol-legal key. Text records are overwrite-only on chain — there's no on-chain delete — so **retract a record by clearing it**: `clearText(name, key)` writes the empty value that standard readers (`lookup.profile()`) treat as unset.
 
 ## Your address as a name
 
