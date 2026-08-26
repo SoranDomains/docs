@@ -3,7 +3,7 @@ title: "Identity & enumeration"
 description: "Wallet holdings, all reverse names, standard profiles, and one-call identity aggregates — with the trust boundary of every field spelled out."
 ---
 
-Resolution answers "where does this name pay". Identity answers the rest: *what names does this wallet hold, who is behind this name, what have they published about themselves*. `@sorandomains/lookup` 0.4.0 adds that layer — and because some of it can't be answered from chain state alone, every method below tells you exactly which trust bucket it draws from:
+Resolution answers "where does this name pay". Identity answers the rest: *what names does this wallet hold, who is behind this name, what have they published about themselves*. `@sorandomains/lookup` (0.4.x) adds that layer — and because some of it can't be answered from chain state alone, every method below tells you exactly which trust bucket it draws from:
 
 - **Chain-verified** — read from the contracts; can't be forged by anyone, including Soran.
 - **Hint-discovered, chain-verified** — a hosted indexer *suggests* candidates, the SDK verifies each one on chain. The hint can omit; it can never forge.
