@@ -42,43 +42,51 @@ integration should ever hard-code:
 | **Registry** (immutable core) | the entry point; maps a namespace node to its registrar and resolver | [`CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI`](https://stellar.expert/explorer/testnet/contract/CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI) |
 | **PrimaryName** | reverse: an address's chosen primary name | [`CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2`](https://stellar.expert/explorer/testnet/contract/CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2) |
 
-Every namespace (`nova`, `veil`, …) has its **own** Registrar and Resolver
-instances, deployed by the Registry. You never hard-code them — you discover
-them from the Registry (`registrar_of(nsNode)` / `resolver_of(nsNode)`), so a
-single Registry address serves every namespace that exists now or launches
-later. A per-namespace address copied from a doc is a liability; the Registry
-lookup is the API.
+Each namespace gets its **own** contracts, but as **optional lifecycle
+stages** — a Registrar once the namespace is activated, and a Resolver only if
+one is deployed. On current testnet: `nova` has both; `veil` has a Registrar
+but no Resolver (closed resolution — `resolver_of` is `null`); `netflix` is
+allocated but has neither yet. So always **discover** them from the Registry
+(`registrar_of(nsNode)` / `resolver_of(nsNode)`) and handle `null` — never
+hard-code a per-namespace address. A single Registry address serves every
+namespace that exists now or launches later; the Registry lookup is the API.
 
 ## The namehash
 
 Every name maps to a 32-byte **node**. A namespace hashes from 32 zero bytes;
-a name hashes from its namespace's node. `label` is the raw UTF-8 bytes of a
-single **canonical** label — lowercased, `[a-z0-9-]`, 1–63 chars (the
-contracts reject anything else, so `Nova` and `nova` are different inputs and
-only `nova` resolves):
+a name hashes from its namespace's node. The `label` is the UTF-8 bytes of a
+single **canonical** label — lowercased, `[a-z0-9]` with interior hyphens
+allowed (no leading/trailing hyphen), 1–63 chars. The contracts reject
+anything non-canonical, so normalize/validate on your side before hashing (a
+mixed-case or malformed input would silently hash to a different, wrong node):
 
 ```text
 nsNode   = sha256( 0x00 × 32  ||  sha256(label) )     # a namespace
 nameNode = sha256( nsNode     ||  sha256(label) )     # a name under it
 ```
 
+The examples on this page are **browser-safe** — plain `Uint8Array`, no Node
+`Buffer`:
+
 ```js
 import { hash } from "@stellar/stellar-sdk";
-const sha = (b) => Buffer.from(hash(b));
-// Enforce the canonical grammar the contracts require — a non-canonical label
-// silently hashes to a different (wrong) node, so validate rather than trust input.
+const enc    = new TextEncoder();
+const sha    = (b) => new Uint8Array(hash(b));
+const concat = (...a) => { const out = new Uint8Array(a.reduce((n, x) => n + x.length, 0)); let o = 0; for (const x of a) { out.set(x, o); o += x.length; } return out; };
+const toHex  = (u) => Array.from(u, (b) => b.toString(16).padStart(2, "0")).join("");
+
 const label = (s) => {
   const l = s.toLowerCase();
-  if (!/^[a-z0-9-]{1,63}$/.test(l)) throw new Error(`invalid label: ${s}`);
-  return Buffer.from(l, "utf8");
+  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(l) || l.length > 63) throw new Error(`invalid label: ${s}`);
+  return enc.encode(l);
 };
-const nsNode  = (s) => sha(Buffer.concat([Buffer.alloc(32), sha(label(s))]));
-const subNode = (parent, s) => sha(Buffer.concat([parent, sha(label(s))]));
+const nsNode  = (s) => sha(concat(new Uint8Array(32), sha(label(s))));
+const subNode = (parent, s) => sha(concat(parent, sha(label(s))));
 
 // worked example — nova, and alice.nova
-nsNode("nova").toString("hex");
+toHex(nsNode("nova"));
 // 857f994cc3975eda4e373f51c9f5b0f7940451a5eb3ff225edc5cd468228b430
-subNode(nsNode("nova"), "alice").toString("hex");
+toHex(subNode(nsNode("nova"), "alice"));
 // 537d927ab5b2547c543ece8459c6971d873559ec43de2a8d43cdad118d68916e
 ```
 
@@ -110,6 +118,9 @@ async function view(contractId, fn, ...args) {
     .addOperation(new Contract(contractId).call(fn, ...args))
     .setTimeout(30).build();
   const sim = await server.simulateTransaction(tx);
+  // A restore preamble means the entry the call needs is ARCHIVED — surface it
+  // rather than reading stale state (this is what the SDK throws too).
+  if (rpc.Api.isSimulationRestore(sim)) throw new Error(`archived — ${fn} needs a restore`);
   // THROW on a failed simulation — an RPC/contract error must NOT be silently
   // read as "no record" and trigger the fallback. `null` is returned only for a
   // *successful* simulation that returned void/None (a genuine empty result).
@@ -161,7 +172,16 @@ If you're indexing and want the raw entries, read them with
 `LedgerKey.contractData`. Every **record** key in the tables below is
 `PERSISTENT` — the only instance-storage keys (each contract's `Config`, the
 Resolver's `Provenance`) are config, not resolution, and are read from the
-contract-instance entry, not by a `DataKey` lookup:
+contract-instance entry, not by a `DataKey` lookup.
+
+<Warning>
+Unlike the [view-function path](#resolve-a-name-to-an-address) — one
+`simulateTransaction` against a single ledger snapshot — this makes several
+`getLedgerEntries` calls that can land on **different ledgers**. A transfer,
+reissue, or resolver repoint between the reads can yield an obsolete address.
+Treat this as an **indexer illustration**, not an atomic resolve; for a
+point-in-time answer use the view path.
+</Warning>
 
 ```js
 import { rpc, xdr, Address, scValToNative } from "@stellar/stellar-sdk";
@@ -185,16 +205,17 @@ async function readEntry(contractId, keyScVal) {
   const { entries, latestLedger } = await server.getLedgerEntries(key(contractId, keyScVal));
   if (!entries?.length) return null;                        // absent from LIVE state — see the archival caveat
   const e = entries[0];
-  if (e.liveUntilLedgerSeq && e.liveUntilLedgerSeq < latestLedger) return null; // archived → stale
+  // Compare against undefined, not truthiness — a 0 liveUntilLedgerSeq must not skip the check.
+  if (e.liveUntilLedgerSeq !== undefined && e.liveUntilLedgerSeq < latestLedger) return null; // archived → stale
   return scValToNative(e.val.contractData.val);             // Soroban struct → object keyed by field name
 }
 
-// Expiry is measured against the LEDGER clock, not the local one — read the
-// latest ledger's close time once and compare `expires_at` to it.
-const now = BigInt((await server.getLatestLedger()).closeTime);
-const liveAt = (name) => name && (name.expires_at === 0n || name.expires_at > now);
-
+// Expiry is measured against the LEDGER clock, not the local one. Read the
+// current ledger close time PER lookup — a cached value goes stale and would
+// keep resolving expired names in a long-running indexer.
 async function resolveRaw(namespace, name) {
+  const now  = BigInt((await server.getLatestLedger()).closeTime);
+  const live = (rec) => rec && (rec.expires_at === 0n || rec.expires_at > now);
   const ns   = nsNode(namespace);
   const node = subNode(ns, name);
 
@@ -202,7 +223,7 @@ async function resolveRaw(namespace, name) {
   const registrar = await readEntry(REGISTRY, dataKey("Registrar", B(ns)));  // the namespace's registrar
   if (!registrar) return null;                                              // namespace not allocated
   const nameRec   = await readEntry(registrar, dataKey("Name", B(node)));    // Name{ holder, address, expires_at, generation }
-  if (!liveAt(nameRec)) return null;
+  if (!live(nameRec)) return null;
 
   // PRIMARY: the resolver POINTER lives in the Node record's `resolver` field
   // (the owner-set pointer, NOT the attested Resolver(nsNode) key). null ⇒ the
@@ -243,9 +264,12 @@ replicate them yourself:
   written, **or** it may be an archived entry that has been evicted from live
   state and is inaccessible until restored. Do not treat empty as proof a name
   is free. A **present** entry can also be archived-but-not-yet-evicted
-  (`liveUntilLedgerSeq < latestLedger`). Either way a read-only indexer cannot
-  and need not restore (restore is an owner/keeper write) — treat an
-  archived/absent entry as stale/unavailable and keep your last-known value.
+  (`liveUntilLedgerSeq < latestLedger`). Either way a read-only indexer need
+  not restore — treat an archived/absent entry as stale/unavailable and keep
+  your last-known value. (Restore is a permissionless ledger operation: any
+  funded account — a relayer or your own indexer — can restore persistent
+  state, no original-owner authorization required. A reader simply doesn't
+  need to.)
 - **RPC limits.** `getLedgerEntries` accepts at most ~200 keys per call and the
   public node rate-limits — chunk your reads, and run your own Soroban RPC for
   indexing workloads.
@@ -294,16 +318,16 @@ nodes exist by indexing the contracts' **events**:
 
 ```js
 // Drain events forward from a start point, following the cursor to head.
+// filters: [{ type: "contract", contractIds: [REGISTRY, ...registrars] }]  ≤ 5 IDs
 let cursor, startLedger = /* your persisted cursor's ledger, or a recent one */;
 for (;;) {
   const page = await server.getEvents(
     cursor ? { cursor, filters, limit: 200 }
            : { startLedger, filters, limit: 200 });   // startLedger (or cursor) is MANDATORY
-  for (const ev of page.events) handle(ev);           // topic0 = the event name
-  cursor = page.cursor;                                // persist it
-  if (!page.events.length && page.latestLedger <= /* head you polled */ 0) break;
+  for (const ev of page.events) handle(ev);           // topic[0] = the event name
+  if (page.cursor === cursor) break;                   // cursor stopped advancing ⇒ reached head
+  cursor = page.cursor;                                // else advance and persist it
 }
-// filters: [{ type: "contract", contractIds: [REGISTRY, ...registrars] }]
 ```
 
 Three things a durable indexer must handle, none optional:
@@ -316,9 +340,10 @@ Three things a durable indexer must handle, none optional:
   genesis** (run your own RPC, or seed the historical set from
   `GET /v1/namespaces` + the [directory endpoints](/api/directory)) and uses
   `getEvents` only to stay current — never as a from-scratch full bootstrap.
-- **Contract-ID cap.** A `getEvents` call accepts ~**25** contract IDs. Every
-  namespace has its own Registrar and Resolver, so past ~12 namespaces you must
-  shard the IDs across calls, one cursor per shard.
+- **Contract-ID cap.** A `getEvents` filter accepts at most **5** contract IDs
+  (the RPC rejects a sixth). The Registry plus a namespace's Registrar and
+  Resolver is already 3, so past ~2 namespaces you must shard the IDs across
+  calls, one cursor per shard.
 
 ## A resolved address may be a contract
 
@@ -332,7 +357,11 @@ Stellar Asset Contract `transfer`, **not** a classic Payment operation; only a
 
 The authoritative storage format is the contract source — the `DataKey` enums
 and structs in `contracts/{registry,registrar,resolver,primary}/src/lib.rs`.
-The same data is served, already resolved, by the [HTTP API](/api/resolution)
-and the [Lookup SDK](/sdk/resolving-names); the
+The [Lookup SDK](/sdk/resolving-names) computes the same resolution. The
+[HTTP API](/api/resolution) is a convenience mirror, not identical state: its
+`/v1/resolve` returns the name's **holder** as `account`, whereas on-chain
+`resolve()` (and this page) returns the **pay-to address**, which can differ;
+and it adds indexed fields (registration time, tx hashes, display metadata,
+resolution counts) that are not current contract state. The
 [trust model](/concepts/trust-model) explains why the Registry's answers
 can't be edited out from under you.
