@@ -45,8 +45,8 @@ integration should ever hard-code:
 Each namespace gets its **own** contracts, but as **optional lifecycle
 stages** — a Registrar once the namespace is activated, and a Resolver only if
 one is deployed. On current testnet: `nova` has both; `veil` has a Registrar
-but no Resolver (closed resolution — `resolver_of` is `null`); `netflix` is
-allocated but has neither yet. So always **discover** them from the Registry
+but no Resolver (closed resolution — `resolver_of` is `null`); and a freshly
+allocated namespace may have neither yet. So always **discover** them from the Registry
 (`registrar_of(nsNode)` / `resolver_of(nsNode)`) and handle `null` — never
 hard-code a per-namespace address. A single Registry address serves every
 namespace that exists now or launches later; the Registry lookup is the API.
