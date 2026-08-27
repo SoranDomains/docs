@@ -1,0 +1,99 @@
+---
+title: "On-chain resolution"
+description: "Resolve names straight from Soroban contract state — no Soran API, no SDK. Contract addresses, the node hash, and the storage layout, for explorers, indexers, and resolution services."
+---
+
+Everything the [resolution endpoints](/api/resolution) serve is derived from
+public contract state you can read yourself. If you run an explorer, an
+indexer, or your own resolution service and would rather not trust our API,
+this page is the whole integration: the contracts, the key derivation, and
+the storage layout — one `getLedgerEntries` call per resolve.
+
+<Note>
+Testnet only for now — mainnet is not deployed, and these contract IDs will
+change at launch. RPC `https://soroban-testnet.stellar.org`, passphrase
+`Test SDF Network ; September 2015`.
+</Note>
+
+## Contracts
+
+| Contract | Role | Testnet address |
+| --- | --- | --- |
+| **Registry** (immutable core) | namespace node → `{owner, registrar, resolver}` | [`CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI`](https://stellar.expert/explorer/testnet/contract/CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI) |
+| **Registrar** (`nova`) | names: `Name(node)` → holder, address, expiry | [`CAF7L6JE6KX2OAIXJT36VAYIO3XTFU4GVRA5DDLROIHWICGLASRRUJUJ`](https://stellar.expert/explorer/testnet/contract/CAF7L6JE6KX2OAIXJT36VAYIO3XTFU4GVRA5DDLROIHWICGLASRRUJUJ) |
+| **Resolver** (`nova`) | optional records: `Addr` / `Text` / `Reverse` | [`CDHQE67OLZ6OL7L6RCKZPR2OERXOMX6LOLTZIY4FGBMBQ2S7KFRQQRCT`](https://stellar.expert/explorer/testnet/contract/CDHQE67OLZ6OL7L6RCKZPR2OERXOMX6LOLTZIY4FGBMBQ2S7KFRQQRCT) |
+| **PrimaryName** | reverse: address → primary name | [`CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2`](https://stellar.expert/explorer/testnet/contract/CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2) |
+
+The Registry is the one address worth hard-coding: its `Registrar(nsNode)`
+and `Resolver(nsNode)` entries tell you which contracts serve **any**
+namespace, so you never need to special-case `nova`.
+
+## The node hash
+
+Every name maps to a 32-byte **node** (namehash). A top-level namespace
+hashes from 32 zero bytes; a name hashes from its namespace's node:
+
+```text
+nsNode   = sha256( 0x00 × 32  ||  sha256(label) )     # namespace
+nameNode = sha256( nsNode     ||  sha256(label) )     # name under it
+```
+
+Worked example — the `nova` namespace:
+
+```text
+nova = 857f994cc3975eda4e373f51c9f5b0f7940451a5eb3ff225edc5cd468228b430
+```
+
+## Resolve a name → address
+
+<Steps>
+  <Step title="Compute the name's node">
+    For `alice.nova`: hash `nova` to `nsNode`, then hash `alice` under it to
+    `nameNode`.
+  </Step>
+  <Step title="Read one persistent entry on the Registrar">
+    Fetch the contract-data key `Name(nameNode)` with `getLedgerEntries`.
+    The whole resolve is this single read:
+
+    ```rust
+    // Registrar contract data, persistent
+    DataKey::Name(nameNode) -> Name {
+        holder:     Address,  // who owns the name
+        address:    Address,  // ← the resolve / pay-to target
+        expires_at: u64,      // 0 = never expires
+        generation: u64,      // bumped on every ownership change
+    }
+    ```
+
+    Honor `expires_at`: a nonzero value in the past means the name no longer
+    resolves, whatever the entry still says.
+  </Step>
+  <Step title="Optional: richer records via the Resolver">
+    The namespace's Resolver holds `Addr(nameNode)`, `Text(nameNode, key)`,
+    and `Reverse(address)` records. Discover it generically from the
+    Registry's `Resolver(nsNode)` entry.
+  </Step>
+</Steps>
+
+## Storage layout
+
+| Contract | Persistent keys |
+| --- | --- |
+| Registry | `Node(node)` → `Record{owner, resolver}` · `Registrar(nsNode)` · `Resolver(nsNode)` |
+| Registrar | `Name(node)` → `Name{holder, address, expires_at, generation}` · `PendingTransfer(node)` |
+| Resolver | `Addr(node)` · `Text(node, key)` · `Reverse(addr)` |
+| PrimaryName | address → primary name (`String`) |
+
+<Warning>
+**Generation binding.** Resolver records are bound to the name's current
+`generation`, so a raw `Addr(node)` read can be **stale** after a name
+changes hands. For a resolution service, treat the Registrar's
+`Name(node).address` — which carries the live `generation` — as the source
+of truth, and Resolver records as enrichment.
+</Warning>
+
+The authoritative storage format is the contract source — the `DataKey`
+enums in `contracts/{registry,registrar,resolver}/src/lib.rs`. The same data
+is served, already decoded, by the [HTTP API](/api/resolution) and the
+[Lookup SDK](/sdk/resolving-names); the [trust model](/concepts/trust-model)
+explains why the Registry's answers can't be edited out from under you.

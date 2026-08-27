@@ -61,6 +61,7 @@
         "pages": [
           "api/overview",
           "api/resolution",
+          "api/onchain-resolution",
           "api/directory",
           "api/market",
           "api/status"
