@@ -25,8 +25,10 @@ Soroban RPC node:
 </CardGroup>
 
 <Note>
-Testnet only for now — mainnet is not deployed, and these contract IDs will
-change at launch. RPC `https://soroban-testnet.stellar.org`, passphrase
+Testnet only for now — mainnet is not deployed. At mainnet you swap **all** of
+the Registry + PrimaryName IDs, the RPC URL, **and** the passphrase
+(`Public Global Stellar Network ; September 2015`) — none are interchangeable
+with testnet. RPC `https://soroban-testnet.stellar.org`, passphrase
 `Test SDF Network ; September 2015`. Examples use `@stellar/stellar-sdk` v17.
 </Note>
 
@@ -129,9 +131,11 @@ point a name's forward record (`Resolver.addr`) somewhere other than where
 the name is *held*; that resolver record is the pay-to target and takes
 precedence. The built-in `Name.address` is only the fallback for names whose
 holder never set a resolver record. Reading `Name.address` alone gives the
-wrong address for any name with a divergent forward record. `addr` and
-`primary_of` apply the on-chain **generation** gate; the built-in `resolve`
-fallback applies the **expiry** gate. A raw entry read applies neither.
+wrong address for any name with a divergent forward record. `addr`, `text`,
+`name_of`, and `primary_of` apply **both** the generation gate and the
+on-chain expiry/liveness gate (an expired or unissued name resolves nothing);
+the built-in `resolve` fallback applies the expiry gate. A raw entry read
+applies neither.
 </Warning>
 
 The other view functions follow the same pattern: `Resolver.text(node, key)`
@@ -152,11 +156,11 @@ contract-instance entry, not by a `DataKey` lookup:
 import { rpc, xdr, Address, scValToNative } from "@stellar/stellar-sdk";
 const server = new rpc.Server("https://soroban-testnet.stellar.org");
 
-// A DataKey enum → ScVal. Every resolution key is a tuple variant:
-//   DataKey::Name(node) → scvVec([scvSymbol("Name"), scvBytes(node)])
-// (a unit variant would be a bare scvSymbol, but the only one — Config — is
-//  instance storage, so it isn't read through this path.)
+// A DataKey enum → ScVal. A tuple variant is scvVec([symbol, ...payload]); a
+// unit variant is a single-element vec scvVec([symbol]) — but the only unit
+// keys (Config, the Resolver's Provenance) are instance storage, not read here.
 const dataKey = (variant, ...payload) => xdr.ScVal.scvVec([xdr.ScVal.scvSymbol(variant), ...payload]);
+const B = (bytes) => xdr.ScVal.scvBytes(bytes);
 
 function key(contractId, keyScVal) {
   return xdr.LedgerKey.contractData(new xdr.LedgerKeyContractData({
@@ -170,37 +174,64 @@ async function readEntry(contractId, keyScVal) {
   const { entries, latestLedger } = await server.getLedgerEntries(key(contractId, keyScVal));
   if (!entries?.length) return null;                        // empty ⇒ never written (no such name)
   const e = entries[0];
-  if (e.liveUntilLedgerSeq && e.liveUntilLedgerSeq < latestLedger) return null; // archived — needs restore
+  if (e.liveUntilLedgerSeq && e.liveUntilLedgerSeq < latestLedger) return null; // archived → stale
   return scValToNative(e.val.contractData.val);             // Soroban struct → object keyed by field name
 }
 
-// discover the namespace Registrar, then read the Name record on it
-const ns   = nsNode("nova");
-const node = subNode(ns, "alice");
-const registrar = await readEntry(REGISTRY, dataKey("Registrar", xdr.ScVal.scvBytes(ns)));
-const name      = await readEntry(registrar, dataKey("Name", xdr.ScVal.scvBytes(node)));
-// name = { holder, address, expires_at: 0n, generation: 0n }
+const live = (name) => name && (name.expires_at === 0n || name.expires_at > BigInt(Math.floor(Date.now() / 1000)));
+
+async function resolveRaw(namespace, label) {
+  const ns   = nsNode(namespace);
+  const node = subNode(ns, label);
+
+  const record    = await readEntry(REGISTRY, dataKey("Node", B(ns)));       // Record{ owner, resolver, … }
+  const registrar = await readEntry(REGISTRY, dataKey("Registrar", B(ns)));  // the namespace's registrar
+  const name      = await readEntry(registrar, dataKey("Name", B(node)));    // Name{ holder, address, expires_at, generation }
+  if (!live(name)) return null;
+
+  // PRIMARY: the resolver POINTER lives in the Node record's `resolver` field
+  // (the owner-set pointer, NOT the attested Resolver(nsNode) key). null ⇒ the
+  // namespace runs closed — skip the resolver and use the built-in Name.address.
+  const resolver = record?.resolver;
+  if (resolver) {
+    const rec = await readEntry(resolver, dataKey("Addr", B(node)));         // AddrRec{ addr, generation }
+    if (rec && rec.generation === name.generation) return rec.addr;          // gate: generation must match
+  }
+  return name.address;                                                       // FALLBACK: built-in target
+}
+
+await resolveRaw("nova", "alice");
+// GDHNO4WKFQJJAPX6YLQTGWFR5QCKZXKJBHKRFCSNRRFSTEJIQZ4Y5UBU
 ```
 
 <Warning>
-Raw reads bypass the on-chain gates, so to match the resolvers' actual answer
-you must replicate them yourself:
-- **Resolver precedence + generation.** Every Resolver record — forward
-  `Addr(node)` → `AddrRec{ addr, generation }`, `Text(node, key)` →
-  `TextRec{ value, generation }`, `Reverse(addr)` → `RevRec{ node, name, generation }`
-  — carries the `generation` it was written under. A record only counts when
-  its `generation` equals the Registrar `Name(node).generation`; a transfer or
-  reissue bumps `Name.generation` and orphans the old records. Read both and
-  compare; if they differ (or no `Addr` record exists), fall back to
-  `Name.address`.
-- **Expiry.** A `Name` with nonzero `expires_at` in the past no longer
-  resolves, whatever the entry still says (`0` = never expires).
+Raw reads bypass the on-chain gates, so to match the resolvers you must
+replicate them yourself:
+- **Resolver pointer.** Read the resolver from the Registry `Node(nsNode)`
+  record's `resolver` field (`resolver_of`) — **not** the `Resolver(nsNode)`
+  key, which is the *attested* deployment. They're equal for the reference
+  stack today, but diverge the moment an owner repoints. `resolver == None`
+  means a closed namespace — use `Name.address` (expiry-gated) directly.
+- **Generation + expiry.** Every Resolver record — `Addr(node)` → `AddrRec{ addr, generation }`,
+  `Text(node, key)` → `TextRec{ value, generation }`, `Reverse(addr)` → `RevRec{ node, name, generation }`
+  — carries the `generation` it was written under, and only counts when that
+  equals the Registrar `Name(node).generation`; a transfer or reissue bumps
+  `Name.generation` and orphans the old records. A `Name` with nonzero
+  `expires_at` in the past resolves nothing (`0` = never expires).
+- **Reverse needs a forward-match too.** For a `RevRec`, generation-equality is
+  necessary but **not** sufficient: also read the current-generation
+  `Addr(rev.node)` and confirm it resolves back to the queried address. If the
+  forward record is absent, stale-generation, or points elsewhere, the reverse
+  is dead even when generations match (the contract's `name_of` anti-spoof gate).
 - **Archival.** An **empty** result (`entries: []`) means the key was never
   written — "no such name," not archived. A **present** persistent entry can
-  still be archived (rent lapsed): compare its `liveUntilLedgerSeq` to the
-  response's `latestLedger`, and if it's in the past the value is not live and
-  the entry needs restoring (the `readEntry` above already rejects it). Never
+  still be archived (rent lapsed): `liveUntilLedgerSeq < latestLedger`. A
+  read-only indexer cannot and need not restore it (restore is an owner/keeper
+  write) — treat it as stale/unavailable and keep your last-known value; never
   read a missing-or-archived entry as "the name is free."
+- **RPC limits.** `getLedgerEntries` accepts at most ~200 keys per call and the
+  public node rate-limits — chunk your reads, and run your own Soroban RPC for
+  indexing workloads.
 
 Unless you're building a full indexer, the [view-function path](#resolve-a-name-to-an-address)
 above is simpler and correct by construction.
@@ -227,12 +258,24 @@ equals the attested resolver for reference-stack namespaces but can differ if
 an owner repoints it. `Text`'s second key element is a `Symbol`
 (`scvSymbol`), so its key is `scvVec([scvSymbol("Text"), scvBytes(node), scvSymbol(key)])`.
 
+## Discovering names
+
+Both read paths resolve a name you already hold — but **on-chain state is not
+enumerable**, so you can't list every name by scanning storage. To learn which
+nodes exist in the first place, index the contracts' **events**: the Registrar
+emits `issued` / `transfer` / `reclaimed`, the Registry emits `alloc` / `claim`,
+and the Resolver emits its record updates. Stream them with the RPC's
+`getEvents` (filtered to the contract IDs) to build and maintain your node set,
+then resolve each node with either method above. For a quick start you can also
+seed from `GET /v1/namespaces` and the [directory endpoints](/api/directory).
+
 ## A resolved address may be a contract
 
 The value you get back is a Soroban `Address` — it can be an **account**
 (`G…`) or a **contract** (`C…`); muxed (`M…`) addresses are never stored.
-A payment integration must branch on the type and not assume a classic
-account.
+Branch on the type: a `C…` result is a contract — pay it through the asset's
+Stellar Asset Contract `transfer`, **not** a classic Payment operation; only a
+`G…` address accepts a classic payment.
 
 ---
 
