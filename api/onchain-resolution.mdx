@@ -64,9 +64,16 @@ nameNode = sha256( nsNode     ||  sha256(label) )     # a name under it
 
 ```js
 import { hash } from "@stellar/stellar-sdk";
-const sha     = (b) => Buffer.from(hash(b));
-const nsNode  = (label) => sha(Buffer.concat([Buffer.alloc(32), sha(Buffer.from(label, "utf8"))]));
-const subNode = (parent, label) => sha(Buffer.concat([parent, sha(Buffer.from(label, "utf8"))]));
+const sha = (b) => Buffer.from(hash(b));
+// Enforce the canonical grammar the contracts require — a non-canonical label
+// silently hashes to a different (wrong) node, so validate rather than trust input.
+const label = (s) => {
+  const l = s.toLowerCase();
+  if (!/^[a-z0-9-]{1,63}$/.test(l)) throw new Error(`invalid label: ${s}`);
+  return Buffer.from(l, "utf8");
+};
+const nsNode  = (s) => sha(Buffer.concat([Buffer.alloc(32), sha(label(s))]));
+const subNode = (parent, s) => sha(Buffer.concat([parent, sha(label(s))]));
 
 // worked example — nova, and alice.nova
 nsNode("nova").toString("hex");
@@ -103,14 +110,17 @@ async function view(contractId, fn, ...args) {
     .addOperation(new Contract(contractId).call(fn, ...args))
     .setTimeout(30).build();
   const sim = await server.simulateTransaction(tx);
-  return rpc.Api.isSimulationSuccess(sim) && sim.result?.retval
-    ? scValToNative(sim.result.retval) : null;
+  // THROW on a failed simulation — an RPC/contract error must NOT be silently
+  // read as "no record" and trigger the fallback. `null` is returned only for a
+  // *successful* simulation that returned void/None (a genuine empty result).
+  if (!rpc.Api.isSimulationSuccess(sim)) throw new Error(`simulate ${fn}: ${sim.error ?? "failed"}`);
+  return sim.result?.retval ? scValToNative(sim.result.retval) : null;
 }
 
-async function resolve(namespace, label) {
+async function resolve(namespace, name) {
   const bytes = (b) => nativeToScVal(b, { type: "bytes" });
   const ns   = nsNode(namespace);
-  const node = subNode(ns, label);
+  const node = subNode(ns, name);
 
   const resolver = await view(REGISTRY, "resolver_of", bytes(ns));   // the namespace's resolver pointer
   if (resolver) {
@@ -118,7 +128,8 @@ async function resolve(namespace, label) {
     if (addr) return addr;
   }
   const registrar = await view(REGISTRY, "registrar_of", bytes(ns)); // FALLBACK: built-in, expiry-gated
-  return view(registrar, "resolve", bytes(Buffer.from(label, "utf8")));
+  if (!registrar) return null;                                       // namespace not allocated
+  return view(registrar, "resolve", bytes(label(name)));
 }
 
 await resolve("nova", "alice");
@@ -172,22 +183,26 @@ function key(contractId, keyScVal) {
 
 async function readEntry(contractId, keyScVal) {
   const { entries, latestLedger } = await server.getLedgerEntries(key(contractId, keyScVal));
-  if (!entries?.length) return null;                        // empty ⇒ never written (no such name)
+  if (!entries?.length) return null;                        // absent from LIVE state — see the archival caveat
   const e = entries[0];
   if (e.liveUntilLedgerSeq && e.liveUntilLedgerSeq < latestLedger) return null; // archived → stale
   return scValToNative(e.val.contractData.val);             // Soroban struct → object keyed by field name
 }
 
-const live = (name) => name && (name.expires_at === 0n || name.expires_at > BigInt(Math.floor(Date.now() / 1000)));
+// Expiry is measured against the LEDGER clock, not the local one — read the
+// latest ledger's close time once and compare `expires_at` to it.
+const now = BigInt((await server.getLatestLedger()).closeTime);
+const liveAt = (name) => name && (name.expires_at === 0n || name.expires_at > now);
 
-async function resolveRaw(namespace, label) {
+async function resolveRaw(namespace, name) {
   const ns   = nsNode(namespace);
-  const node = subNode(ns, label);
+  const node = subNode(ns, name);
 
   const record    = await readEntry(REGISTRY, dataKey("Node", B(ns)));       // Record{ owner, resolver, … }
   const registrar = await readEntry(REGISTRY, dataKey("Registrar", B(ns)));  // the namespace's registrar
-  const name      = await readEntry(registrar, dataKey("Name", B(node)));    // Name{ holder, address, expires_at, generation }
-  if (!live(name)) return null;
+  if (!registrar) return null;                                              // namespace not allocated
+  const nameRec   = await readEntry(registrar, dataKey("Name", B(node)));    // Name{ holder, address, expires_at, generation }
+  if (!liveAt(nameRec)) return null;
 
   // PRIMARY: the resolver POINTER lives in the Node record's `resolver` field
   // (the owner-set pointer, NOT the attested Resolver(nsNode) key). null ⇒ the
@@ -195,9 +210,9 @@ async function resolveRaw(namespace, label) {
   const resolver = record?.resolver;
   if (resolver) {
     const rec = await readEntry(resolver, dataKey("Addr", B(node)));         // AddrRec{ addr, generation }
-    if (rec && rec.generation === name.generation) return rec.addr;          // gate: generation must match
+    if (rec && rec.generation === nameRec.generation) return rec.addr;       // gate: generation must match
   }
-  return name.address;                                                       // FALLBACK: built-in target
+  return nameRec.address;                                                    // FALLBACK: built-in target
 }
 
 await resolveRaw("nova", "alice");
@@ -223,12 +238,14 @@ replicate them yourself:
   `Addr(rev.node)` and confirm it resolves back to the queried address. If the
   forward record is absent, stale-generation, or points elsewhere, the reverse
   is dead even when generations match (the contract's `name_of` anti-spoof gate).
-- **Archival.** An **empty** result (`entries: []`) means the key was never
-  written — "no such name," not archived. A **present** persistent entry can
-  still be archived (rent lapsed): `liveUntilLedgerSeq < latestLedger`. A
-  read-only indexer cannot and need not restore it (restore is an owner/keeper
-  write) — treat it as stale/unavailable and keep your last-known value; never
-  read a missing-or-archived entry as "the name is free."
+- **Archival.** `getLedgerEntries` reads only **live** ledger state, so an
+  **empty** result (`entries: []`) is ambiguous: the key may never have been
+  written, **or** it may be an archived entry that has been evicted from live
+  state and is inaccessible until restored. Do not treat empty as proof a name
+  is free. A **present** entry can also be archived-but-not-yet-evicted
+  (`liveUntilLedgerSeq < latestLedger`). Either way a read-only indexer cannot
+  and need not restore (restore is an owner/keeper write) — treat an
+  archived/absent entry as stale/unavailable and keep your last-known value.
 - **RPC limits.** `getLedgerEntries` accepts at most ~200 keys per call and the
   public node rate-limits — chunk your reads, and run your own Soroban RPC for
   indexing workloads.
