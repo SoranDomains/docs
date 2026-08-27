@@ -278,13 +278,47 @@ an owner repoints it. `Text`'s second key element is a `Symbol`
 ## Discovering names
 
 Both read paths resolve a name you already hold — but **on-chain state is not
-enumerable**, so you can't list every name by scanning storage. To learn which
-nodes exist in the first place, index the contracts' **events**: the Registrar
-emits `issued` / `transfer` / `reclaimed`, the Registry emits `alloc` / `claim`,
-and the Resolver emits its record updates. Stream them with the RPC's
-`getEvents` (filtered to the contract IDs) to build and maintain your node set,
-then resolve each node with either method above. For a quick start you can also
-seed from `GET /v1/namespaces` and the [directory endpoints](/api/directory).
+enumerable**, so you can't list every name by scanning storage. You learn which
+nodes exist by indexing the contracts' **events**:
+
+- **Registry** — `alloc` / `claim` carry the **node** directly (a namespace
+  node, e.g. `857f99…` for `nova`).
+- **Registrar** — `issued` / `transfer` / `reclaimed` carry a **label** + holder
+  (e.g. `["alice", G…]`), *not* a node. Recompute `node = subNode(nsNode(ns), label)`,
+  mapping the emitting Registrar contract to its namespace.
+- **Resolver** — emits only `set_rev` / `clr_rev` (reverse-record changes).
+  Forward `Addr` and `Text` updates are **silent** — re-read `addr(node)` /
+  `text(node, key)` per node rather than waiting for events. (The `set_addr`
+  event that exists is the *Registrar's* built-in `Name.address` setter, a
+  different contract — don't conflate them.)
+
+```js
+// Drain events forward from a start point, following the cursor to head.
+let cursor, startLedger = /* your persisted cursor's ledger, or a recent one */;
+for (;;) {
+  const page = await server.getEvents(
+    cursor ? { cursor, filters, limit: 200 }
+           : { startLedger, filters, limit: 200 });   // startLedger (or cursor) is MANDATORY
+  for (const ev of page.events) handle(ev);           // topic0 = the event name
+  cursor = page.cursor;                                // persist it
+  if (!page.events.length && page.latestLedger <= /* head you polled */ 0) break;
+}
+// filters: [{ type: "contract", contractIds: [REGISTRY, ...registrars] }]
+```
+
+Three things a durable indexer must handle, none optional:
+- **Cursor pagination.** Each call scans a bounded chunk and returns a `cursor`;
+  keep calling until head. **Empty pages are normal** and must not stop the
+  drain (a real drain here was 52 empty pages out of 60).
+- **Retention.** The public RPC keeps only ~**7 days** (~120,000 ledgers) of
+  events. Older events are gone — so `getEvents` only catches *recently*
+  created nodes. A durable indexer persists a cursor + its own DB **from
+  genesis** (run your own RPC, or seed the historical set from
+  `GET /v1/namespaces` + the [directory endpoints](/api/directory)) and uses
+  `getEvents` only to stay current — never as a from-scratch full bootstrap.
+- **Contract-ID cap.** A `getEvents` call accepts ~**25** contract IDs. Every
+  namespace has its own Registrar and Resolver, so past ~12 namespaces you must
+  shard the IDs across calls, one cursor per shard.
 
 ## A resolved address may be a contract
 
