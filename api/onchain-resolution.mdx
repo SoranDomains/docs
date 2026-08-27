@@ -17,16 +17,20 @@ change at launch. RPC `https://soroban-testnet.stellar.org`, passphrase
 
 ## Contracts
 
+Only two contracts are platform-level, and they are the only addresses an
+integration should ever hard-code:
+
 | Contract | Role | Testnet address |
 | --- | --- | --- |
 | **Registry** (immutable core) | namespace node → `{owner, registrar, resolver}` | [`CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI`](https://stellar.expert/explorer/testnet/contract/CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI) |
-| **Registrar** (`nova`) | names: `Name(node)` → holder, address, expiry | [`CAF7L6JE6KX2OAIXJT36VAYIO3XTFU4GVRA5DDLROIHWICGLASRRUJUJ`](https://stellar.expert/explorer/testnet/contract/CAF7L6JE6KX2OAIXJT36VAYIO3XTFU4GVRA5DDLROIHWICGLASRRUJUJ) |
-| **Resolver** (`nova`) | optional records: `Addr` / `Text` / `Reverse` | [`CDHQE67OLZ6OL7L6RCKZPR2OERXOMX6LOLTZIY4FGBMBQ2S7KFRQQRCT`](https://stellar.expert/explorer/testnet/contract/CDHQE67OLZ6OL7L6RCKZPR2OERXOMX6LOLTZIY4FGBMBQ2S7KFRQQRCT) |
 | **PrimaryName** | reverse: address → primary name | [`CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2`](https://stellar.expert/explorer/testnet/contract/CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2) |
 
-The Registry is the one address worth hard-coding: its `Registrar(nsNode)`
-and `Resolver(nsNode)` entries tell you which contracts serve **any**
-namespace, so you never need to special-case `nova`.
+Every namespace (`nova`, `veil`, …) has its **own** Registrar and Resolver
+instances — deployed by the Registry, discovered from the Registry, and never
+worth pinning: read `Registrar(nsNode)` and `Resolver(nsNode)` on the
+Registry and you serve every namespace that exists now or launches later
+with zero per-namespace configuration. A per-namespace address you copied
+from a doc is a liability; the Registry lookup is the API.
 
 ## The node hash
 
@@ -47,13 +51,19 @@ nova = 857f994cc3975eda4e373f51c9f5b0f7940451a5eb3ff225edc5cd468228b430
 ## Resolve a name → address
 
 <Steps>
-  <Step title="Compute the name's node">
+  <Step title="Compute the name's nodes">
     For `alice.nova`: hash `nova` to `nsNode`, then hash `alice` under it to
     `nameNode`.
   </Step>
-  <Step title="Read one persistent entry on the Registrar">
+  <Step title="Discover the namespace's Registrar from the Registry">
+    Read the Registry's `Registrar(nsNode)` entry — it returns the Registrar
+    contract deployed for that namespace. Cache it per namespace if you like
+    (it cannot be silently swapped for a permanent namespace), but always
+    *source* it from the Registry rather than a hard-coded list.
+  </Step>
+  <Step title="Read one persistent entry on that Registrar">
     Fetch the contract-data key `Name(nameNode)` with `getLedgerEntries`.
-    The whole resolve is this single read:
+    The steady-state resolve is this single read:
 
     ```rust
     // Registrar contract data, persistent
@@ -79,10 +89,10 @@ nova = 857f994cc3975eda4e373f51c9f5b0f7940451a5eb3ff225edc5cd468228b430
 
 | Contract | Persistent keys |
 | --- | --- |
-| Registry | `Node(node)` → `Record{owner, resolver}` · `Registrar(nsNode)` · `Resolver(nsNode)` |
-| Registrar | `Name(node)` → `Name{holder, address, expires_at, generation}` · `PendingTransfer(node)` |
-| Resolver | `Addr(node)` · `Text(node, key)` · `Reverse(addr)` |
-| PrimaryName | address → primary name (`String`) |
+| Registry (platform) | `Node(node)` → `Record{owner, resolver}` · `Registrar(nsNode)` · `Resolver(nsNode)` |
+| Registrar (one per namespace) | `Name(node)` → `Name{holder, address, expires_at, generation}` · `PendingTransfer(node)` |
+| Resolver (one per namespace) | `Addr(node)` · `Text(node, key)` · `Reverse(addr)` |
+| PrimaryName (platform) | address → primary name (`String`) |
 
 <Warning>
 **Generation binding.** Resolver records are bound to the name's current
