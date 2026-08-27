@@ -76,12 +76,13 @@ subNode(nsNode("nova"), "alice").toString("hex");
 The node is 32 **raw bytes**. When you put it in a ledger key below, pass the
 bytes — not the 64-char hex string.
 
-## Resolve a name → address
+## Resolve a name to an address
 
 The resolved address is **`Resolver.addr(node)` when a current forward record
 exists, otherwise the Registrar's built-in `resolve(label)`.** Calling the
 contracts applies that precedence — and the generation and expiry gates —
-for you:
+for you (`nsNode` / `subNode` and their `import { hash }` come from
+[The namehash](#the-namehash) above):
 
 ```js
 import {
@@ -128,9 +129,9 @@ point a name's forward record (`Resolver.addr`) somewhere other than where
 the name is *held*; that resolver record is the pay-to target and takes
 precedence. The built-in `Name.address` is only the fallback for names whose
 holder never set a resolver record. Reading `Name.address` alone gives the
-wrong address for any name with a divergent forward record — and `addr`,
-`resolve`, and `primary_of` all apply the on-chain **generation** gate that a
-raw entry read does not.
+wrong address for any name with a divergent forward record. `addr` and
+`primary_of` apply the on-chain **generation** gate; the built-in `resolve`
+fallback applies the **expiry** gate. A raw entry read applies neither.
 </Warning>
 
 The other view functions follow the same pattern: `Resolver.text(node, key)`
@@ -142,16 +143,19 @@ The other view functions follow the same pattern: `Resolver.text(node, key)`
 
 If you're indexing and want the raw entries, read them with
 `getLedgerEntries`. A Soran `DataKey` encodes as an **ScVal** inside a
-`LedgerKey.contractData`, and **every Soran DataKey is `PERSISTENT`** (a
-`temporary`-durability key returns nothing):
+`LedgerKey.contractData`. Every **record** key in the tables below is
+`PERSISTENT` — the only instance-storage keys (each contract's `Config`, the
+Resolver's `Provenance`) are config, not resolution, and are read from the
+contract-instance entry, not by a `DataKey` lookup:
 
 ```js
 import { rpc, xdr, Address, scValToNative } from "@stellar/stellar-sdk";
 const server = new rpc.Server("https://soroban-testnet.stellar.org");
 
-// A DataKey enum → ScVal:
-//   unit variant  DataKey::Config        → scvSymbol("Config")
-//   tuple variant DataKey::Name(node)    → scvVec([scvSymbol("Name"), scvBytes(node)])
+// A DataKey enum → ScVal. Every resolution key is a tuple variant:
+//   DataKey::Name(node) → scvVec([scvSymbol("Name"), scvBytes(node)])
+// (a unit variant would be a bare scvSymbol, but the only one — Config — is
+//  instance storage, so it isn't read through this path.)
 const dataKey = (variant, ...payload) => xdr.ScVal.scvVec([xdr.ScVal.scvSymbol(variant), ...payload]);
 
 function key(contractId, keyScVal) {
@@ -163,9 +167,11 @@ function key(contractId, keyScVal) {
 }
 
 async function readEntry(contractId, keyScVal) {
-  const { entries } = await server.getLedgerEntries(key(contractId, keyScVal));
-  if (!entries?.length) return null;                        // absent — OR archived; see below
-  return scValToNative(entries[0].val.contractData.val);    // Soroban struct → object keyed by field name
+  const { entries, latestLedger } = await server.getLedgerEntries(key(contractId, keyScVal));
+  if (!entries?.length) return null;                        // empty ⇒ never written (no such name)
+  const e = entries[0];
+  if (e.liveUntilLedgerSeq && e.liveUntilLedgerSeq < latestLedger) return null; // archived — needs restore
+  return scValToNative(e.val.contractData.val);             // Soroban struct → object keyed by field name
 }
 
 // discover the namespace Registrar, then read the Name record on it
@@ -173,38 +179,44 @@ const ns   = nsNode("nova");
 const node = subNode(ns, "alice");
 const registrar = await readEntry(REGISTRY, dataKey("Registrar", xdr.ScVal.scvBytes(ns)));
 const name      = await readEntry(registrar, dataKey("Name", xdr.ScVal.scvBytes(node)));
-// name = { holder, address, expires_at: 0n, generation: 1n }
+// name = { holder, address, expires_at: 0n, generation: 0n }
 ```
 
 <Warning>
 Raw reads bypass the on-chain gates, so to match the resolvers' actual answer
 you must replicate them yourself:
-- **Resolver precedence + generation.** The forward record `Resolver.Addr(node)`
-  is `AddrRec{ addr, generation }`. It only counts when its `generation`
-  equals the Registrar `Name(node).generation` — a transfer or reissue bumps
-  `Name.generation` and orphans the old record. Read both and compare; if
-  they differ (or no `Addr` record exists), fall back to `Name.address`.
+- **Resolver precedence + generation.** Every Resolver record — forward
+  `Addr(node)` → `AddrRec{ addr, generation }`, `Text(node, key)` →
+  `TextRec{ value, generation }`, `Reverse(addr)` → `RevRec{ node, name, generation }`
+  — carries the `generation` it was written under. A record only counts when
+  its `generation` equals the Registrar `Name(node).generation`; a transfer or
+  reissue bumps `Name.generation` and orphans the old records. Read both and
+  compare; if they differ (or no `Addr` record exists), fall back to
+  `Name.address`.
 - **Expiry.** A `Name` with nonzero `expires_at` in the past no longer
   resolves, whatever the entry still says (`0` = never expires).
-- **Archival.** A missing entry may be **archived** (rent lapsed) rather than
-  nonexistent — a still-owned name whose persistent entry needs restoring.
-  Check `liveUntilLedgerSeq`; do not read a missing entry as "name is free."
+- **Archival.** An **empty** result (`entries: []`) means the key was never
+  written — "no such name," not archived. A **present** persistent entry can
+  still be archived (rent lapsed): compare its `liveUntilLedgerSeq` to the
+  response's `latestLedger`, and if it's in the past the value is not live and
+  the entry needs restoring (the `readEntry` above already rejects it). Never
+  read a missing-or-archived entry as "the name is free."
 
-Unless you're building a full indexer, the [view-function path](#resolve-a-name-address)
+Unless you're building a full indexer, the [view-function path](#resolve-a-name-to-an-address)
 above is simpler and correct by construction.
 </Warning>
 
 ## Storage layout
 
-All entries are `PERSISTENT` contract data, keyed by the 32-byte node (or an
-address). A Soroban struct decodes to an object keyed by its field-name
-symbols; `u64` fields come back as `BigInt`.
+These record keys are all `PERSISTENT` contract data, keyed by the 32-byte
+node (or an address). A Soroban struct decodes to an object keyed by its
+field-name symbols; `u64` fields come back as `BigInt`.
 
 | Contract | Key → value |
 | --- | --- |
 | **Registry** (platform) | `Node(node)` → `Record{ owner: Address, resolver: Option<Address>, registrar_status, resolver_status }` · `Registrar(nsNode)` → `Address` · `Resolver(nsNode)` → `Address` |
 | **Registrar** (per namespace) | `Name(node)` → `Name{ holder: Address, address: Address, expires_at: u64, generation: u64 }` · `PendingTransfer(node)` |
-| **Resolver** (per namespace) | `Addr(node)` → `AddrRec{ addr: Address, generation: u64 }` · `Text(node, key)` → `String` (`key` is a `Symbol`) · `Reverse(addr)` → reverse record |
+| **Resolver** (per namespace) | `Addr(node)` → `AddrRec{ addr: Address, generation: u64 }` · `Text(node, key)` → `TextRec{ value: String, generation: u64 }` (`key` is a `Symbol`) · `Reverse(addr)` → `RevRec{ node: BytesN<32>, name: String, generation: u64 }` |
 | **PrimaryName** (platform) | `Primary(addr)` → `PrimaryRec{ name: String, ns_node, node }` — an **unverified** cache; call `primary_of(addr)`, which re-checks it live |
 
 A few encoding notes for raw reads: the `Node` record carries two extra
