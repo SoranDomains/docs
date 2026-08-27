@@ -1,18 +1,33 @@
 ---
 title: "On-chain resolution"
-description: "Resolve names straight from Soroban contract state — no Soran API, no SDK. Contract addresses, the node hash, and the storage layout, for explorers, indexers, and resolution services."
+description: "Resolve Soran names straight from the Soroban contracts — no Soran API. The two ways to read on-chain, the contract addresses, the namehash, and the storage layout, for explorers, indexers, and resolution services."
 ---
 
 Everything the [resolution endpoints](/api/resolution) serve is derived from
-public contract state you can read yourself. If you run an explorer, an
-indexer, or your own resolution service and would rather not trust our API,
-this page is the whole integration: the contracts, the key derivation, and
-the storage layout — one `getLedgerEntries` call per resolve.
+public contract state you can read yourself. This page is the whole
+integration for explorers, indexers, and resolution services that want the
+answer without our API.
+
+There are **two ways** to read it, both trustless and both talking only to a
+Soroban RPC node:
+
+<CardGroup cols={2}>
+  <Card title="Call the read functions" icon="wand-magic-sparkles">
+    Invoke the contracts' own view functions with `simulateTransaction`. The
+    contracts apply resolver precedence, generation-gating, and expiry
+    **on-chain** — you get the exact answer the SDK and API give. **Start here.**
+  </Card>
+  <Card title="Read ledger state directly" icon="database">
+    Pull the raw contract-data entries with `getLedgerEntries`. Full control
+    for indexers, but you must replicate the resolution logic yourself — see
+    the [caveats](#reading-raw-state).
+  </Card>
+</CardGroup>
 
 <Note>
 Testnet only for now — mainnet is not deployed, and these contract IDs will
 change at launch. RPC `https://soroban-testnet.stellar.org`, passphrase
-`Test SDF Network ; September 2015`.
+`Test SDF Network ; September 2015`. Examples use `@stellar/stellar-sdk` v17.
 </Note>
 
 ## Contracts
@@ -22,88 +37,196 @@ integration should ever hard-code:
 
 | Contract | Role | Testnet address |
 | --- | --- | --- |
-| **Registry** (immutable core) | namespace node → `{owner, registrar, resolver}` | [`CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI`](https://stellar.expert/explorer/testnet/contract/CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI) |
-| **PrimaryName** | reverse: address → primary name | [`CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2`](https://stellar.expert/explorer/testnet/contract/CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2) |
+| **Registry** (immutable core) | the entry point; maps a namespace node to its registrar and resolver | [`CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI`](https://stellar.expert/explorer/testnet/contract/CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI) |
+| **PrimaryName** | reverse: an address's chosen primary name | [`CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2`](https://stellar.expert/explorer/testnet/contract/CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2) |
 
 Every namespace (`nova`, `veil`, …) has its **own** Registrar and Resolver
-instances — deployed by the Registry, discovered from the Registry, and never
-worth pinning: read `Registrar(nsNode)` and `Resolver(nsNode)` on the
-Registry and you serve every namespace that exists now or launches later
-with zero per-namespace configuration. A per-namespace address you copied
-from a doc is a liability; the Registry lookup is the API.
+instances, deployed by the Registry. You never hard-code them — you discover
+them from the Registry (`registrar_of(nsNode)` / `resolver_of(nsNode)`), so a
+single Registry address serves every namespace that exists now or launches
+later. A per-namespace address copied from a doc is a liability; the Registry
+lookup is the API.
 
-## The node hash
+## The namehash
 
-Every name maps to a 32-byte **node** (namehash). A top-level namespace
-hashes from 32 zero bytes; a name hashes from its namespace's node:
-
-```text
-nsNode   = sha256( 0x00 × 32  ||  sha256(label) )     # namespace
-nameNode = sha256( nsNode     ||  sha256(label) )     # name under it
-```
-
-Worked example — the `nova` namespace:
+Every name maps to a 32-byte **node**. A namespace hashes from 32 zero bytes;
+a name hashes from its namespace's node. `label` is the raw UTF-8 bytes of a
+single **canonical** label — lowercased, `[a-z0-9-]`, 1–63 chars (the
+contracts reject anything else, so `Nova` and `nova` are different inputs and
+only `nova` resolves):
 
 ```text
-nova = 857f994cc3975eda4e373f51c9f5b0f7940451a5eb3ff225edc5cd468228b430
+nsNode   = sha256( 0x00 × 32  ||  sha256(label) )     # a namespace
+nameNode = sha256( nsNode     ||  sha256(label) )     # a name under it
 ```
+
+```js
+import { hash } from "@stellar/stellar-sdk";
+const sha     = (b) => Buffer.from(hash(b));
+const nsNode  = (label) => sha(Buffer.concat([Buffer.alloc(32), sha(Buffer.from(label, "utf8"))]));
+const subNode = (parent, label) => sha(Buffer.concat([parent, sha(Buffer.from(label, "utf8"))]));
+
+// worked example — nova, and alice.nova
+nsNode("nova").toString("hex");
+// 857f994cc3975eda4e373f51c9f5b0f7940451a5eb3ff225edc5cd468228b430
+subNode(nsNode("nova"), "alice").toString("hex");
+// 537d927ab5b2547c543ece8459c6971d873559ec43de2a8d43cdad118d68916e
+```
+
+The node is 32 **raw bytes**. When you put it in a ledger key below, pass the
+bytes — not the 64-char hex string.
 
 ## Resolve a name → address
 
-<Steps>
-  <Step title="Compute the name's nodes">
-    For `alice.nova`: hash `nova` to `nsNode`, then hash `alice` under it to
-    `nameNode`.
-  </Step>
-  <Step title="Discover the namespace's Registrar from the Registry">
-    Read the Registry's `Registrar(nsNode)` entry — it returns the Registrar
-    contract deployed for that namespace. Cache it per namespace if you like
-    (it cannot be silently swapped for a permanent namespace), but always
-    *source* it from the Registry rather than a hard-coded list.
-  </Step>
-  <Step title="Read one persistent entry on that Registrar">
-    Fetch the contract-data key `Name(nameNode)` with `getLedgerEntries`.
-    The steady-state resolve is this single read:
+The resolved address is **`Resolver.addr(node)` when a current forward record
+exists, otherwise the Registrar's built-in `resolve(label)`.** Calling the
+contracts applies that precedence — and the generation and expiry gates —
+for you:
 
-    ```rust
-    // Registrar contract data, persistent
-    DataKey::Name(nameNode) -> Name {
-        holder:     Address,  // who owns the name
-        address:    Address,  // ← the resolve / pay-to target
-        expires_at: u64,      // 0 = never expires
-        generation: u64,      // bumped on every ownership change
-    }
-    ```
+```js
+import {
+  rpc, Contract, Account, TransactionBuilder, BASE_FEE,
+  scValToNative, nativeToScVal,
+} from "@stellar/stellar-sdk";
 
-    Honor `expires_at`: a nonzero value in the past means the name no longer
-    resolves, whatever the entry still says.
-  </Step>
-  <Step title="Optional: richer records via the Resolver">
-    The namespace's Resolver holds `Addr(nameNode)`, `Text(nameNode, key)`,
-    and `Reverse(address)` records. Discover it generically from the
-    Registry's `Resolver(nsNode)` entry.
-  </Step>
-</Steps>
+const server   = new rpc.Server("https://soroban-testnet.stellar.org");
+const PASS     = "Test SDF Network ; September 2015";
+const REGISTRY = "CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI";
+// Any account works — simulation never signs and never submits.
+const SIM = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
+
+async function view(contractId, fn, ...args) {
+  const tx = new TransactionBuilder(new Account(SIM, "0"), { fee: BASE_FEE, networkPassphrase: PASS })
+    .addOperation(new Contract(contractId).call(fn, ...args))
+    .setTimeout(30).build();
+  const sim = await server.simulateTransaction(tx);
+  return rpc.Api.isSimulationSuccess(sim) && sim.result?.retval
+    ? scValToNative(sim.result.retval) : null;
+}
+
+async function resolve(namespace, label) {
+  const bytes = (b) => nativeToScVal(b, { type: "bytes" });
+  const ns   = nsNode(namespace);
+  const node = subNode(ns, label);
+
+  const resolver = await view(REGISTRY, "resolver_of", bytes(ns));   // the namespace's resolver pointer
+  if (resolver) {
+    const addr = await view(resolver, "addr", bytes(node));          // PRIMARY: generation-gated forward record
+    if (addr) return addr;
+  }
+  const registrar = await view(REGISTRY, "registrar_of", bytes(ns)); // FALLBACK: built-in, expiry-gated
+  return view(registrar, "resolve", bytes(Buffer.from(label, "utf8")));
+}
+
+await resolve("nova", "alice");
+// GDHNO4WKFQJJAPX6YLQTGWFR5QCKZXKJBHKRFCSNRRFSTEJIQZ4Y5UBU
+```
+
+<Warning>
+**Do not use the Registrar's `Name.address` as the answer.** The holder can
+point a name's forward record (`Resolver.addr`) somewhere other than where
+the name is *held*; that resolver record is the pay-to target and takes
+precedence. The built-in `Name.address` is only the fallback for names whose
+holder never set a resolver record. Reading `Name.address` alone gives the
+wrong address for any name with a divergent forward record — and `addr`,
+`resolve`, and `primary_of` all apply the on-chain **generation** gate that a
+raw entry read does not.
+</Warning>
+
+The other view functions follow the same pattern: `Resolver.text(node, key)`
+(a text record), `Resolver.name_of(addr)` / `PrimaryName.primary_of(addr)`
+(reverse lookups — both re-verified on read), `Registrar.holder_of_node(node)`
+(the holder, which may differ from the pay-to address).
+
+## Reading raw state
+
+If you're indexing and want the raw entries, read them with
+`getLedgerEntries`. A Soran `DataKey` encodes as an **ScVal** inside a
+`LedgerKey.contractData`, and **every Soran DataKey is `PERSISTENT`** (a
+`temporary`-durability key returns nothing):
+
+```js
+import { rpc, xdr, Address, scValToNative } from "@stellar/stellar-sdk";
+const server = new rpc.Server("https://soroban-testnet.stellar.org");
+
+// A DataKey enum → ScVal:
+//   unit variant  DataKey::Config        → scvSymbol("Config")
+//   tuple variant DataKey::Name(node)    → scvVec([scvSymbol("Name"), scvBytes(node)])
+const dataKey = (variant, ...payload) => xdr.ScVal.scvVec([xdr.ScVal.scvSymbol(variant), ...payload]);
+
+function key(contractId, keyScVal) {
+  return xdr.LedgerKey.contractData(new xdr.LedgerKeyContractData({
+    contract: new Address(contractId).toScAddress(),
+    key: keyScVal,
+    durability: xdr.ContractDataDurability.persistent,
+  }));
+}
+
+async function readEntry(contractId, keyScVal) {
+  const { entries } = await server.getLedgerEntries(key(contractId, keyScVal));
+  if (!entries?.length) return null;                        // absent — OR archived; see below
+  return scValToNative(entries[0].val.contractData.val);    // Soroban struct → object keyed by field name
+}
+
+// discover the namespace Registrar, then read the Name record on it
+const ns   = nsNode("nova");
+const node = subNode(ns, "alice");
+const registrar = await readEntry(REGISTRY, dataKey("Registrar", xdr.ScVal.scvBytes(ns)));
+const name      = await readEntry(registrar, dataKey("Name", xdr.ScVal.scvBytes(node)));
+// name = { holder, address, expires_at: 0n, generation: 1n }
+```
+
+<Warning>
+Raw reads bypass the on-chain gates, so to match the resolvers' actual answer
+you must replicate them yourself:
+- **Resolver precedence + generation.** The forward record `Resolver.Addr(node)`
+  is `AddrRec{ addr, generation }`. It only counts when its `generation`
+  equals the Registrar `Name(node).generation` — a transfer or reissue bumps
+  `Name.generation` and orphans the old record. Read both and compare; if
+  they differ (or no `Addr` record exists), fall back to `Name.address`.
+- **Expiry.** A `Name` with nonzero `expires_at` in the past no longer
+  resolves, whatever the entry still says (`0` = never expires).
+- **Archival.** A missing entry may be **archived** (rent lapsed) rather than
+  nonexistent — a still-owned name whose persistent entry needs restoring.
+  Check `liveUntilLedgerSeq`; do not read a missing entry as "name is free."
+
+Unless you're building a full indexer, the [view-function path](#resolve-a-name-address)
+above is simpler and correct by construction.
+</Warning>
 
 ## Storage layout
 
-| Contract | Persistent keys |
+All entries are `PERSISTENT` contract data, keyed by the 32-byte node (or an
+address). A Soroban struct decodes to an object keyed by its field-name
+symbols; `u64` fields come back as `BigInt`.
+
+| Contract | Key → value |
 | --- | --- |
-| Registry (platform) | `Node(node)` → `Record{owner, resolver}` · `Registrar(nsNode)` · `Resolver(nsNode)` |
-| Registrar (one per namespace) | `Name(node)` → `Name{holder, address, expires_at, generation}` · `PendingTransfer(node)` |
-| Resolver (one per namespace) | `Addr(node)` · `Text(node, key)` · `Reverse(addr)` |
-| PrimaryName (platform) | address → primary name (`String`) |
+| **Registry** (platform) | `Node(node)` → `Record{ owner: Address, resolver: Option<Address>, registrar_status, resolver_status }` · `Registrar(nsNode)` → `Address` · `Resolver(nsNode)` → `Address` |
+| **Registrar** (per namespace) | `Name(node)` → `Name{ holder: Address, address: Address, expires_at: u64, generation: u64 }` · `PendingTransfer(node)` |
+| **Resolver** (per namespace) | `Addr(node)` → `AddrRec{ addr: Address, generation: u64 }` · `Text(node, key)` → `String` (`key` is a `Symbol`) · `Reverse(addr)` → reverse record |
+| **PrimaryName** (platform) | `Primary(addr)` → `PrimaryRec{ name: String, ns_node, node }` — an **unverified** cache; call `primary_of(addr)`, which re-checks it live |
 
-<Warning>
-**Generation binding.** Resolver records are bound to the name's current
-`generation`, so a raw `Addr(node)` read can be **stale** after a name
-changes hands. For a resolution service, treat the Registrar's
-`Name(node).address` — which carries the live `generation` — as the source
-of truth, and Resolver records as enrichment.
-</Warning>
+A few encoding notes for raw reads: the `Node` record carries two extra
+provenance-status fields beyond `owner`/`resolver` (only those two matter for
+resolution). `Registrar(nsNode)`/`Resolver(nsNode)` are the Registry's
+**attested** deployments — for resolution use the `resolver_of` pointer, which
+equals the attested resolver for reference-stack namespaces but can differ if
+an owner repoints it. `Text`'s second key element is a `Symbol`
+(`scvSymbol`), so its key is `scvVec([scvSymbol("Text"), scvBytes(node), scvSymbol(key)])`.
 
-The authoritative storage format is the contract source — the `DataKey`
-enums in `contracts/{registry,registrar,resolver}/src/lib.rs`. The same data
-is served, already decoded, by the [HTTP API](/api/resolution) and the
-[Lookup SDK](/sdk/resolving-names); the [trust model](/concepts/trust-model)
-explains why the Registry's answers can't be edited out from under you.
+## A resolved address may be a contract
+
+The value you get back is a Soroban `Address` — it can be an **account**
+(`G…`) or a **contract** (`C…`); muxed (`M…`) addresses are never stored.
+A payment integration must branch on the type and not assume a classic
+account.
+
+---
+
+The authoritative storage format is the contract source — the `DataKey` enums
+and structs in `contracts/{registry,registrar,resolver,primary}/src/lib.rs`.
+The same data is served, already resolved, by the [HTTP API](/api/resolution)
+and the [Lookup SDK](/sdk/resolving-names); the
+[trust model](/concepts/trust-model) explains why the Registry's answers
+can't be edited out from under you.
