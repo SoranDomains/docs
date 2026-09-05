@@ -3,10 +3,9 @@ title: "Installation and configuration"
 description: "Configure the matching Universal Lookup, Registry, Primary and Stellar network."
 ---
 
-These pages target the prepared Lookup 0.5.0 release. Check [release status](/reference/release-status) for publication and deployment status before installing or selecting contract IDs.
+These pages target published Lookup 0.5.0. Its testnet preset matches the fresh contracts in [release status](/reference/release-status).
 
 ```bash
-# After the matching version is published:
 npm install @sorandomains/lookup@0.5.0 @stellar/stellar-sdk@^17
 ```
 
@@ -32,7 +31,7 @@ const soran = new Soran({
 
 `deployment` represents your verified network configuration. Universal Lookup is the shared read entry point; per-namespace Registrar and Resolver addresses are discovered on chain, not hard-coded in the app.
 
-A network without a Lookup pin fails with `CONFIG`. Until your installed release includes the fresh preset, supply the verified IDs explicitly. Changing Registry or network passphrase prevents inheriting a Lookup or Primary pin from an unrelated preset. There is no supported mainnet preset until a reviewed deployment exists.
+A network without a Lookup pin fails with `CONFIG`. You can use `new Soran({ network: "testnet" })` with the bundled preset, or provide the matching explicit configuration shown above. Changing Registry or network passphrase prevents inheriting a Lookup or Primary pin from an unrelated preset. There is no supported mainnet preset until a reviewed deployment exists.
 
 In universal mode, a provided `primaryId` is an extra check against `Lookup.primary()`. `primaryId: null` disables the Primary feature. Omitting it for a custom deployment lets Lookup's configured anchor determine the Primary read.
 

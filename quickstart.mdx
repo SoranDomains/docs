@@ -4,29 +4,24 @@ description: "Read and recheck complete address-and-memo instructions through Un
 ---
 
 <Note>
-This quickstart targets Lookup 0.5.0, with verified fresh testnet contracts. Package publication is a separate release step; use the matching source package until publication is confirmed. See [release status](/reference/release-status).
+This quickstart uses published Lookup 0.5.0 and the fresh testnet contracts deployed on 5 September 2026. See [release status](/reference/release-status) for addresses and hosted endpoints.
 </Note>
 
 ## Configure one shared reader
 
-Use Stellar SDK 17 with the matching Lookup package. Once those package versions are published:
+Install Lookup with Stellar SDK 17:
 
 ```bash
 npm install @sorandomains/lookup@0.5.0 @stellar/stellar-sdk@^17
 ```
 
-Supply the verified configuration for one deployment. These variables are placeholders for real deployment values, not sample contract IDs.
+The package's testnet preset includes the verified Registry, Lookup and Primary addresses:
 
 ```ts
 import { Soran } from "@sorandomains/lookup";
 
 const soran = new Soran({
   network: "testnet",
-  registryId: deployment.registryId,
-  lookupId: deployment.lookupId,
-  primaryId: deployment.primaryId,
-  rpcUrl: deployment.rpcUrl,
-  passphrase: deployment.passphrase,
   reverseNamespaces: ["nova"],
 });
 ```

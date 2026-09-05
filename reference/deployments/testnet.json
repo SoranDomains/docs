@@ -13,10 +13,20 @@
     "amount": "50000000000",
     "recipient": "GAJCWWNMBKCSTQQISDFTHFTCEOGXYA37YTP3U3ZW7Q5CYQPHSW6TB4QX",
     "asset": "XLM",
-    "decimals": 7
+    "decimals": 7,
+    "configurationLedger": 4515464,
+    "configurationTransaction": "0ad5b54e20c84e2699a5d57a87f68ad17d929dd3fe601521decb1476efdecc12",
+    "refundBps": {
+      "Awarded": 0,
+      "Rejected": 10000,
+      "Stuck": 10000,
+      "Withdrawn": 8000,
+      "Expired": 8000
+    }
   },
   "namespace": {
     "label": "nova",
+    "node": "857f994cc3975eda4e373f51c9f5b0f7940451a5eb3ff225edc5cd468228b430",
     "owner": "GAAHFS7CISNAJOQK5VS447NS6ZFPRLLQQP6IM2EA4W7XZWGJNMXZ4VLK",
     "permanent": false,
     "reclaimable": true

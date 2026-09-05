@@ -9,8 +9,10 @@ The fresh contracts were deployed on **5 September 2026** and their Wasm hashes 
 | --- | --- |
 | Registry, Allocator, nova Registrar/Resolver, Primary and Universal Lookup | Deployed and verified |
 | Public namespace claim fee | **5,000 testnet XLM** paid upfront into Allocator escrow |
-| SDK packages | Publication in progress; see version status below |
-| Public app, API and hosted MCP switch | Separate cutover pending verification |
+| SDK packages | Lookup, Holder and Owner published and verified; MCP publication in progress |
+| Public app | Serving the fresh testnet setup; verified 5 September 2026 |
+| Public API | Serving the fresh testnet setup; verified 5 September 2026 |
+| Hosted MCP | Serving the fresh testnet setup; verified 5 September 2026 |
 | Mainnet | No deployment or supported preset announced |
 | Mainnet namespace fee | Proposed 5,000 USDC; not a live configured price |
 
@@ -42,9 +44,22 @@ The fee is reserved in Allocator until its [claim outcome](/concepts/claiming-a-
 
 ## SDK versions
 
-The prepared versions are Lookup **0.5.0**, Holder **0.3.0**, Owner **0.5.0** and MCP **0.5.0**. Publication is in progress and must be verified separately from contract deployment. These versions target `@stellar/stellar-sdk >=17 <18`.
+| Package | Version | Status |
+| --- | --- | --- |
+| [Lookup](https://www.npmjs.com/package/@sorandomains/lookup/v/0.5.0) | **0.5.0** | Published; registry artifact verified |
+| [Holder](https://www.npmjs.com/package/@sorandomains/holder/v/0.3.0) | **0.3.0** | Published; registry artifact verified |
+| [Owner](https://www.npmjs.com/package/@sorandomains/owner/v/0.5.0) | **0.5.0** | Published; registry artifact verified |
+| MCP | **0.5.0** | Publication in progress |
 
-Universal Lookup is the new default read path. Until your installed package contains the verified new preset, provide the matching explicit Registry/Lookup/Primary/network configuration from this page. Missing Lookup configuration throws `CONFIG`; it never silently selects direct Resolver reads. Deliberate direct mode only supports the compatible native path.
+These versions target `@stellar/stellar-sdk >=17 <18`. The published Lookup package includes the fresh testnet preset above. Universal Lookup is the default read path. Missing Lookup configuration throws `CONFIG`; it never silently selects direct Resolver reads. Deliberate direct mode only supports the compatible native path.
+
+## Hosted services
+
+- App: [soran.domains](https://soran.domains).
+- HTTP API: `https://api.soran.domains`; resolution alias: `https://resolve.soran.domains`.
+- Hosted MCP: `https://mcp.soran.domains/mcp`, with read tools only.
+
+These services were verified against the fresh testnet setup on **5 September 2026**. The API reported the new namespace fee and complete, current coverage with no recorded gaps. Recheck [service status](/api/status) and coverage during integration. Billing and marketplace features are disabled on this deployment.
 
 ## Fresh namespace and older deployment
 
