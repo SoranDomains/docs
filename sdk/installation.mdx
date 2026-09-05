@@ -1,96 +1,65 @@
 ---
 title: "Installation and configuration"
-description: "Install @sorandomains/lookup, pick a network preset or bring your own RPC and contract ids."
+description: "Configure the matching Universal Lookup, Registry, Primary and Stellar network."
 ---
 
-## Install
+These pages target published Lookup 0.5.0. Its testnet preset matches the fresh contracts in [release status](/reference/release-status).
 
 ```bash
-npm install @sorandomains/lookup @stellar/stellar-sdk
+npm install @sorandomains/lookup@0.5.0 @stellar/stellar-sdk@^17
 ```
 
-The only peer dependency is `@stellar/stellar-sdk` (`>=13 <18`, including v17). The package is ESM, ships TypeScript types, and runs in both browsers (WebCrypto) and Node (`node:crypto`) with no bundler shims.
+The supported Stellar SDK peer range is `>=17 <18`. The package is ESM with TypeScript types and supports Node, browsers and workers.
 
-<Note>
-  Published on npm as [`@sorandomains/lookup`](https://www.npmjs.com/package/@sorandomains/lookup); source on [GitHub](https://github.com/SoranDomains/sdk).
-</Note>
-
-## The simplest setup
+## Universal mode is the default
 
 ```ts
 import { Soran } from "@sorandomains/lookup";
 
-const soran = new Soran({ network: "testnet" });
-```
-
-A network preset fills in the RPC URL, network passphrase, Registry id, and PrimaryName id for you. Every field is individually overridable.
-
-## Network presets
-
-The `testnet` preset (the default) ships these values, exported as `DEPLOYMENTS`:
-
-| Field | Testnet value |
-| --- | --- |
-| `rpcUrl` | `https://soroban-testnet.stellar.org` |
-| `passphrase` | the Stellar testnet passphrase |
-| `registryId` | `CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI` |
-| `primaryId` | `CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2` |
-
-A `mainnet` preset is populated at mainnet launch. Until then, targeting mainnet means passing `rpcUrl`, `passphrase`, `registryId`, **and `primaryId: null`** explicitly — the constructor always starts from a preset and explicit fields override it, so omitting `primaryId` would inherit the testnet PrimaryName id from the default preset.
-
-## Bring your own RPC
-
-Every SDK call is a read-only Soroban RPC simulation, so the RPC endpoint is the one piece of infrastructure you actually trust. Point it anywhere — including your own node:
-
-```ts
 const soran = new Soran({
   network: "testnet",
-  rpcUrl: "https://your-rpc.example.com",
+  registryId: deployment.registryId,
+  lookupId: deployment.lookupId,
+  primaryId: deployment.primaryId,
+  rpcUrl: deployment.rpcUrl,
+  passphrase: deployment.passphrase,
+  reverseNamespaces: ["nova"],
+  hintUrl: deployment.apiUrl,
+  timeoutMs: 10_000,
 });
 ```
 
-<Warning>
-  Plain `http://` URLs are accepted only for `localhost` / `127.0.0.1` / `[::1]`. A production consumer over unencrypted HTTP would let an on-path attacker forge every read the SDK makes, so the SDK refuses it.
-</Warning>
+`deployment` represents your verified network configuration. Universal Lookup is the shared read entry point; per-namespace Registrar and Resolver addresses are discovered on chain, not hard-coded in the app.
 
-## All options
+A network without a Lookup pin fails with `CONFIG`. You can use `new Soran({ network: "testnet" })` with the bundled preset, or provide the matching explicit configuration shown above. Changing Registry or network passphrase prevents inheriting a Lookup or Primary pin from an unrelated preset. There is no supported mainnet preset until a reviewed deployment exists.
+
+In universal mode, a provided `primaryId` is an extra check against `Lookup.primary()`. `primaryId: null` disables the Primary feature. Omitting it for a custom deployment lets Lookup's configured anchor determine the Primary read.
+
+## Explicit direct compatibility mode
 
 ```ts
-new Soran({
-  network: "testnet",              // deployment preset ("mainnet" after launch)
-  rpcUrl: "https://your-rpc",      // override the RPC endpoint
-  passphrase: "…",                 // override the network passphrase
-  registryId: "C…",                // override the immutable Registry id
-  primaryId: "C…",                 // PrimaryName contract id — pass null to disable
-  registrars: { nova: "C…" },      // per-namespace Registrar ids for closed resolution
-  reverseNamespaces: ["nova"],     // namespaces reverseLookup probes, in priority order
-  resolverCacheTtlMs: 30_000,      // namespace→resolver pointer cache TTL (0 = off)
-  hintUrl: "https://your-api.example",  // optional namespace-LIST hint (GET /v1/showcase) for reverseLookup — your deployment's API base
+import { Soran } from "@sorandomains/lookup";
+
+const direct = new Soran({
+  registryId: deployment.registryId,
+  rpcUrl: deployment.rpcUrl,
+  passphrase: deployment.passphrase,
+  resolutionMode: "direct",
+  primaryId: deployment.primaryId,
 });
 ```
 
-A few options deserve context:
+`lookupId: null` also explicitly selects direct mode. Direct mode discovers **native** Resolvers and checks Registry, Registrar authority and payment version. It has no fallback to older address-only implementations. `lookup`, `namespaceMetadata` and `nameMetadata` require universal mode.
 
-- **`primaryId`** — the platform-deployed PrimaryName contract (one immutable instance per network). `undefined` inherits the preset; `null` explicitly disables the primary-name feature even when the preset ships one. See [reverse lookup and primary names](/sdk/reverse-and-primary).
-- **`registrars`** — for namespaces that run closed (registrar-side) resolution instead of a public resolver, map the namespace label to its Registrar contract id and `resolve()` will ask it directly.
-- **`reverseNamespaces`** — reverse records live on per-namespace resolvers, and the chain cannot enumerate namespaces, so `reverseLookup` must be told which ones to probe. Defaults to `[]`.
-- **`resolverCacheTtlMs`** — how long the namespace→resolver pointer is cached. The pointer can change for a reclaimable namespace, so long-lived instances should keep this bounded (default 30 seconds; `0` disables caching).
-- **`hintUrl`** — a liveness-only fallback that supplies the *list* of namespaces to probe when `reverseNamespaces` isn't set. It is never in the trust path: a lying hint can hide a name, never forge one.
+## Other options
 
-## Fail-closed construction
+| Option | Purpose |
+| --- | --- |
+| `reverseNamespaces` | Ordered namespace candidates for reverse probing; default empty |
+| `hintUrl` | Optional indexed discovery for namespace candidates, holdings and history |
+| `resolverCacheTtlMs` | Direct-mode routing cache lifetime; default 30,000 ms, `0` disables it |
+| `timeoutMs` | Per-chain-read wait bound; a larger aggregate can take longer; does not cancel the underlying request |
 
-Configuration mistakes surface at `new Soran(...)`, not deep inside your render path:
+HTTPS is required except for allowed local-development hosts. Names are checked for ASCII before lowercasing, and whitespace is not trimmed. Malformed configuration or name input must be corrected rather than retried as an absent record.
 
-- A malformed `primaryId` (not a `C…` contract strkey) throws a `SoranError` immediately.
-- A malformed label in `reverseNamespaces` throws a `SoranError` immediately.
-
-## Next
-
-<CardGroup cols={2}>
-  <Card title="Resolving names" href="/sdk/resolving-names" icon="magnifying-glass">
-    resolve, verify, records — and the confirm-time re-check.
-  </Card>
-  <Card title="SDK reference" href="/sdk/reference" icon="book">
-    Every method and type in one table.
-  </Card>
-</CardGroup>
+See [reference](/sdk/reference) for methods, result types and typed failures.

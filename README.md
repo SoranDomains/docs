@@ -1,26 +1,22 @@
 # Soran documentation
 
-Public documentation for [Soran](https://github.com/SoranDomains) — the Soroban name service on Stellar. Built with [Mintlify](https://mintlify.com): pages are MDX, navigation lives in `docs.json`.
+Public [Soran](https://github.com/SoranDomains) documentation built with Mintlify. Pages use MDX; navigation lives in `docs.json`.
 
-## Map
+- `reference/release-status.mdx` separates verified contracts, package publication and hosted service cutovers.
+- `reference/deployments/testnet.json` records public contract IDs, hashes and confirmed deployment transactions.
+- Concepts explain optional on-chain memos, namespace fees, ownership and governance.
+- SDK/API pages distinguish current contract reads from indexed discovery and history.
 
-| Section | For |
-| --- | --- |
-| Get started / Concepts | Anyone — what Soran is, ownership guarantees, the claim window, the trust model |
-| SDK | Wallets & apps integrating [`@sorandomains/sdk`](https://www.npmjs.com/package/@sorandomains/sdk) |
-| HTTP API | Backends using the public `/v1` read surface |
-| Running a namespace | Businesses operating a namespace via the console |
+## Validate and preview
 
-## Related repositories
-
-- [`SoranDomains/sdk`](https://github.com/SoranDomains/sdk) — standalone home of the SDK, published as [`@sorandomains/sdk` on npm](https://www.npmjs.com/package/@sorandomains/sdk) — trustless resolution for wallets
-- `SoranDomains/soran` — the platform monorepo (private): contracts, API/indexer, web console
-
-## Local preview
+Use Node 22 LTS. CI installs the exact lockfile and runs the same validator.
 
 ```bash
-npm i -g mint
-mint dev
+npm ci
+npm run validate
+npx mint dev
 ```
 
-Pushes to `main` deploy automatically once the Mintlify GitHub app is installed for this repo.
+Review changes against the matching implementation and public deployment evidence before merging. Never publish predicted addresses as live or convert a roadmap decision into an available feature. SDK source is at [SoranDomains/sdk](https://github.com/SoranDomains/sdk).
+
+Main-branch changes may trigger the configured documentation site deployment. Use a reviewed branch/PR for changes.

@@ -1,66 +1,33 @@
 ---
-title: "Marketplace"
-description: "Sell a namespace through escrow: list it, bond it, propose the on-chain transfer, and let settlement pay out automatically — with a verified provenance record."
+title: "Optional marketplace"
+description: "Operator-custodied payment escrow and on-chain namespace transfers."
 ---
 
-When a deployment enables it, the console's **Market** tab lets you sell your namespace through Soran's escrow: the buyer's money is held until the on-chain handover completes, settled sales mint a verified provenance record, and a bond keeps sellers honest. Namespaces remain freely transferable wallet-to-wallet on chain at any time, marketplace or not — escrow is a safety layer for selling to a stranger, not a tollgate.
+The marketplace is available **when enabled on a deployment**. It sells whole namespaces using operator-custodied payment escrow and Registry's two-step ownership transfer. It is separate from the Allocator's on-chain claim-fee escrow.
 
-## Custody, plainly
+## Custody
 
-Two disclosures up front:
+The deployment's escrow account holds the buyer's money and seller's bond. The namespace stays with its owner until the proposed recipient accepts its Registry transfer. A displayed sale badge is hosted provenance derived from settlement records, not a new on-chain ownership token or guarantee.
 
-- **Deposits and bonds are held in a Soran-operated escrow account** until settlement. Money in escrow is custodied by the deployment's operator, and every payment in is accounted for and leaves through exactly one payout — release, refund, bond return, or slash — with any edge case held for operator handling rather than silently absorbed.
-- **The namespace itself never leaves your wallet** until the buyer accepts the transfer on chain. Escrow holds money, never names.
+## Seller flow
 
-## The seller flow
+1. The namespace owner lists a price. Marketplace fees and bond amounts are operator-set and must be shown before commitment.
+2. The seller funds the required performance bond with the exact supplied memo.
+3. For a buyer, the seller proposes the **namespace Registry transfer** to that buyer's address.
+4. After funded delivery is verified, the settlement service attempts payment to the seller and bond return under its rules.
 
-Listing is an **ownership act**: only the namespace owner wallet can list or withdraw — never an invited admin or issuer.
+Console admin/issuer access does not authorize listing as owner. A Name-view individual transfer is not the required namespace transfer. A listing with a funded deposit or delivery in progress cannot simply be withdrawn as if no sale existed.
 
-<Steps>
-  <Step title="Create the listing">
-    Name your price in XLM. The marketplace fee (a percentage set by the operator, shown on the listing) is deducted from the sale price **at settlement only** — a listing that never sells costs nothing.
-  </Step>
-  <Step title="Fund the refundable bond">
-    The console shows an exact payment — escrow address, bond amount (operator-set), and a unique hash memo. Pay it from your wallet and the listing goes live automatically when it confirms. The bond is a performance guarantee, returned on a settled sale or a clean withdrawal.
-  </Step>
-  <Step title="Propose the on-chain transfer">
-    When a buyer commits, propose the transfer **to their address** on chain (Names → transfer, or your own wallet tooling). The buyer's deposit only counts once your proposal to them is live.
-  </Step>
-  <Step title="Settlement is automatic">
-    The buyer pays the price into escrow, then accepts the transfer on chain. On the ownership flip, escrow releases the price minus the fee to you and returns your bond — no further action from either side.
-  </Step>
-</Steps>
+## Buyer flow
 
-You can withdraw a live listing at any time and get the bond back — **unless a funded deposit exists or a sale is already mid-delivery on chain** (the buyer holds the name with payment pending). A sale in motion must settle (deliver or refund); it can never be pulled out from under the buyer.
+Create an intent through the [market API](/api/market), check the live Registry proposal points to your wallet, then send the exact price and hash memo from a self-custody account. Finally, accept the namespace transfer from that wallet.
 
-## The buyer flow
+Do not pay a generic address returned by a name lookup in place of the exact escrow intent. Refunds go to the payment's source account; paying from an exchange can route a refund to its pooled account without a customer memo.
 
-Buyers act from their own wallets against the public API — no console account needed:
+## Refund and bond policy
 
-1. Browse active listings (`GET /v1/market/listings`) and register interest in one, which mints a deposit intent: an exact escrow payment with a unique hash memo, valid for 24 hours.
-2. **Wait for the seller's on-chain transfer proposal to your address** before paying — a deposit paid early just bounces back.
-3. Pay the full price in **one payment from a self-custody wallet** (refunds return to the sending address; partial payments don't accumulate — each under-price payment is refunded).
-4. Accept the transfer on chain. Escrow releases to the seller on the flip, and the namespace is yours.
+Seller cancellation, redirection or delivery elsewhere during a funded sale can entitle the buyer to a refund and seller-bond slash. If the buyer lets a standing offer expire without accepting, the refund policy does not treat that alone as seller breach. Successful delivery releases the price less fee and returns the eligible bond.
 
-If the deployment also runs [billing](/platform/billing), re-attest ownership in the console afterwards to pick up any hosted subscription.
+These are settlement rules implemented by the hosted operator. Payouts can be delayed or parked for review, including small amounts or uncertain chain state. They are not a guarantee of automatic delivery or a fixed refund time. Review the actual deposit/settlement status and [watcher health](/api/status).
 
-## The bond policy, exactly
-
-The bond covers **seller failure to deliver a funded sale** — nothing more, nothing less:
-
-| While the buyer's deposit is funded, the seller… | Buyer's deposit | Seller's bond |
-| --- | --- | --- |
-| Cancels the transfer proposal | Refunded in full | **Forfeited to the buyer** |
-| Re-aims the proposal at someone else | Refunded in full | **Forfeited to the buyer** |
-| Sells the name elsewhere | Refunded in full | **Forfeited to the buyer** |
-| Delivers (buyer accepts on chain) | Released to seller, minus fee | Returned to seller |
-
-The one carve-out: if the **buyer** simply never accepts a standing offer and it expires, the buyer is refunded in full and the seller **keeps the bond** — a buyer's own non-acceptance is not the seller's breach (and slashing there would let buyers farm bonds). A slash verdict is issued only after on-chain confirmation that the name genuinely wasn't delivered — never on a stale view.
-
-## Verified provenance
-
-Every escrow-settled sale mints a provenance badge: namespace, price, seller, buyer, settlement time. It's public per name node via `GET /v1/market/history/:node`, so a future buyer can verify a namespace's sale history against real settled escrow — not seller claims. Sales flagged as wash trading are excluded from the public signal.
-
-<Note>
-  On deployments without the marketplace, the Market tab says so and everything else here is inert. Wallet-to-wallet on-chain transfers always work — see [ownership guarantees](/concepts/ownership-guarantees).
-</Note>
+A namespace remains transferable through its contract process without this optional marketplace. If hosted billing is enabled, a buyer may need to re-attest ownership for those services.

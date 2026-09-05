@@ -1,64 +1,50 @@
 ---
-title: "Lifecycle & transfers"
-description: "Reclaim, renew, treasury routing, namespace transfers, resolver pointing, and the one-way permanence door — the rest of @sorandomains/owner."
+title: "Lifecycle and transfers"
+description: "Owner operations, separate namespace transfers and the irreversible permanence lock."
 ---
 
-Beyond [issuing](/owner/issuing-from-code), `@sorandomains/owner` covers the owner-authorized **lifecycle** operations — reclaim, renew, treasury, transfers, resolver pointing, permanence. Deployment-time flows (deploying a Registrar or Resolver) run through the console or the Registry contract directly. All of it is policy- and permission-checked **on chain** — the SDK is a convenience, never an authority.
+Use the [configured Owner SDK](/owner/issuing-from-code) for namespace-authorized lifecycle operations. The contracts enforce policy and signing authority.
 
-## Reclaim and renew
-
-```ts
-await owner.reclaim("acme", "alice");        // take a name back from its holder
-await owner.renew("acme", "alice", 86_400);  // extend a finite term; returns the new expiry
-```
-
-- `reclaim` works only on namespaces whose immutable policy allows it — the contract answers `NotReclaimable` both when the policy never allowed it and after `makePermanent` removed the power forever.
-- `renew` applies to finite-term names; on a permanent-term namespace it answers `PermanentName`.
-- `setTreasury(namespace, address)` routes the custody of future reclaims to a treasury account instead of the owner wallet.
-
-## Namespace transfers
-
-Transferring the whole namespace is a two-step, accept-to-move flow — a typo'd recipient can never burn it:
+## Reclaim, renew and treasury
 
 ```ts
-await owner.proposeNamespaceTransfer("acme", "G…NEWOWNER");
-await owner.pendingNamespaceTransfer("acme");   // visible to both parties
-await owner.cancelNamespaceTransfer("acme");    // withdraw while unaccepted
+await owner.reclaim("acme", "alice");
+await owner.renew("acme", "alice", 86_400);
+await owner.setTreasury("acme", treasuryAddress);
 ```
 
-The recipient completes it from their side — same package, their signer:
+Reclaim requires reclaimability. Renewal extends an eligible finite term; zero-term names cannot be renewed as if they had a finite expiry. Treasury config controls custody for future reclaims. A current name expires only when ledger time is strictly greater than its finite expiry.
+
+## Transfer the namespace
 
 ```ts
-const newOwner = new SoranOwner({ signer: theirSigner });
-await newOwner.acceptNamespaceTransfer("acme");
+await owner.proposeNamespaceTransfer("acme", newOwnerAddress);
+const pending = await owner.pendingNamespaceTransfer("acme");
+await owner.cancelNamespaceTransfer("acme");
 ```
 
-Nothing moves until acceptance; re-proposing replaces the pending offer.
+The recipient uses its own configured `SoranOwner` client to call `acceptNamespaceTransfer("acme")`. Ownership moves on acceptance, not proposal. This Registry transfer is distinct from an individual name's Registrar transfer in the Holder SDK or console Names view.
 
-## Pointing the resolver
+## Change routing
 
 ```ts
-await owner.setResolver("acme", "C…RESOLVER"); // or null to clear
+await owner.setResolver("acme", resolverAddress);
 ```
 
-Holders' explicit records live on the resolver; names without one resolve through the Registrar's built-in target. Once the namespace is permanent, the resolver pointer is frozen (`ResolverFrozen`) — the pay-to path can never be silently redirected.
+On an unlocked namespace the owner can change eligible routing. A different Resolver has different storage; existing address, memo, text and reverse records do not migrate automatically. A strict native payment lookup cannot assume a cleared or incompatible Resolver means a safe built-in memo-free destination. Plan and verify migration before repointing.
 
-## The one-way door
+A permanent Registry Resolver pointer cannot change. Holder records within that fixed Resolver remain mutable.
+
+## Make the namespace permanent
 
 ```ts
 await owner.makePermanent("acme", { confirmIrreversible: true });
 ```
 
-This is the [permanence guarantee](/concepts/ownership-guarantees) made real: reclaim locks off forever, the Registrar's code freezes, and every issued name becomes permanently its holder's. There is no path back — for you, for Soran, for anyone. The SDK requires the explicit `confirmIrreversible` flag, and the contract enforces its own preconditions: the policy must have always issued permanent terms (`FiniteTermPolicy` otherwise), and the namespace's Registrar/Resolver must carry clean deployment provenance.
+This is an irreversible [contract transition](/concepts/ownership-guarantees), subject to zero-term policy, clean provenance and current wiring checks. It freezes eligible namespace code and routing and disables reclaim. It does not freeze holder-controlled payment records or Universal Lookup governance.
 
-Check where you stand first:
+Read `policy`, `isPermanent`, and `nameState` before making lifecycle decisions. A non-reclaimable zero-term policy remains **unlocked** until the required permanence transition has completed.
 
-```ts
-await owner.policy("acme");       // { reclaimable, transferable, defaultTermSecs, … }
-await owner.isPermanent("acme");  // has the door already closed?
-await owner.nameState("acme", "alice"); // { holder, address, expiresAt, generation } | null
-```
+## Storage availability
 
-## Dormant state, handled
-
-Stellar archives on-chain entries whose rent lapses. A dormant namespace is still owned — and the SDK treats archival honestly: write operations restore archived entries automatically (as extra owner-signed transactions), and reads report "archived" as a distinct error rather than pretending the entry doesn't exist.
+Archived contract state still belongs to its recorded owner. Write flows can require extra signed restoration transactions and their network fees. Reads must report unavailable/archived state honestly; a read-only simulation does not guarantee a restore happened. Check included transaction hashes before retrying an uncertain operation.

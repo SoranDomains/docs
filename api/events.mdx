@@ -1,0 +1,74 @@
+---
+title: "Explorer events and coverage"
+description: "Versioned contract events, exact event identity, cursor pagination and history gaps."
+---
+
+The fresh contracts add versioned discovery and change events while retaining old event layouts. These events support explorers and cache invalidation; payment consumers still read the current Universal Lookup result.
+
+## Versioned contract events
+
+Topics are in the exact order shown. Data structs use Soroban contracttype map encoding.
+
+| Contract | Topics | Data |
+| --- | --- | --- |
+| Registry | `ns_v1`, namespace node | `NamespaceAllocated { label:Bytes, owner:Address, resolver:Option<Address>, method:Symbol }` |
+| Registrar | `name_v1`, name node, generation | `NameChange { label:Bytes, action:Symbol, holder:Address, address:Address, expires_at:u64 }` |
+| Registrar | `xfer_v1`, name node, generation | `TransferChange { label:Bytes, action:Symbol, holder:Address, to:Option<Address>, proposal_expires:Option<u64>, expires_at:u64 }` |
+| Resolver | `addr_v1`, name node, generation | `Address` |
+| Resolver | `text_v1`, name node, generation | Text key `Symbol` only |
+| Resolver | `pay_v1`, name node, generation | Complete `Payment { address, memo }` |
+
+Nodes are `BytesN<32>` and generations are `u64`.
+
+`ns_v1.method` is `allocate` or `reserved`; its plaintext label allows new namespace discovery. `name_v1.action` is `issue`, `reclaim`, `transfer`, `renew` or `address`. `xfer_v1.action` is `propose` or `cancel`; cancellation carries `to=None` and `proposal_expires=None` and can be idempotent.
+
+`text_v1` is **invalidation only**. It does not contain the historic value. Re-read current text through Lookup if you need it; historic reconstruction needs historic state access. Complete payment writes emit `pay_v1`, without duplicate address/text companion events. A configured memo-free `set_addr` emits the updated complete payment; an ordinary unconfigured address-only write emits `addr_v1`.
+
+When an older event has a new companion, the older event immediately precedes it in the same invocation. Archive both raw events; avoid applying the same state change twice in a projection. Do not deduplicate merely by transaction, action and subject: one transaction can contain multiple legitimate events.
+
+## Routing and governance events
+
+Existing Registry events also signal routing changes: `dep_reg`, `att_reg`, `dep_res`, `set_res`, `reg_upg`, `res_upg` and `locked`. Namespace transfers use `prop_tr`, `acc_tr` and `canc_tr`; they are distinct from Registrar name transfers. Re-read current namespace metadata after a routing/provenance change and retain previous emitting contracts in the archive.
+
+Primary uses `set_pri` and `clr_pri`. Lookup uses `upg_prop` with `(wasm_hash, execute_after)`, `upg_exec` with the exact hash and `upg_canc` with the canceled hash. A zero-delay proposal can execute immediately, so an event watcher is not guaranteed advance notice.
+
+## Fee events
+
+| Topics | Data |
+| --- | --- |
+| `fee_cfg` | Claim fee policy |
+| `fee_paid`, key | Label, claimant, token, amount |
+| `fee_done`, key | Label, token, recipient, receipt |
+| `fee_cred` | Payee and credited amount |
+| `fee_pull` | Payee and delivered credit amount |
+| `fee_sweep` | Recipient and surplus amount |
+
+The fee event key is `SHA256(label)`, **not** the recursive namespace node. A receipt's outcome reports settlement entitlements; check transfer/credit state for actual delivery. A fresh claim can replace a terminal per-label receipt, so retain events for earlier claim epochs.
+
+## Durable indexing
+
+Track Registry, Allocator, all discovered Registrar/Resolver contracts, Primary and Lookup, retaining historical contract IDs after routing changes. Start from confirmed deployment ledgers. Preserve exact event ID, emitting contract, transaction hash, ledger, chain timestamp and raw topics/data. Keep ingestion time separate.
+
+Projection logic must update generation, built-in address, expiry and current issuance on reissue. Do not infer permanence from no expiry or turn an unknown historic timestamp into the indexing time.
+
+RPC event retention and request limits are finite. Drain cursor pages, including empty advancing pages, within provider limits. If earlier events are unavailable, record a gap; do not declare a complete history after skipping it. Legacy allocation events lack plaintext labels, so a hash-only history may need independently verified discovery data. See [Stellar getEvents](https://developers.stellar.org/docs/data/apis/rpc/api-reference/methods/getEvents).
+
+## Public event archive
+
+```http
+GET /v1/events?limit=100
+GET /v1/events?cursor={opaque-cursor}&limit=100
+GET /v1/coverage
+```
+
+`/v1/events` accepts `contractId`, `subject` and `namespace` filters. Its result contains `events`, `nextCursor`, `hasMore`, `truncated` and `coverage`. Cursors are scoped to the same filters; do not reuse them after changing the query.
+
+Coverage reports `source: "indexed"`, `complete`, processed/head ledgers and explicit `{ contractId, fromLedger, toLedger, reason }` gaps. Completeness also depends on freshness; a stopped indexer must not continue claiming complete coverage. The current service treats old progress/head observations as stale after its 120-second threshold.
+
+Coverage is an indexer's report, not an independent proof against omission. Inspect it alongside continuation and current verification failures. An observed chain head alone does not prove the indexer processed that ledger.
+
+## History versus live instructions
+
+`/v1/names/{namespace}/{label}/history` is a cursor-paginated informational projection. Event `at` is chain time and `ingestedAt` is processing time; older rows can have unknown chain/issuance metadata. A bounded SDK `history()` response does not replace paginating the archive.
+
+Hosted webhooks have their own [supported event list](/platform/webhooks). The addition of raw `pay_v1`, fee, text and renewal events does not automatically add those events to webhook subscriptions.

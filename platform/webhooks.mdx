@@ -12,12 +12,14 @@ Webhooks push namespace events to your backend so you don't have to poll. Create
 | `issued` | A name is issued in your namespace (on-chain event) |
 | `reclaimed` | A name is reclaimed from its holder (on-chain event) |
 | `transferred` | A name changes holders (on-chain event) |
-| `went_cold` | A dormant name is archived to cold storage (Soran's archival signal — see [cold names](/platform/issuing-names#cold-names-and-waking)) |
+| `went_cold` | The hosted service marks a name dormant/cold; this is not proof of on-chain archival |
 | `invoice_paid` | A subscription invoice payment was matched (billing-enabled deployments) |
 | `entitlement_suspended` | The subscription was suspended — typically after an ownership transfer, pending [re-attestation](/platform/billing#ownership-transfers-and-re-attestation) |
 | `entitlement_resumed` | A suspended subscription came back |
 | `entitlement_lapsed` | The subscription period ended unpaid |
 | `market_listed` / `market_sold` / `market_refunded` | Marketplace lifecycle for your namespace (marketplace-enabled deployments) |
+
+The supported webhook subscriptions above are separate from raw versioned contract events. New payment, text, fee and renewal events do not automatically become webhook subscription types; use the [event archive](/api/events) for them.
 
 ## Delivery format
 
@@ -50,8 +52,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 function verifySoranWebhook(rawBody: string, signatureHeader: string, secret: string): boolean {
   const expected = `sha256=${createHmac("sha256", secret).update(rawBody).digest("hex")}`;
-  const a = Buffer.from(signatureHeader);
-  const b = Buffer.from(expected);
+  const a = new TextEncoder().encode(signatureHeader);
+  const b = new TextEncoder().encode(expected);
   return a.length === b.length && timingSafeEqual(a, b);
 }
 ```
@@ -67,9 +69,9 @@ If the secret leaks — or you never copied it — rotate it from the Developers
 ## Retries and timeouts
 
 - Your endpoint must respond with a **2xx within 8 seconds**; anything else counts as a failure.
-- Failed deliveries retry with **exponential backoff** — starting at ~2 seconds and doubling (2s, 4s, 8s, 16s, 32s) — for up to **6 attempts** total, all within roughly the first minute, after which the delivery is marked failed. Webhooks are a live signal: if your endpoint may be down longer than that, reconcile against the [public API](/api/overview) rather than relying on redelivery.
+- Failed deliveries retry with **exponential backoff** — starting at ~2 seconds and doubling (2s, 4s, 8s, 16s, 32s) — for up to **6 attempts** total, plus request durations and scheduling time, after which the delivery is marked failed. Webhooks are a live signal: if your endpoint may be down longer than that, reconcile against the [public API](/api/overview) rather than relying on redelivery.
 - Delivery is asynchronous and concurrent: one slow endpoint of yours never delays your other events, and retrying deliveries never starve fresh ones.
-- Delivery records are pruned after about two weeks; treat webhooks as a live signal, not an archive. If you need a full replay, the on-chain history and the [public API](/api/overview) are the source of truth.
+- Delivery records are pruned after about two weeks; treat webhooks as a live signal, not an archive. If you need a full replay, use your retained [event archive and its coverage](/api/events); RPC history retention is finite.
 
 Respond fast: accept the payload, enqueue it, return `200`. Do your real work off the request path.
 

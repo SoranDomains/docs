@@ -1,69 +1,36 @@
 ---
 title: "Issuing names"
-description: "Activate your registrar once, choose your ownership policy, then issue names one at a time or in bulk — for free, paying only Stellar's own network fees."
+description: "Activate a Registrar, issue under its policy and maintain state availability."
 ---
 
-You own a namespace; now give people names in it. Issuance happens in the console's **Issuance** tab — or programmatically from your own backend with [`@sorandomains/owner`](/owner/issuing-from-code); the contracts are permissionless either way.
+After a namespace is awarded, activate its Registrar and issue names from the console or [Owner SDK](/owner/issuing-from-code). The namespace claim fee is separate from issuance.
 
-## Activate your registrar (once)
+## Activate the namespace
 
-A namespace issues nothing until its own Registrar contract exists. Activation deploys one — **signed by your wallet, owned by your wallet** — as a one-time step:
+The owner chooses the Registrar's policy and authorizes deployment. Reclaimable policy lets the owner reclaim names under its rules. A zero-term non-reclaimable policy has no ownership expiry, but remains **unlocked** until the required [permanence transition](/concepts/ownership-guarantees) freezes eligible code and routing.
 
-<Steps>
-  <Step title="Choose the ownership policy">
-    Every name your registrar issues carries this policy, and it's what holders (and their wallets) see as the [ownership guarantee](/concepts/ownership-guarantees):
+The console validates the selected deployment and transaction before signing. An uncertain submitted activation must be checked before retrying. Console team access alone cannot replace the on-chain owner's signature.
 
-    - **Reclaimable** — you can take an issued name back. Right for names tied to an ongoing relationship (employees, customers, subscriptions).
-    - **Permanent** — issued names carry no expiry and no reclaim path in the deployed code; closing the [one-way door](/concepts/ownership-guarantees#make_permanent-the-one-way-door) later locks that in absolutely — the code freezes, enforced against everyone, including you.
-  </Step>
-  <Step title="Sign and deploy">
-    The console prepares the deploy transaction; your wallet signs it. The registrar lands on chain owned by your wallet, and issuance unlocks. Only the namespace owner's wallet can activate.
-  </Step>
-</Steps>
+Deploy/configure a native Resolver for current memo-aware reads. A Registrar record alone is not an invitation to bypass Universal Lookup's strict payment checks.
 
-<Warning>
-  The policy switch is **one-way**. A reclaimable registrar can later be made permanent (an owner-only action), but permanent can never go back to reclaimable — that's the point of the guarantee. Starting reclaimable keeps your options open; starting permanent is a commitment to your holders.
-</Warning>
+## Issue names
 
-If the deploy transaction is slow to confirm, the console keeps the attempt pinned — the policy choice locks to the in-flight deploy and the button won't re-arm until the outcome is final, so you can't accidentally race two deploys.
+Supply a canonical label and valid holder address. Issuance writes the holder and initial built-in target under the namespace policy. The holder can later publish its own complete Resolver payment instruction.
 
-## Issue a single name
+The console supports single issuance and CSV workflows with per-row outcomes. The Owner SDK supports batches of at most 23 names per transaction. Check confirmed outcomes and uncertain transaction hashes before retrying a row.
 
-Enter a label and the holder's `G…` address; the name is issued as `label.yournamespace`, directly to the holder's wallet. Each name is its own on-chain transaction. On a self-custody namespace your wallet signs it; the console then confirms the name landed with the intended holder before calling it done.
+## Fees
 
-## Issue in bulk from CSV
+The implemented naming contracts do not add a Soran per-name claim fee or a mandatory annual ownership charge. Stellar transaction/resource fees and storage rent still apply. Their amounts depend on current network parameters and transaction simulation; old displayed benchmark figures are not a current fee quote.
 
-For onboarding a user base, upload a CSV of rows:
+When enabled on a deployment, managed billing can charge for hosted services. A namespace owner can also offer its own commercial service or timed names under its disclosed contract policy. These costs are distinct from the upfront top-level namespace claim fee.
 
-```csv
-alice,GDHNO4WK...
-bob,GBQZDX3M...
-```
+## Dormancy, TTL and restoration
 
-One `label,holder` pair per row. The console validates every row up front (bad labels and duplicate rows are counted and skipped), then issues sequentially — each name is still its own transaction, so keep the tab open while the run executes. You get a per-label report at the end: which rows succeeded, which failed and why, and which are uncertain (submitted but not yet confirmed) so you never blind-retry a name that may still land.
+A hosted **cold** label is a dormancy signal. It is not proof that Stellar has archived an entry, and it does not itself end ownership. A keeper may extend relevant contract, name, Resolver, reverse and Primary entries while they are available.
 
-## What it costs
+If a required entry is archived, current payment resolution may need restoration before it can succeed. The hosted API does not return a database payment destination in place of a failed on-chain read. A cached profile can be shown as historical information; it cannot establish current payment instructions.
 
-**Names are free.** Soran charges nothing per name — the only costs are Stellar's own network fees and storage rent, paid in XLM by whoever signs (your wallet on self-custody namespaces):
+## Who can change what
 
-| Item | Approximate cost |
-| --- | --- |
-| Issue a name (one-time) | ~0.081 XLM — includes ~180 days of storage rent |
-| Keep a name live | ~0.16 XLM per name per year |
-| Resolution reads | Free |
-
-Figures are benchmarked on testnet; the live numbers for your namespace are on the console's Billing tab. At these rates, issuing 10,000 names costs on the order of 800 XLM once, and roughly 1,600 XLM a year to keep every one of them hot.
-
-## Cold names and waking
-
-Cold is **not** expiry:
-
-- A name idle past the dormancy threshold (**90 days** by default, operator-tunable) is marked **cold**: the platform stops paying its storage rent, and its ledger entry may eventually be archived by the network. It still belongs to its holder. **Ownership is never decided by storage.**
-- A cold name **wakes on its next use**: the next resolution through Soran instantly returns it to live status in the hosted resolver, and the platform's keeper resumes paying its storage rent while its ledger entry is still present on chain. If the network has already archived the entry, the name stays readable through the hosted API, but an explicit on-chain restore is needed before direct contract reads resolve it again — nothing to re-buy either way.
-- A name going cold fires the `went_cold` [webhook](/platform/webhooks), so you can watch dormancy across your namespace.
-
-This means a dormant user costs you nothing, and a returning user's name works again through the hosted path immediately. If you want a name fully hot before a big moment (a campaign, a migration), resolve it once — ideally before its ledger entry archives.
-
-## Reclaiming and transferring
-
-Post-issuance lifecycle lives in the **Names** tab: reclaim (only on reclaimable registrars — issuers can't reclaim, only owners and admins), transfer to a new holder, and per-name detail. On self-custody namespaces these are wallet-signed like everything else.
+Namespace-owner authorization controls issuance, policy-permitted reclaim and renewal. Holder authorization controls a name's records and permitted individual transfer. Destination address authorization controls reverse/Primary identity for that address. An admin or issuer role in the console does not combine these authorities.

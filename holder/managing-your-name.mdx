@@ -1,70 +1,78 @@
 ---
 title: "Managing your name"
-description: "Records, profile, reverse, primary, and transfers — everything a name holder does with their own key, via @sorandomains/holder."
+description: "Publish an atomic on-chain address and optional memo, profile records and account display names."
 ---
 
-You hold `alice.nova`. That makes a specific set of powers yours — and only yours, enforced on chain: where the name points, what it publishes, whether your address shows as a name, and whether the name moves. `@sorandomains/holder` is the SDK for exactly that set.
-
-```bash
-npm install @sorandomains/holder @stellar/stellar-sdk
-```
+The Holder SDK writes to the current namespace contracts. Lookup remains the shared read entry point. These examples target Holder 0.3.0 with Stellar SDK 17. See [release status](/reference/release-status) for the matching testnet contracts.
 
 ```ts
-import { SoranHolder, keypairSigner } from "@sorandomains/holder";
-
-const me = new SoranHolder({ signer: keypairSigner(MY_SECRET) });
+import { SoranHolder } from "@sorandomains/holder";
+const me = new SoranHolder({
+  signer: walletSigner,
+  registryId: deployment.registryId,
+  primaryId: deployment.primaryId,
+  rpcUrl: deployment.rpcUrl,
+  passphrase: deployment.passphrase,
+});
 ```
 
-In a browser, pass the wallet — the `TxSigner` shape matches wallet kits directly. Every call is simulated first (typed errors before any fee), and each operation below is authorized on chain against *the current holder*: if the name changes hands, the powers move with it, instantly.
+`walletSigner` implements `publicKey()` and `signTransaction(xdr, options)`. A backend can use the package's `keypairSigner` with a securely supplied secret. Never put signing keys in frontend configuration.
 
-## Where your name points
+## Address and memo together
 
 ```ts
-await me.setRecord("alice.nova", "G…COLD");   // explicit resolver record
-await me.setAddress("alice.nova", "G…HOT");   // built-in Registrar target
+await me.setPayment("alice.nova", {
+  address: exchangeAddress,
+  memo: { type: "id", value: "123456" },
+});
+
+// Explicitly remove the memo while selecting the complete destination:
+await me.setPayment("alice.nova", {
+  address: myAddress,
+  memo: { type: "none" },
+});
 ```
 
-Two layers, by design: the **explicit resolver record** is what [`lookup.resolve()`](/sdk/resolving-names) prefers; the **built-in target** is the fallback every freshly issued name starts with. Both are generation-gated — records you wrote stop resolving the moment the name is no longer yours, so a past holder can never haunt a name.
+The native Resolver updates the address and memo atomically on chain. No separate payment contract or database stores these instructions. Memos are optional: untouched ordinary records resolve with `none`. A configured instruction that is missing or invalid fails rather than reverting to an ordinary address.
 
-## Your profile
+`setRecord(name,address)` is the address-only native Resolver convenience for memo-free records. A required memo must be changed through `setPayment`; the contract refuses an address-only write that would discard it. `setAddress(name,address)` changes the Registrar's built-in target, which may be overridden by current Resolver instructions. Use `resolvePayment` to read the effective pair.
+
+G destinations support None, ID, text and hash memos; C supports None only. The Holder SDK checks exact [payment constraints](/sdk/resolving-names).
+
+## Profile records
 
 ```ts
 await me.setProfile("alice.nova", {
   org: "Alice Co",
-  url: "https://alice.dev",
-  avatar: "https://alice.dev/a.png",
+  url: "https://alice.example",
 });
+await me.setText("alice.nova", "description", "My profile");
+await me.clearText("alice.nova", "description");
 ```
 
-These are the standard [`PROFILE_KEYS`](/sdk/identity#standard-profiles) every Soran-aware wallet reads back with `lookup.profile()`. One transaction per key (a Soroban invocation carries one call), submitted sequentially — a mid-batch failure names the keys already written, and those stay valid. `setText(name, key, value)` writes any other Symbol-legal key. Text records are overwrite-only on chain — there's no on-chain delete — so **retract a record by clearing it**: `clearText(name, key)` writes the empty value that standard readers (`lookup.profile()`) treat as unset.
+`setProfile` submits one transaction per key sequentially; a partial failure can leave earlier keys written. Ordinary text is overwrite-only, and `clearText` writes an empty value. Standard profile readers treat that as unset. Do not clear a payment memo through arbitrary text; use `setPayment`.
 
-## Your address as a name
+## Account display names
 
 ```ts
-await me.setReverse("alice.nova");   // address → name, per namespace
-await me.setPrimary("alice.nova");   // your ONE cross-namespace display name
+await me.setReverse("alice.nova");
+await me.setPrimary("alice.nova");
 ```
 
-Reverse claims are **impossible to spoof by contract**: the resolver refuses any name whose forward record doesn't already resolve to your address (`ForwardMismatch`). The primary is a pointer the PrimaryName contract re-verifies on every read — it can never outlive the name it points at. Both are cleared with `clearReverse(namespace)` / `clearPrimary()`.
+Reverse and Primary writes require the address's authorization and a current forward match. Name ownership alone does not authorize identity writes for someone else's destination account. The Primary Registry anchor is checked before signing; custom deployments need matching configuration.
 
-## Transferring your name
+`clearReverse(namespace)` and `clearPrimary()` remove the elected display records. These are account names, not identities for individual customer memos on a shared account.
+
+## Name transfer
 
 ```ts
-await me.proposeNameTransfer("alice.nova", "G…NEWHOLDER");
-await me.pendingNameTransfer("alice.nova");   // visible to both parties
-await me.cancelNameTransfer("alice.nova");    // withdraw while unaccepted
+await me.proposeNameTransfer("alice.nova", recipientAddress);
+const pending = await me.pendingNameTransfer("alice.nova");
+await me.cancelNameTransfer("alice.nova");
 ```
 
-Two-step and accept-to-move — a typo'd recipient can never burn the name. The recipient runs `acceptNameTransfer` with their own signer. Policy-gated: namespaces that forbid transfers answer `NotTransferable`, and expired names can't be moved by their former holder at all.
+The intended recipient accepts with `acceptNameTransfer` and its own signer. Policy and activity gates apply. Acceptance advances ownership generation, invalidating prior-holder records. Transferring a name is separate from transferring its entire namespace.
 
-## Errors are typed
+## Errors and uncertain submissions
 
-Contract rejections surface as `HolderError` with the contract's own code and name — `NotHolder`, `NameInactive`, `ForwardMismatch`, `NotTransferable` — before any fee is spent. Failures that reached the network carry `txHash`; always re-check a hash before retrying.
-
-## Who does what
-
-| You want to… | Package |
-| --- | --- |
-| Resolve and verify names | [`@sorandomains/lookup`](/sdk/installation) |
-| Run a namespace (issue, reclaim, permanence) | [`@sorandomains/owner`](/owner/issuing-from-code) |
-| Manage a name you hold | `@sorandomains/holder` — this page |
+Simulation catches many permission/policy failures before signing. Contract failures are typed `HolderError`s; a transaction that reached the network can carry `txHash`. Check uncertain inclusion before retrying. Preflight success does not guarantee later submission success or remove its network fee.

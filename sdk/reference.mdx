@@ -1,132 +1,73 @@
 ---
-title: "SDK reference"
-description: "Every constructor option, method, type, and error in @sorandomains/lookup."
+title: "Lookup SDK reference"
+description: "Universal reads, payment types, discovery pages and typed failures in Lookup 0.5.0."
 ---
 
-Everything the `Soran` class does is a read-only Soroban RPC simulation. The SDK builds no write transactions — writes (registering, issuing, reverse records, primaries) are address-authorized transactions built and signed by wallets.
+This reference targets Lookup 0.5.0. See [release status](/reference/release-status) for the matching testnet contracts. All write flows are in the Owner or Holder SDKs; Lookup reads through Soroban RPC and optionally uses HTTP discovery/history.
 
 ## Constructor
 
-```ts
-new Soran(options?: SoranOptions)
-```
+`new Soran(options?: SoranOptions)` accepts:
 
-| Option | Type | Default | Semantics |
-| --- | --- | --- | --- |
-| `network` | `"testnet"` | `"testnet"` | Deployment preset (`"mainnet"` after launch); fills `rpcUrl`, `passphrase`, `registryId`, and `primaryId` |
-| `rpcUrl` | `string` | preset | Soroban RPC endpoint — any RPC you trust, including your own; `http://` allowed only for localhost |
-| `passphrase` | `string` | preset | Network passphrase |
-| `registryId` | `string` | preset | The immutable Registry contract id |
-| `primaryId` | `string \| null` | preset | PrimaryName contract id; `null` explicitly disables the primary-name feature; malformed ids throw at construction |
-| `registrars` | `Record<string, string>` | `{}` | Registrar ids for namespaces running closed (registrar-side) resolution |
-| `reverseNamespaces` | `string[]` | `[]` | Namespaces `reverseLookup` probes, in priority order; malformed labels throw at construction |
-| `resolverCacheTtlMs` | `number` | `30_000` | Namespace→resolver pointer cache TTL; `0` disables caching |
-| `hintUrl` | `string` | — | Namespace-**list** hint endpoint for `reverseLookup`; liveness-only, never in the trust path |
-| `timeoutMs` | `number` | — | Upper bound on how long any single chain read may keep the caller waiting; on expiry the call rejects with a `SoranError` of code `"TIMEOUT"`. Bounds the wait only — the underlying request is not cancelled. Unset = no bound |
-
-## Resolution
-
-| Method | Returns | Semantics |
+| Option | Type | Meaning |
 | --- | --- | --- |
-| `resolve(name)` | `Promise<string \| null>` | The address the name pays to; `null` when unissued, expired, or no resolver — decided by contract logic |
-| `record(name)` | `Promise<NameRecord>` | Full record: `{ name, address, node, resolver }` (node hex-encoded; resolver id that answered, or `null`) |
-| `text(name, key)` | `Promise<string \| null>` | A text record (`"url"`, `"avatar"`, …), or `null` |
-| `verify(name, address)` | `Promise<boolean>` | Does the name resolve to this address right now? The confirm-time pay-to-name safety check |
-| `assurance(name)` | `Promise<NameAssurance>` | Opt-in trust verdict on the namespace's resolver — see [assurance](/sdk/assurance) |
-| `details(name)` | `Promise<NameDetails>` | The full live picture in one call — resolution, holder, expiry, generation, namespace owner/registrar/resolver, policy, permanence, and assurance. Several parallel chain reads per call; cache briefly on detail pages. Registration *date* is deliberately absent — the chain stores no issue timestamp; derive it from the name's `issued` event via an indexer and treat it as informational |
+| `network` | `"testnet"` | Supported preset; no mainnet preset yet |
+| `registryId`, `rpcUrl`, `passphrase` | `string` | Coherent deployment and network overrides |
+| `lookupId` | `string` or `null` | Verified Lookup ID; `null` explicitly selects direct mode |
+| `resolutionMode` | `"universal"` or `"direct"` | Universal by default |
+| `primaryId` | `string` or `null` | Optional Primary anchor check; `null` disables |
+| `reverseNamespaces` | `string[]` | Ordered candidate namespaces |
+| `hintUrl` | `string` | Optional HTTP discovery/history API |
+| `resolverCacheTtlMs` | `number` | Direct routing cache, default 30,000 ms |
+| `timeoutMs` | `number` | Per-read waiting bound |
 
-## Identity & enumeration
+Custom Registry/passphrase settings inherit no unrelated Lookup or Primary pin. There is no `registrars` option or silent closed-resolution fallback in this API.
 
-All 0.4.0 additions — see [Identity & enumeration](/sdk/identity) for the trust model of each.
+## Methods
 
-| Method | Returns | Trust bucket |
-| --- | --- | --- |
-| `namesOf(address)` | `Promise<NameSummary[]>` | Hint-discovered, **chain-verified** per candidate (`holder_of_node`, contract expiry-gated); needs `hintUrl`, else CONFIG |
-| `reverseNames(address, namespaces?)` | `Promise<ReverseName[]>` | Chain-verified; all reverse claims, primary flagged and always included |
-| `profile(name)` | `Promise<SoranProfile>` | Chain-verified reads of the standard `PROFILE_KEYS`; values are holder-authored free text |
-| `identity(name)` | `Promise<NameIdentity>` | details + profile fail-closed; the three display-name enrichments degrade to null |
-| `walletProfile(address)` | `Promise<WalletProfile>` | primary + reverse + holdings + profile; `names` null without `hintUrl` |
-| `history(name)` | `Promise<NameHistory>` | **Indexed, informational** — entries carry ledger + txHash for independent verification; needs `hintUrl` |
+| Method | Result |
+| --- | --- |
+| `lookup(name)` | Native payment or legacy address with explicitly unknown memo capability; universal only |
+| `resolvePayment(name)` | Complete `PaymentDestination` |
+| `verifyPayment(name,payment)` | Fresh exact tuple comparison |
+| `resolve(name)`, `record(name)`, `verify(name,address)` | Native memo-free address convenience methods |
+| `namespaceMetadata(namespace)` | Owner, current routing, policy, provenance and permanence, or `null`; universal only |
+| `nameMetadata(name)` | Holder, built-in target, generation, expiry, active/no-expiry flags, or `null`; universal only |
+| `text(name,key)` | One text value or `null` |
+| `reverse(namespace,address)` | Scoped verified account name or `null` |
+| `primaryOf(address)` | Configured Primary answer or `null` |
+| `reverseVerify(address,name)` | Scoped reverse comparison |
+| `reverseLookup(address,namespaces?)` | Primary then ordered namespace probes |
+| `reverseNames(address,namespaces?)` | Verified names among bounded namespace candidates |
+| `assurance(name)` | Resolver provenance, not payment or Lookup-code attestation |
+| `namespace(namespace)`, `isAvailable(namespace)` | Owner/Resolver subset and namespace ownership absence check |
+| `details(name)` | Ownership metadata plus complete effective native payment |
+| `profile(name)`, `identity(name)` | Standard text fields and full identity aggregate |
+| `namesOfPage(address,{cursor?,limit?})` | Verified holdings page, continuation, coverage and check counts |
+| `namesOf(address)` | Compatibility holdings aggregate; throws when incomplete |
+| `walletProfile(address)` | Primary, reverse, first holdings page and profile |
+| `history(name)` | Bounded indexed informational history |
+| `namehash(namespace)`, `node(name)` | Canonical hash helpers |
 
-## Reverse and primary
+SDK metadata uses camelCase, such as `builtinAddress`, `expiresAt` and `namespacePermanent`. Contract ABI fields use snake_case. Generations and ownership timestamps remain exact `bigint` values in SDK metadata; JSON consumers must explicitly encode them, usually as decimal strings.
 
-| Method | Returns | Semantics |
-| --- | --- | --- |
-| `reverseLookup(address, namespaces?)` | `Promise<string \| null>` | Primary name first (when `primaryId` set), then per-namespace `name_of` probes in parallel with deterministic priority; every answer contract-verified. Namespace-probe failures throw; a failed *primary* read degrades to the probes. With **no** source at all (no primary, no configured/passed namespaces, no hint) it throws a `SoranError` of code `"CONFIG"` instead of silently answering `null` |
-| `reverseVerify(address, name)` | `Promise<boolean>` | Verifies the address's contract-verified reverse record is exactly this name; `false` for malformed addresses or resolverless namespaces |
-| `primaryOf(address)` | `Promise<string \| null>` | The declared cross-namespace primary name; self-verifying on chain; read failures **throw**, never masquerade as "no primary"; `null` when the feature is unconfigured |
-
-## Namespace-level reads
-
-| Method | Returns | Semantics |
-| --- | --- | --- |
-| `namespace(ns)` | `Promise<{ owner, resolver } \| null>` | Owner address and resolver id of a namespace; `null` if unregistered |
-| `isAvailable(ns)` | `Promise<boolean>` | `true` when the label is unregistered in the Registry. Reserved labels also read as available but can't be claimed through the open window — the console tells you when a label is reserved |
-
-## Hashing
-
-The exact on-chain hashing, exposed for interoperability:
-
-| Method | Returns | Semantics |
-| --- | --- | --- |
-| `namehash(namespace)` | `Promise<Uint8Array>` | Registry node of a top-level namespace: `sha256(ZERO32 ‖ sha256(ns))` |
-| `node(name)` | `Promise<Uint8Array>` | Full node of `label.namespace`: `sha256(nsNode ‖ sha256(label))` |
-
-## Exported helpers and types
-
-### parseName
+## Payment types
 
 ```ts
-parseName(name: string): { label: string; namespace: string }
+type PaymentMemo =
+  | { type: "none" }
+  | { type: "id"; value: string }
+  | { type: "text"; value: string }
+  | { type: "hash"; value: string };
+type PaymentDestination = { address: string; memo: PaymentMemo };
 ```
 
-Normalizes case (input is lowercased before validation) and splits `label.namespace`; throws `SoranError` unless both parts are canonical labels (`[a-z0-9-]`, 1–63 chars, no leading or trailing hyphen). The same label validation every name-taking SDK method applies to its input. (Methods taking a bare namespace validate the single label the same way; malformed addresses return `null`/`false` rather than throwing.)
+The SDK exports payment validation/encoding helpers and `LookupResult`, `NameMetadata`, `NamespaceMetadata` and `NamespacePolicy`. See [payment constraints](/sdk/resolving-names).
 
-### SoranError
+## Failures
 
-```ts
-class SoranError extends Error {
-  name = "SoranError";
-  code: SoranErrorCode; // machine-readable category
-}
-type SoranErrorCode =
-  | "INVALID_INPUT" // bad name/label/address from the caller
-  | "CONFIG"        // bad or missing constructor options / no reverse source
-  | "RPC"           // network or transport failure
-  | "SIMULATION"    // the node rejected the read
-  | "ARCHIVED"      // the entry exists but its rent lapsed
-  | "ABI"           // a contract answered with an unexpected shape
-  | "TIMEOUT";      // the configured timeoutMs elapsed
-```
+`SoranError.code` is one of `INVALID_INPUT`, `CONFIG`, `RPC`, `SIMULATION`, `ARCHIVED`, `ABI`, `TIMEOUT`, `PAYMENT_REQUIRED`, `LEGACY_MEMO_UNKNOWN` or `INCOMPLETE`.
 
-Thrown whenever a chain read cannot be completed or input is malformed — so a transient error is never silently mistaken for "unregistered" or "no address". A `null` return always means a *successful* read that found nothing. Branch on `code`, not on message text.
+Recognized top-level Lookup contract failures also carry `contractCode` and `contractError`. Unknown error formats stay unclassified; nested diagnostic strings are not promoted to top-level contract errors. Branch on typed fields, not prose messages. A restore requirement is not an absent or free name.
 
-### NameRecord
-
-```ts
-type NameRecord = {
-  name: string;
-  address: string | null;
-  node: string;             // hex
-  resolver: string | null;  // resolver contract that answered, if any
-};
-```
-
-### NameAssurance
-
-```ts
-type NameAssurance = {
-  resolverAttested: boolean; // live pointer === Registry-attested resolver
-  resolverTainted: boolean;  // attested resolver has upgraded at least once
-  resolverLocked: boolean;   // pointer locked, can no longer change
-  trustworthy: boolean;      // locked ∧ attested ∧ ¬tainted
-};
-```
-
-### NameDetails / NamespaceDetails
-
-The `details()` aggregate: name-level `{ name, node, address, resolver, holder, expiresAt, generation }` (holder is non-null even for an **expired** name — check `expiresAt`, where `0n` = never expires and `null` = never issued) plus `namespace: { namespace, owner, registrar, resolver, permanent, policy }` and the `assurance` verdict. All live chain reads; nothing indexed.
-
-### DEPLOYMENTS
-
-The known public deployment presets (`testnet` today; `mainnet` at launch), exported so you can read the exact ids the SDK uses — see [installation](/sdk/installation#network-presets).
+Primary/reverse `null` has the documented [proof limitation](/sdk/reverse-and-primary). Lookup/version checks are not executable-code pins; see [governance](/concepts/governance).

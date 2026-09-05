@@ -1,79 +1,41 @@
 ---
 title: "What is Soran"
-description: "Soran — the Soroban Registry for Assigned Names. Namespace infrastructure on Stellar: your brand as a namespace, names for your users, ownership guarantees enforced by an immutable contract."
+description: "On-chain namespaces, names and payment instructions on Stellar."
 ---
 
-**Soran** stands for **So**roban **R**egistry for **A**ssigned **N**ames — a name registry built as an immutable smart contract on [Soroban](https://developers.stellar.org/docs/build/smart-contracts), Stellar's contract platform.
+Soran is the **Soroban Registry for Assigned Names**. A business owns a namespace such as `yourbrand` and issues names such as `alice.yourbrand`. A name can carry a Stellar destination, an optional payment memo and holder-authored profile records.
 
-In one sentence: **Soran lets a business own a namespace on Stellar and issue verifiable names to its users — `alice.yourbrand` instead of `GDHNO4WK…5UBU` — with ownership guarantees no one can break, not even Soran.**
+<Note>
+These docs describe the September 2026 implementation and the fresh testnet contracts deployed on 5 September. The public app, API and hosted MCP serve this setup. Start with [release status](/reference/release-status) for contract addresses, published package versions and hosted endpoints.
+</Note>
 
-## The problem
+## One on-chain read entry point
 
-Money on Stellar moves to 56-character addresses. One wrong character and the funds are gone — no undo, no support line. So every wallet builds its own contact book, every exchange prints memo warnings, and every business explains to its users why paying someone looks like defusing a bomb.
+Wallets, explorers and other contracts read **Universal Lookup**. It follows the Registry to each namespace's current Registrar and Resolver and can return a complete address-and-memo payment instruction. The SDK wraps that contract; you can use its ABI directly without a Soran SDK or database.
 
-## What Soran is
-
-Soran is **namespace infrastructure** — think payments-infrastructure economics, not a consumer domain shop:
-
-<Steps>
-  <Step title="A business claims a namespace, once">
-    `yourbrand` is won through a public, timelocked claim window — evidence-backed, objection-guarded — and lands **in the business's own wallet**. It is an on-chain asset, not a subscription.
-  </Step>
-  <Step title="It issues names to its users">
-    `alice.yourbrand`, `bob.yourbrand` — one call per name, or thousands from a CSV. Names are **free from Soran, forever**: only Stellar's own network fees apply — about $0.05 per user per year, paid to the network.
-  </Step>
-  <Step title="Every wallet resolves them — trustlessly">
-    Any wallet or app resolves `alice.yourbrand` to a Stellar address **straight from the chain** with the [SDK](/sdk/installation). Soran's servers are not in the trust path. Reverse lookup shows verified names instead of addresses in history — unspoofable by construction.
-  </Step>
-</Steps>
-
-## What makes it different: the guarantee is the product
-
-The Soran Registry is **immutable** — deployed once, no admin key, no upgrade path. That is not a limitation; it is the entire point. It makes one sentence true that almost no naming system can say:
-
-> **Every name declares what can happen to it, the contract enforces the declaration, and anyone can verify it.**
-
-| Guarantee | What the contract enforces |
+| Contract | Responsibility |
 | --- | --- |
-| ● **Permanent** | Can never be reclaimed or expired — by the issuer, by Soran, by anyone. The one-way door is enforced in code. |
-| ◔ **Reclaimable** | The issuer can take it back — and says so, on chain, up front. Honest power, visibly held. |
-| ◐ **Timed** | Ownership until a visible date. Never a surprise expiry. |
+| Registry | Namespace ownership, routing and permanence attestations; no upgrade entry point |
+| Allocator | Public namespace claims, objections and upfront fee escrow |
+| Registrar | A namespace's issuance, holders, policy, generations, expiry and transfers |
+| Resolver | A namespace's on-chain addresses, optional memos, text and scoped reverse names |
+| Primary | An address's elected cross-namespace display name |
+| Universal Lookup | Shared on-chain read entry point, with governed code upgrades |
 
-A wallet can render that guarantee as a glyph next to every name. A user about to send money can read the trust level at a glance. That legibility — *provable* promises, not terms-of-service promises — is what a brand can safely build on.
+Namespace ownership, a name's holder and its payment recipient are separate roles. An exchange deposit name can resolve to the exchange's account plus a customer memo without making that account the name holder.
 
-## Sovereignty: the part that keeps everyone honest
+## Claim once, then issue names
 
-Your namespace lives in **your wallet**. The contracts are permissionless: you can claim, issue, resolve, and transfer with nothing but your own keys and any RPC node — no Soran account required, ever.
+Public namespace claims pay an upfront fee into the Allocator and pass through a public objection window. The fresh testnet release charges 5,000 XLM, with the receiving wallet published in the deployment record. The proposed mainnet fee is 5,000 USDC, with no mainnet deployment claimed. [Claim outcomes](/concepts/claiming-a-namespace) determine payment or refund.
 
-Everything Soran operates — the console, hosted resolution, webhooks, the cross-tenant directory, the escrow marketplace — is a **convenience layer around an asset you already own**. Useful enough to pay for, never able to hold your names hostage. If Soran vanished tomorrow, every name would keep resolving.
+That claim fee applies to the **namespace**, not each name issued under it. Current issuance contracts add no Soran per-name claim fee or mandatory annual renewal charge. Stellar transaction and storage costs still apply. A namespace owner may operate a timed or commercial service under its disclosed policy. Optional hosted billing and marketplace features are separate.
 
-That is by design: the permissionless escape hatch is the ceiling on what Soran can ever charge, and the reason "trust us" never has to appear in this documentation.
+## Read the ownership policy
 
-## Proven, not promised
-
-- **Live on public testnet** — every flow in these docs runs against real deployed contracts ([status](/api/status))
-- **Measured economics** — issuing a name costs ~0.081 XLM once; keeping it live costs ~0.16 XLM/year in Stellar storage rent — **about $0.05 per user per year**, paid to the network, not to Soran
-- **Names free forever** — Soran monetizes optional hosted services and marketplace settlement, never your user growth
-
-## Start here
+A name can be reclaimable, finite-term, or protected by a completed permanence lock. A zero expiry alone is not proof of permanence. Even permanent names need storage upkeep, and their holders can change their records. [Ownership guarantees](/concepts/ownership-guarantees) explains the exact boundaries.
 
 <CardGroup cols={3}>
-  <Card title="Wallets & apps" icon="wallet" href="/quickstart">
-    Send-to-name and verified reverse lookup in an afternoon with `@sorandomains/lookup`.
-  </Card>
-  <Card title="Businesses" icon="building" href="/concepts/claiming-a-namespace">
-    Claim `yourbrand`, choose your guarantee, issue names from the console — or from code with `@sorandomains/owner`.
-  </Card>
-  <Card title="Backends" icon="server" href="/api/overview">
-    The public HTTP read surface — with the SDK verifying every hint on chain.
-  </Card>
-</CardGroup>
-
-<CardGroup cols={2}>
-  <Card title="Ownership guarantees, in depth" icon="shield-check" href="/concepts/ownership-guarantees">
-    Permanent, reclaimable, timed — and how permanence is proven on chain.
-  </Card>
-  <Card title="The trust model" icon="scale-balanced" href="/concepts/trust-model">
-    Exactly what is trustless, what is hosted, and what happens if Soran disappears.
-  </Card>
+  <Card title="Wallets and apps" icon="wallet" href="/quickstart">Read complete payment instructions through Universal Lookup.</Card>
+  <Card title="Namespace owners" icon="building" href="/concepts/claiming-a-namespace">Understand claiming, escrow and issuance.</Card>
+  <Card title="Explorers" icon="server" href="/api/onchain-resolution">Use the contract ABI and versioned events directly.</Card>
 </CardGroup>

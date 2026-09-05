@@ -1,65 +1,65 @@
 ---
 title: "Claiming a namespace"
-description: "Namespaces are awarded through a public, timelocked claim window — announce with evidence, survive the objection window, and the namespace is yours, irreversibly."
+description: "Upfront namespace fees, objection windows, reserved claims and exact refund outcomes."
 ---
 
-Nobody hands out namespaces in private. Every claim runs through the same public process, on chain: **announce → objection window → execute**. Once a namespace is awarded it is immutable and permanently the claimant's — the allocation authority has no power over it from that moment on. Disputes are settled *before* allocation, never after.
+A public namespace claim follows **announce → objection window → execute** on chain. The fee is for a namespace such as `nova`, not individual names such as `alice.nova`.
 
-You can watch every pending claim, with its evidence, on the public [allocation queue](https://soran.domains/allocations) — no account needed.
+<Note>
+The fresh testnet Allocator is deployed with a 5,000 native XLM fee and a verified receiving/governance address. The proposed mainnet price is 5,000 USDC, not a configured live price. See [release status](/reference/release-status).
+</Note>
 
-## The window, step by step
+## Pay upfront into escrow
 
-<Steps>
-  <Step title="Announce">
-    You post the claim publicly on chain: the label, your claimant address, and your evidence basis. Signing is a normal wallet transaction — through the hosted console's wizard, or self-custodied (the API can prepare an unsigned announce transaction for your own key).
-  </Step>
-  <Step title="The objection window">
-    A fixed window opens — the contract enforces a minimum of one day, and each deployment sets its own length: **one day on testnet, five days on mainnet**. The [allocation queue](https://soran.domains/allocations) shows the live countdown on any claim. During it, **anyone** may object by posting a bond and a competing basis. An objection freezes the clock until it's ruled on. You can start integrating while the window runs; you just can't execute yet.
-  </Step>
-  <Step title="Execute">
-    Once the window elapses unopposed, `execute` is **permissionless** — anyone can trigger it (the hosted deployment does it for you). The claim calls the immutable Registry's `allocate`, the namespace node is written to your address, and the allocator's power over it ends permanently.
-  </Step>
-</Steps>
+The Allocator must have a governance-configured fee policy before any public `announce` can succeed. That policy names the token, positive base-unit amount and recipient. Configuration is one-time in this implementation; a claim never relies on an off-chain price alone.
 
-## Objections and adjudication
+The claimant signs an announcement that transfers the exact fee into the Allocator. The payment stays reserved while the claim is pending. Objection bonds use a separate accounting system and may use a different token.
 
-Objections are bonded so they cost something, and adjudicated so they resolve:
+The app and local MCP claim flow require a reviewed fee quote and an explicit network-fee ceiling. They re-read the on-chain fee policy and check the exact authorization before signing. The namespace fee and Stellar transaction/resource fees are separate.
 
-- **Anyone except the claimant or the adjudicator** may object during the window, with a bond and a stated basis.
-- **Upheld objection**: the claim is rejected and the objector's bond is refunded. The rejected claimant is barred from re-announcing that label; after a 30-day cooldown, *other* claimants may — a rejection never locks a label away forever.
-- **Dismissed objection**: the bond is burned (never paid to anyone — no address can profit from dismissals) and the claim's window resumes.
-- **Adjudication has a deadline.** If no ruling lands within 30 days, a permissionless timeout resumes the claim, settled as a dismissal. Adjudicator inaction cannot freeze a label indefinitely.
-- **Objection cycles are capped** per label, so a claim can't be frozen by an endless dismiss-and-re-object loop.
+## The claim window
 
-Claims also lapse: an announced claim that is never executed eventually expires and anyone may clear it, so labels can't be parked for free.
+The deployed Allocator sets its window and maximum claim age. The fresh testnet configuration uses a one-day objection window; check actual deployed configuration before relying on a countdown. Removing Universal Lookup's upgrade delay does **not** remove the claim window.
 
-## What evidence helps
+During the open window an eligible third party may object with a bond and evidence. An objection pauses the claim for governance adjudication. Once unopposed and ready, `execute` is permissionless and awards the namespace through Registry. Automation can submit it, but a countdown does not prove execution occurred.
 
-Attach at least one basis when you announce; stronger evidence wins if anyone objects. The console's wizard collects:
+An allocated namespace belongs to its recorded owner. The Allocator cannot reassign an already allocated Registry node; the owner can still transfer its namespace through the Registry's transfer process.
 
-| Basis | What to provide |
-| --- | --- |
-| **Registered trademark** | Filing number and jurisdiction |
-| **DNS control** | A TXT record on the matching domain (the console verifies it live) |
-| **Commercial first use** | Public evidence of operating under the name |
+## Fee outcomes
 
-A trademark or a verifiable TXT record on `yourbrand.com` makes an objection against `yourbrand` an uphill argument. Evidence goes on chain with the claim, in public, where objectors and the adjudicator can weigh it.
+| Outcome | Claimant entitlement | Configured recipient entitlement |
+| --- | --- | --- |
+| Awarded | 0% | 100% |
+| Rejected after an upheld objection | 100% | 0% |
+| Provably stuck claim recovery | 100% | 0% |
+| Withdrawn | 80% | 20% |
+| Expired and cleared | 80% | 20% |
+
+For 80% refunds, integer base units are rounded down and the remainder goes to the recipient. Contract-recognized stuck recovery takes precedence when the claim is also expired or withdrawn.
+
+**Stuck has a specific meaning:** the claim is still announced or objected while Registry already has an owner for that namespace, so the claim cannot award it. `cancel_stuck` checks that condition on chain. For an objected stuck claim, the outstanding objection bond is also returned in full. A slow network, an active objection, a missed deadline or general dissatisfaction does not itself qualify for a 100% stuck refund.
+
+Settlement attempts to pay the entitled parties. If delivery fails, the undelivered amount becomes a protected **pull credit**. Anyone can trigger its delivery, but it always goes to the recorded payee. A settled receipt reports entitlements, not proof that every transfer already arrived. Fee reserves and credits cannot be swept as surplus.
+
+## Objection outcomes
+
+- An **upheld** objection rejects the claim, returns its fee in full and refunds the objector's bond.
+- A **dismissed** objection resumes the existing claim; it does not charge the claim fee again. The objection bond is burned under the Allocator's rules.
+- An adjudication timeout provides a permissionless recovery path and resumes the claim under the timeout rules; it is not a fee rejection.
+- Rejected-claim cooldowns, claimant reopen procedures and bounded objection cycles remain separate contract rules. Rejection does not permanently reserve the label for an objector.
+
+Withdrawal is claimant-authorized for eligible announced or objected claims. Expiry clearing and stuck recovery are permissionless when their on-chain conditions hold. An objected withdrawal also settles the objection bond under the withdrawal rules; the namespace fee refund remains 80% unless the applicable stuck condition is established.
 
 ## Reserved labels
 
-Some labels follow a different path. At Registry deployment, a set of reserved labels — launch partners, known brands — was committed into an **immutable merkle root**. Reservation is not ownership: it constrains *how* the label can be placed, for everyone, including the platform.
+Registry commits reserved labels into an immutable Merkle root. Reservation is not ownership.
 
-Reserved labels come in two kinds:
+- A **bound reserved claimant** can claim directly with the required proof while that reservation is active. This direct Registry path bypasses Allocator escrow and is exempt from the namespace fee.
+- Unbound reservations and public claims after an allowed fallback deadline use the public Allocator process and pay its fee.
+- An arbitrary user cannot bypass the fee by calling Registry's public allocation path: that path is restricted to the Allocator, apart from valid reserved direct claims.
 
-- **Bound** — reserved for a specific address, which can claim directly with a merkle proof, bypassing the claim process entirely. While a bound reservation is active, the label can't be announced through the open window at all — only its reserved address can claim it. The strongest guarantee a launch partner can hold.
-- **Unbound** — goes through the same public announce → objection → execute window as any other claim; the only difference is that the allocation must carry the label's membership proof instead of a not-reserved proof. Governance rules only if someone objects, exactly as for unreserved labels — and the evidence table above is exactly what an objection would weigh.
-
-A bound reservation may carry a **fallback deadline**: if the reserved party has not claimed by then, the direct-claim path closes and the label reverts to the public claim window, open to anyone. Reservations without a fallback deadline never lapse. Launch partners should confirm which kind their leaf is — and claim before any fallback date.
-
-<Note>
-  A quick first check: `await soran.isAvailable("yourbrand")` tells you whether the namespace is unowned on chain. Reserved-but-unclaimed labels also read as available, and the check is blind to rival claims mid-window — the console additionally checks the reserved list and whether a rival claim is already in its window.
-</Note>
+`isAvailable(namespace)` checks ownership. It does not prove a label is unrestricted, that no rival claim exists, or that a fee exemption applies.
 
 ## After the award
 
-The namespace node in the Registry now lists your address as owner. From here you deploy your Registrar (policy, issuance), point your resolver, and start [issuing names](/platform/issuing-names) — with the option to later close the [one-way permanence door](/concepts/ownership-guarantees#make_permanent-the-one-way-door). Nothing about the award can be revisited: not by an objector, not by governance, not by Soran.
+Activate the namespace's Registrar, configure its native Resolver and begin [issuing names](/platform/issuing-names). A claim does not impose a mandatory annual Soran ownership fee. Optional hosted services and a namespace owner's finite-term policy are different arrangements.

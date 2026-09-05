@@ -1,108 +1,63 @@
 ---
-title: "Resolving names"
-description: "Turn alice.nova into a Stellar address — trustlessly — and re-verify it at confirm time."
+title: "Resolving names and payments"
+description: "Preserve optional memos, reject unknown legacy instructions and recheck before paying."
 ---
 
-Every call on this page is a read-only Soroban RPC simulation against the deployed contracts. No signer, no fees, no Soran servers in the trust path.
+Use `resolvePayment(name)` for payments. It returns one atomic instruction from the current on-chain namespace Resolver through Universal Lookup.
 
-## resolve
+```ts
+const payment = await soran.resolvePayment("Alice.Nova");
+// { address, memo }
+const unchanged = await soran.verifyPayment("alice.nova", payment);
+if (!unchanged) throw new Error("Review the new instructions before sending");
+```
+
+## Memos are optional
+
+| SDK memo | Meaning |
+| --- | --- |
+| `{ type: "none" }` | No memo in this Soran instruction |
+| `{ type: "id", value: "123456" }` | Canonical decimal unsigned 64-bit ID, kept as a string |
+| `{ type: "text", value: "customer-123" }` | Exact UTF-8 text, 1–28 bytes |
+| `{ type: "hash", value: "…" }` | Exactly 32 bytes represented by 64 lowercase hex characters |
+
+Ordinary native records without a current-generation payment configuration return their ordinary address with `none`. Holders do not have to create a memo to use Soran. Once a record has been configured, a persistent marker prevents lost instructions from being mistaken for that ordinary default. Removing a memo requires an explicit complete `setPayment` with `none`.
+
+All memo types are supported for `G...` addresses. `C...` destinations support `none` only. Muxed `M...` addresses and contract-specific routing arguments are outside this ABI. Unknown memo types must be refused.
+
+## Native and legacy results
+
+```ts
+const result = await soran.lookup("alice.nova");
+if (result.kind === "nativePayment") {
+  console.log(result.payment.address, result.payment.memo);
+} else {
+  // Informational legacy address; memo requirements remain UNKNOWN.
+  console.log(result.address, result.memoCapability);
+}
+```
+
+Both variants contain the canonical name, Registrar, optional Resolver and exact `bigint` generation. Lookup supports a legacy implementation only when the deployed configuration explicitly recognizes its current code hashes. A legacy address is not a memo-free payment instruction.
+
+`resolvePayment`, `verifyPayment` and payment fields in `details`/`identity` reject legacy results with `LEGACY_MEMO_UNKNOWN`. Missing, malformed, archived or unreadable native instructions fail; no error retries through an older ABI or substitutes a Registrar address.
+
+## Address-only convenience methods
+
+`resolve(name)`, `record(name)` and `verify(name,address)` are restricted to native memo-free instructions. They reject a required memo with `PAYMENT_REQUIRED` and an unknown legacy memo with `LEGACY_MEMO_UNKNOWN`. They are unsuitable as a general payment integration.
 
 ```ts
 const address = await soran.resolve("alice.nova");
-// "GDHNO4WK…" — or null
+// Only succeeds with an address when the native instruction is memo-free.
 ```
 
-`resolve(name)` returns the address the name currently pays to, or `null`. The null cases are decided **by the contract, not by SDK guesswork**: records are bound to the name's ownership *generation* on chain, so an expired, reissued, or transferred name stops resolving at the source.
+## Building a payment
 
-Under the hood, resolution mirrors the contracts byte for byte:
+Display and preserve the whole returned tuple. A `G...` recipient can receive a classic Stellar Payment; a `C...` recipient needs a supported Soroban asset/token transfer flow. A classic transaction contains one memo, so multiple incompatible memos require separate transactions.
 
-1. Split `label.namespace` — both parts must be canonical (`[a-z0-9-]`, 1–63 chars, no leading/trailing hyphen). Input is lowercased first.
-2. Compute the namespace node: `sha256(ZERO32 ‖ sha256(namespace))`.
-3. Compute the name node: `sha256(nsNode ‖ sha256(label))`.
-4. Ask the Registry for the namespace's resolver (`resolver_of`).
-5. Ask that resolver for the address (`addr`) — generation-checked on chain.
-6. If the resolver holds no explicit record for the name, fall back to the namespace's Registry-attested Registrar and ask its built-in `resolve` — issuance initializes the built-in target to the holder, so **freshly issued names resolve immediately**, before their holder ever writes a resolver record. The Registrar consulted here is the one the immutable Registry itself deployed and attests; the resolver in step 5 follows the owner-set pointer, and [`assurance()`](/sdk/assurance) tells you whether that pointer is the attested one.
+Honor recipient account memo-required settings such as [SEP-29](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0029.md). A Soran `none` instruction does not override that requirement.
 
-A namespace with neither a public resolver nor an attested Registrar is not publicly resolvable. If its owner runs closed resolution through a Registrar of their own, pass `registrars: { theirns: "C…" }` in the options and the SDK asks that Registrar's `resolve` directly.
+Rechecking immediately before confirmation detects stale client data. It does not atomically bind a later classic payment to that lookup: holders can update instructions before settlement. Even a permanent Resolver permits holder record changes. An exchange using a customer memo still needs a wallet integration that includes that memo in the outgoing payment.
 
-## record
+## Metadata is a separate read
 
-When you want more than the address, `record(name)` returns the full resolution record:
-
-```ts
-const r = await soran.record("alice.nova");
-// { name: "alice.nova", address: "G…" | null, node: "ab12…", resolver: "C…" | null }
-```
-
-`node` is the hex-encoded on-chain node hash; `resolver` is the resolver contract that answered — or, when `address` is null, the one consulted (`null` when the answer came from the Registrar's built-in resolution or closed resolution).
-
-## Text records
-
-Names can carry text records (`url`, `avatar`, and so on):
-
-```ts
-const url = await soran.text("alice.nova", "url"); // string | null
-```
-
-Returns `null` when the record is unset or the namespace has no public resolver.
-
-## verify — the confirm-time re-check
-
-Names can move between keystrokes and confirmation: they expire, transfer, get reissued. A wallet that resolves once at typing time and pays later is trusting a stale answer. Re-check at confirm time:
-
-```ts
-// At typing time: resolve and show the address.
-const dest = await soran.resolve(input);
-if (!dest) throw new Error("name doesn't resolve");
-
-// At CONFIRM time — immediately before signing:
-if (!(await soran.verify(input, dest))) {
-  throw new Error("resolution changed — re-resolve and show the user");
-}
-```
-
-`verify(name, address)` is exactly `resolve(name) === address` — the address itself is always a fresh chain read, never cached. Note that the namespace→resolver pointer may still be served from the `resolverCacheTtlMs` cache (default 30 seconds); set it to `0` on an instance used for confirm-time checks if you must also notice a resolver repoint instantly.
-
-<Note>
-  For high-value payments, consider also checking [`assurance()`](/sdk/assurance): `verify` confirms what the name resolves to *right now*, while `assurance` tells you whether that mapping can be changed underneath you at all.
-</Note>
-
-## Error semantics: null vs SoranError
-
-The SDK draws a hard line between "the chain says no" and "I couldn't ask the chain":
-
-| Outcome | Meaning |
-| --- | --- |
-| `null` | A **successful** chain read that found nothing: unissued, expired, no resolver, unset record. Safe to treat as "doesn't resolve". |
-| `SoranError` thrown | The read **could not be completed**: RPC down, simulation failed, malformed name, contract ABI mismatch. Never interpret this as "doesn't resolve". |
-
-This matters most in pay-to-name flows: a transient RPC failure must never be silently mistaken for "unregistered". Catch `SoranError` and retry or surface it — don't fall through to a default.
-
-```ts
-import { Soran, SoranError } from "@sorandomains/lookup";
-
-try {
-  const addr = await soran.resolve(input);
-  if (!addr) showNotFound();
-} catch (e) {
-  if (e instanceof SoranError) showTransientError(); // retryable — not "not found"
-  else throw e;
-}
-```
-
-Malformed input is also a `SoranError`, thrown before any network call: `parseName` (exported, if you want the same validation client-side) requires exactly `label.namespace` with canonical labels.
-
-## Caching
-
-The namespace→resolver pointer is cached for `resolverCacheTtlMs` (default 30 seconds, `0` to disable). Addresses themselves are never cached — every `resolve`/`verify` reads live state. The pointer cache can only delay noticing a namespace repointing its resolver; it cannot fabricate a wrong address for a name.
-
-## Next
-
-<CardGroup cols={2}>
-  <Card title="Reverse lookup & primary names" href="/sdk/reverse-and-primary" icon="arrow-right-arrow-left">
-    Address → name, contract-verified.
-  </Card>
-  <Card title="Assurance" href="/sdk/assurance" icon="shield-check">
-    Is this resolution immutable?
-  </Card>
-</CardGroup>
+`nameMetadata` supplies holder, built-in target, generation, expiry and active status without requiring a valid payment record. The built-in target can differ from the Resolver's effective address. Use it for ownership displays, never as a fallback payment destination.

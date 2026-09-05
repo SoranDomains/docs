@@ -1,71 +1,42 @@
 ---
 title: "The console"
-description: "Sign in with a wallet, operate one or many namespaces, and delegate console access with roles — no accounts, no emails, no passwords."
+description: "Wallet sign-in, operator roles and separate contract signing authority."
 ---
 
-The console at [soran.domains](https://soran.domains) is where you run a namespace: issue names, manage your team, configure webhooks, and (when a deployment enables them) handle billing and the marketplace. Identity on Soran **is** a Stellar keypair, so there is nothing to register — you sign in with the wallet you already own.
+The console at [soran.domains](https://soran.domains) provides namespace management, issuance, team access and webhooks. It runs the fresh testnet setup in [release status](/reference/release-status). Billing and marketplace features appear **when enabled on a deployment**; both are disabled on this testnet deployment.
 
 ## Wallet sign-in
 
-Sign-in is a SEP-10-style challenge:
+The console requests a short-lived, one-time wallet-signature challenge. It is designed for authentication and is not submitted as a network transaction. Verify the application and network context before signing. Authentication proves control of the signing account; namespace authorization is checked separately.
 
-<Steps>
-  <Step title="Request a challenge">
-    The console asks the server for a challenge transaction scoped to your address. Its source account is your address and it is built at sequence number 1 — a sequence no funded account can ever be at — with a five-minute time bound, so it can **never execute on chain**. It carries a single `manageData` entry with a one-time nonce.
-  </Step>
-  <Step title="Sign it in your wallet">
-    Your wallet (Freighter, xBull, or any wallet that signs Stellar transactions) signs the challenge. Because it's a transaction, not a raw message, this works across wallets uniformly. Nothing is submitted anywhere.
-  </Step>
-  <Step title="Verify">
-    The server checks the signature against your address and the challenge is consumed — each one is strictly single-use and expires after five minutes. A valid signature proves you control the key. That's the whole login.
-  </Step>
-</Steps>
+Your session includes namespaces you own on chain or operate through a console invitation. Switching namespaces re-scopes access. Signing out invalidates the server session.
 
-There is no email path and no password path, by design. Signing out deletes the session server-side, so the token is dead immediately.
+## Operator roles
 
-<Note>
-  Any wallet can sign in — including one that owns nothing yet. An empty wallet lands on onboarding (claim or register a namespace) instead of being locked out.
-</Note>
-
-## Authentication vs. authorization
-
-Signing the challenge proves you control the address — that's authentication. **Authorization is separate and per-namespace**: at login, the server resolves which namespaces your wallet owns on chain or operates by invitation, and your session carries that list.
-
-If your wallet holds several namespaces, the console shows a namespace switcher (in the header chip and the sidebar). Switching re-scopes the session; the server re-validates your role for the target namespace on every switch.
-
-## Roles
-
-Each namespace has a team of operators, identified by wallet address. Three roles:
-
-| Role | What it can do in the console |
+| Role | Console scope |
 | --- | --- |
-| **owner** | Everything, including team management and the one-way permanent policy switch. Owner authority follows the on-chain owner wallet. |
-| **admin** | Everything except team management, the permanent switch, and the handful of ownership acts bound to the owner wallet itself (registrar activation, marketplace listing, billing re-attestation). |
-| **issuer** | Issuance-focused (CI pipelines, support desks). Team and policy are visible but read-only; no reclaim. |
+| Owner | Team management and owner-only controls, with authority tied to the on-chain owner |
+| Admin | Operational controls except team/permanence and other owner-bound actions |
+| Issuer | Issuance-focused access; does not grant reclaim authority |
 
-Adding a teammate takes their wallet address, a display name, and a role — their wallet address *is* the invitation. They sign in at the same console with their own wallet; removing the row revokes access.
+Console roles do not grant new smart-contract powers. On a self-custody namespace, issuance and namespace lifecycle operations still need the owner's signature. A holder's records and individual transfer need holder authority. Reverse/Primary for a destination require that destination's authorization.
 
-Two boundaries the roles never cross:
+## Custody modes
 
-- **Roles govern the console; the chain governs ownership.** The on-chain owner's row cannot be removed from the team — chain ownership is access, and it only moves via an on-chain namespace transfer.
-- **On a self-custody namespace, console access is not signing authority.** Admins and issuers can drive every flow, but on-chain writes still require the owner wallet's signature.
+**Self-custody:** your wallet is the on-chain owner and signs prepared transactions. The server does not hold the signing authority for your namespace.
 
-## Self-custody vs. platform-operated
+**Platform-operated:** the deployment's operating key owns/signs for the namespace, and permitted console actions use that signer. This is a different custody arrangement; inspect it before relying on a claim of wallet-only control.
 
-A namespace runs in one of two custody modes, and the console adapts to whichever applies:
+## Common flows
 
-- **Self-custody** — your wallet is the on-chain owner and the operating key. The console *prepares* transactions (issue, reclaim, transfer, records, resolver deploys) and hands them to your wallet to sign; the server never holds a key that can touch your namespace. Chain fees are paid by your wallet.
-- **Platform-operated** — the deployment's operating key owns and signs for the namespace, and the console executes actions directly. Chain fees are paid by the operating key.
+- **Issuance:** activate a Registrar and issue names under its policy.
+- **Names:** inspect current ownership, edit authorized records and manage individual name transfers.
+- **Team:** invite/remove wallet-address operators.
+- **Developers:** manage optional HTTP integrations and [webhooks](/platform/webhooks).
+- **Billing/Market:** hosted commercial features when enabled.
 
-Self-custody is the sovereign path: it works against the public contracts with nothing but your wallet, and it is never gated by billing on any deployment. See [the sovereignty principle](/#the-sovereignty-principle).
+The namespace claim flow displays the upfront XLM quote and refund terms, and checks its exact contract authorization before signing. Account/memo writes use an atomic native Resolver operation. The app's refund-credit control reads and prepares recovery of undelivered claim-fee payouts.
 
-## Where things live
+A transfer in the Names view is an **individual name transfer**. A whole namespace moves through Registry's separate proposal/acceptance process, described in [Owner lifecycle](/owner/lifecycle-and-transfers).
 
-| Tab | Purpose |
-| --- | --- |
-| Issuance | Activate your registrar, issue names singly or from CSV — see [issuing names](/platform/issuing-names) |
-| Names | Browse, reclaim, transfer, and manage issued names |
-| Team | Operators and roles (owner-managed) |
-| Developers | API access and [webhooks](/platform/webhooks) |
-| Billing | Chain costs, and the subscription when a deployment enables it — see [billing](/platform/billing) |
-| Market | Sell the namespace through escrow, when enabled — see [marketplace](/platform/marketplace) |
+After an uncertain submission, inspect the transaction outcome before retrying. A successful simulation is not final inclusion.

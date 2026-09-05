@@ -1,367 +1,154 @@
 ---
-title: "On-chain resolution"
-description: "Resolve Soran names straight from the Soroban contracts — no Soran API. The two ways to read on-chain, the contract addresses, the namehash, and the storage layout, for explorers, indexers, and resolution services."
+title: "Universal Lookup contract"
+description: "A shared on-chain ABI for wallets, explorers and other contracts across all namespaces."
 ---
 
-Everything the [resolution endpoints](/api/resolution) serve is derived from
-public contract state you can read yourself. This page is the whole
-integration for explorers, indexers, and resolution services that want the
-answer without our API.
+## On-chain resolution
 
-There are **two ways** to read it, both trustless and both talking only to a
-Soroban RPC node:
-
-<CardGroup cols={2}>
-  <Card title="Call the read functions" icon="wand-magic-sparkles">
-    Invoke the contracts' own view functions with `simulateTransaction`. The
-    contracts apply resolver precedence, generation-gating, and expiry
-    **on-chain** — you get the exact answer the SDK and API give. **Start here.**
-  </Card>
-  <Card title="Read ledger state directly" icon="database">
-    Pull the raw contract-data entries with `getLedgerEntries`. Full control
-    for indexers, but you must replicate the resolution logic yourself — see
-    the [caveats](#reading-raw-state).
-  </Card>
-</CardGroup>
+Read **Universal Lookup** for the authoritative contract result. It follows current Registry routing and invokes each namespace's supported contracts. You do not need a Soran SDK or Soran HTTP API to use it.
 
 <Note>
-Testnet only for now — mainnet is not deployed. At mainnet you swap **all** of
-the Registry + PrimaryName IDs, the RPC URL, **and** the passphrase
-(`Public Global Stellar Network ; September 2015`) — none are interchangeable
-with testnet. RPC `https://soroban-testnet.stellar.org`, passphrase
-`Test SDF Network ; September 2015`. Examples use `@stellar/stellar-sdk` v17.
+The addresses below are the fresh **5 September 2026 testnet deployment**. Use them together; the previous Registry and Primary addresses belong to a separate deployment. The examples target Stellar SDK 17 and Lookup ABI version 1.
 </Note>
 
-## Contracts
+## Current testnet contracts
 
-Only two contracts are platform-level, and they are the only addresses an
-integration should ever hard-code:
-
-| Contract | Role | Testnet address |
+| Contract | Address | Integration role |
 | --- | --- | --- |
-| **Registry** (immutable core) | the entry point; maps a namespace node to its registrar and resolver | [`CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI`](https://stellar.expert/explorer/testnet/contract/CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI) |
-| **PrimaryName** | reverse: an address's chosen primary name | [`CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2`](https://stellar.expert/explorer/testnet/contract/CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2) |
+| **Universal Lookup** | `CCSORANKMVVF5GCHCJAMB6M2FTF7KC53F7WN6V6ZD255TQY3IZCQPDRS` | Shared read entry point for every namespace |
+| Registry | `CBSORANXTUFKBZK74AAM2ZM5OX2V7PIXUADM3HGP6WU3IDN7M3YEEDLU` | Namespace ownership and routing; verify this Lookup anchor |
+| Primary | `CBSORANQVSWYBYGKRZ7RAUGOXDAXMXDXQWJSE42DQZOL4BK75BIEBUQK` | Account-level Primary selection; read through Lookup |
+| Allocator | `CBSORANERRWAG5YT4DNQSCYJMOQ7M7UO5AHIAHVNF5ZLKK4JNK7FSKEE` | Namespace claims and fee escrow |
+| Nova Registrar | `CBSORANTKP3SYFX4LOVKEHNONKTLNPRISRLGX2VP3BQJVS7IOJCNDDF7` | Name ownership and lifecycle within the new `nova` |
+| Nova Resolver | `CASORANTDLWVRVAVZHRVHULP6SJMVL5RQIBYM2CCY4T4VFNSA6SU4C3C` | Address and optional memo records within the new `nova` |
 
-Each namespace gets its **own** contracts, but as **optional lifecycle
-stages** — a Registrar once the namespace is activated, and a Resolver only if
-one is deployed. On current testnet: `nova` has both; `veil` has a Registrar
-but no Resolver (closed resolution — `resolver_of` is `null`); and a freshly
-allocated namespace may have neither yet. So always **discover** them from the Registry
-(`registrar_of(nsNode)` / `resolver_of(nsNode)`) and handle `null` — never
-hard-code a per-namespace address. A single Registry address serves every
-namespace that exists now or launches later; the Registry lookup is the API.
+Connect to `https://soroban-testnet.stellar.org` with passphrase `Test SDF Network ; September 2015`. Mainnet is not deployed. [Release status](/reference/release-status) includes deployment transactions, exact code hashes, fees and package availability.
 
-## The namehash
+Wallets and explorers call **Universal Lookup**. It discovers the current Registrar and Resolver for the requested namespace through the Registry. The two `nova` addresses are examples of namespace-specific routing; they are not global contracts to hard-code for every namespace.
 
-Every name maps to a 32-byte **node**. A namespace hashes from 32 zero bytes;
-a name hashes from its namespace's node. The `label` is the UTF-8 bytes of a
-single **canonical** label — lowercased, `[a-z0-9]` with interior hyphens
-allowed (no leading/trailing hyphen), 1–63 chars. The contracts reject
-anything non-canonical, so normalize/validate on your side before hashing (a
-mixed-case or malformed input would silently hash to a different, wrong node):
+The constructor is `(registry: Address, governance: Address, legacy: Option<LegacyCodeHashes>, primary: Option<Address>)`. `LegacyCodeHashes` contains exact Registrar and Resolver Wasm hashes. The optional Primary must be an active Wasm contract with the same Registry anchor. These anchors are fixed by the current implementation; governed code replacement remains possible.
+
+## Forward result
+
+`resolve(name:String) -> Resolution` takes a canonical lowercase name and returns:
 
 ```text
-nsNode   = sha256( 0x00 × 32  ||  sha256(label) )     # a namespace
-nameNode = sha256( nsNode     ||  sha256(label) )     # a name under it
+Resolution {
+  name: String,
+  registrar: Address,
+  resolver: Option<Address>,
+  generation: u64,
+  result: NativePayment(Payment) | LegacyAddress(Address)
+}
+Payment { address: Address, memo: PaymentMemo }
+PaymentMemo = None | Id(u64) | Text(String) | Hash(BytesN<32>)
 ```
 
-The examples on this page are **browser-safe** — plain `Uint8Array`, no Node
-`Buffer`:
+`NativePayment` is a complete instruction. `LegacyAddress` explicitly leaves memo capability unknown. Strict `resolve_payment(name) -> Payment` rejects legacy results; `resolve_address(name) -> Address` additionally rejects a native required memo.
 
-```js
-import { hash } from "@stellar/stellar-sdk";
-const enc    = new TextEncoder();
-const sha    = (b) => new Uint8Array(hash(b));
-const concat = (...a) => { const out = new Uint8Array(a.reduce((n, x) => n + x.length, 0)); let o = 0; for (const x of a) { out.set(x, o); o += x.length; } return out; };
-const toHex  = (u) => Array.from(u, (b) => b.toString(16).padStart(2, "0")).join("");
+Canonical names contain exactly two 1–63-byte labels of lowercase ASCII letters/digits/interior hyphens. Memos permit None, unsigned 64-bit ID, 1–28 UTF-8 byte text or 32-byte hash. Contract destinations support None only. See [payment behavior](/sdk/resolving-names).
 
-const label = (s) => {
-  const l = s.toLowerCase();
-  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(l) || l.length > 63) throw new Error(`invalid label: ${s}`);
-  return enc.encode(l);
-};
-const nsNode  = (s) => sha(concat(new Uint8Array(32), sha(label(s))));
-const subNode = (parent, s) => sha(concat(parent, sha(label(s))));
+## Other read methods
 
-// worked example — nova, and alice.nova
-toHex(nsNode("nova"));
-// 857f994cc3975eda4e373f51c9f5b0f7940451a5eb3ff225edc5cd468228b430
-toHex(subNode(nsNode("nova"), "alice"));
-// 537d927ab5b2547c543ece8459c6971d873559ec43de2a8d43cdad118d68916e
+| Method | Result |
+| --- | --- |
+| `registry()` | Configured Registry Address |
+| `version()` | Numeric ABI version `1` |
+| `primary()` | Optional configured Primary Address |
+| `namespace_metadata(namespace:String)` | Optional NamespaceMetadata |
+| `name_metadata(name:String)` | Optional NameMetadata |
+| `text(name:String,key:Symbol)` | Optional String |
+| `reverse(namespace:String,address:Address)` | Optional canonical account display name |
+| `primary_name(address:Address)` | Optional canonical Primary name |
+
+```text
+NamespaceMetadata {
+  namespace: String, node: BytesN<32>, owner: Address,
+  registrar: Option<Address>, resolver: Option<Address>,
+  resolver_locked: bool, resolver_attested: bool,
+  registrar_tainted: bool, resolver_tainted: bool, permanent: bool,
+  policy: Option<NamespacePolicy>
+}
+NamespacePolicy {
+  reclaimable: bool, transferable: bool, tradeable: bool,
+  default_term_secs: u64, trade_fee_bps: u32
+}
+NameMetadata {
+  name: String, node: BytesN<32>, registrar: Address,
+  holder: Address, builtin_address: Address, generation: u64,
+  expires_at: u64, active: bool, no_expiry: bool,
+  namespace_permanent: bool
+}
 ```
 
-The node is 32 **raw bytes**. When you put it in a ledger key below, pass the
-bytes — not the 64-char hex string.
+Metadata is not a payment fallback. `builtin_address` can differ from effective Resolver instructions. Finite expiry occurs when ledger time is strictly greater than `expires_at`; zero means no ownership deadline. A name's metadata can remain available with `active=false` after expiry.
 
-## Resolve a name to an address
+`text` accepts a nonempty Symbol of at most 32 bytes and returns at most 4,096 UTF-8 bytes; larger historical values return `ReadTooLarge`. The raw `payment` text key is not a replacement for typed payment reads.
 
-The resolved address is **`Resolver.addr(node)` when a current forward record
-exists, otherwise the Registrar's built-in `resolve(label)`.** Calling the
-contracts applies that precedence — and the generation and expiry gates —
-for you (`nsNode` / `subNode` and their `import { hash }` come from
-[The namehash](#the-namehash) above):
+Reverse and Primary results receive a current forward check, including required memos as valid account routes. Their underlying contracts may collapse absent/stale/failed proof into None; a returned None does not diagnose every downstream failure. See [identity limits](/sdk/reverse-and-primary).
 
-```js
+## Read through Soroban RPC
+
+Each `view` call makes an unsigned read simulation. This example pins the deployed testnet configuration, checks the Lookup anchor and ABI, then requests the address and optional memo together. Replace `alice.nova` with an active, issued name; example names are not promised to exist.
+
+```ts
 import {
-  rpc, Contract, Account, TransactionBuilder, BASE_FEE,
-  scValToNative, nativeToScVal,
+  Account, Contract, TransactionBuilder, rpc, nativeToScVal, scValToNative,
 } from "@stellar/stellar-sdk";
 
-const server   = new rpc.Server("https://soroban-testnet.stellar.org");
-const PASS     = "Test SDF Network ; September 2015";
-const REGISTRY = "CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI";
-// Any account works — simulation never signs and never submits.
-const SIM = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
+const deployment = {
+  lookupId: "CCSORANKMVVF5GCHCJAMB6M2FTF7KC53F7WN6V6ZD255TQY3IZCQPDRS",
+  registryId: "CBSORANXTUFKBZK74AAM2ZM5OX2V7PIXUADM3HGP6WU3IDN7M3YEEDLU",
+  rpcUrl: "https://soroban-testnet.stellar.org",
+  passphrase: "Test SDF Network ; September 2015",
+};
 
-async function view(contractId, fn, ...args) {
-  const tx = new TransactionBuilder(new Account(SIM, "0"), { fee: BASE_FEE, networkPassphrase: PASS })
-    .addOperation(new Contract(contractId).call(fn, ...args))
-    .setTimeout(30).build();
-  const sim = await server.simulateTransaction(tx);
-  // A restore preamble means the entry the call needs is ARCHIVED — surface it
-  // rather than reading stale state (this is what the SDK throws too).
-  if (rpc.Api.isSimulationRestore(sim)) throw new Error(`archived — ${fn} needs a restore`);
-  // THROW on a failed simulation — an RPC/contract error must NOT be silently
-  // read as "no record" and trigger the fallback. `null` is returned only for a
-  // *successful* simulation that returned void/None (a genuine empty result).
-  if (!rpc.Api.isSimulationSuccess(sim)) throw new Error(`simulate ${fn}: ${sim.error ?? "failed"}`);
-  return sim.result?.retval ? scValToNative(sim.result.retval) : null;
+async function view(contractId: string, fn: string, args: ReturnType<typeof nativeToScVal>[] = []) {
+  const server = new rpc.Server(deployment.rpcUrl);
+  const tx = new TransactionBuilder(
+    new Account("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF", "0"),
+    { fee: "100", networkPassphrase: deployment.passphrase },
+  ).addOperation(new Contract(contractId).call(fn, ...args)).setTimeout(30).build();
+  const sim = await server.simulateTransaction(tx, undefined, undefined, false);
+  if (rpc.Api.isSimulationRestore(sim)) throw new Error("Contract state needs restoration");
+  if (!rpc.Api.isSimulationSuccess(sim) || !sim.result) throw new Error("Read failed");
+  return scValToNative(sim.result.retval);
 }
 
-async function resolve(namespace, name) {
-  const bytes = (b) => nativeToScVal(b, { type: "bytes" });
-  const ns   = nsNode(namespace);
-  const node = subNode(ns, name);
-
-  const resolver = await view(REGISTRY, "resolver_of", bytes(ns));   // the namespace's resolver pointer
-  if (resolver) {
-    const addr = await view(resolver, "addr", bytes(node));          // PRIMARY: generation-gated forward record
-    if (addr) return addr;
-  }
-  const registrar = await view(REGISTRY, "registrar_of", bytes(ns)); // FALLBACK: built-in, expiry-gated
-  if (!registrar) return null;                                       // namespace not allocated
-  return view(registrar, "resolve", bytes(label(name)));
+if (await view(deployment.lookupId, "registry") !== deployment.registryId) {
+  throw new Error("Wrong Registry anchor");
 }
-
-await resolve("nova", "alice");
-// GDHNO4WKFQJJAPX6YLQTGWFR5QCKZXKJBHKRFCSNRRFSTEJIQZ4Y5UBU
+if (await view(deployment.lookupId, "version") !== 1) throw new Error("Unsupported ABI");
+const raw = await view(deployment.lookupId, "resolve_payment", [
+  nativeToScVal("alice.nova", { type: "string" }),
+]);
+// Strictly decode raw against Payment before use; never drop or coerce its memo.
 ```
 
-<Warning>
-**Do not use the Registrar's `Name.address` as the answer.** The holder can
-point a name's forward record (`Resolver.addr`) somewhere other than where
-the name is *held*; that resolver record is the pay-to target and takes
-precedence. The built-in `Name.address` is only the fallback for names whose
-holder never set a resolver record. Reading `Name.address` alone gives the
-wrong address for any name with a divergent forward record. `addr`, `text`,
-`name_of`, and `primary_of` apply **both** the generation gate and the
-on-chain expiry/liveness gate (an expired or unissued name resolves nothing);
-the built-in `resolve` fallback applies the expiry gate. A raw entry read
-applies neither.
-</Warning>
+Restore detection must precede the success check. Anchor/version reads are compatibility checks, not a code hash pin. Each `view` call can run at a different ledger; one `resolve_payment` invocation obtains its dependent answer within one simulation snapshot.
 
-The other view functions follow the same pattern: `Resolver.text(node, key)`
-(a text record), `Resolver.name_of(addr)` / `PrimaryName.primary_of(addr)`
-(reverse lookups — both re-verified on read), `Registrar.holder_of_node(node)`
-(the holder, which may differ from the pay-to address).
+Soroban `contracttype` structs encode as field-symbol maps. Enum variants encode as vectors such as `[None]`, `[Id, u64]` or `[NativePayment, Payment]`; symbols are not strings in XDR. Preserve u64 precision as bigint or decimal strings. Validate shape, variant arity, addresses and memo bounds after decoding. The [SDK](/sdk/reference) supplies strict decoders if you choose to use it.
 
-## Reading raw state
+## Numeric errors
 
-If you're indexing and want the raw entries, read them with
-`getLedgerEntries`. A Soran `DataKey` encodes as an **ScVal** inside a
-`LedgerKey.contractData`. Every **record** key in the tables below is
-`PERSISTENT` — the only instance-storage keys (each contract's `Config`, the
-Resolver's `Provenance`) are config, not resolution, and are read from the
-contract-instance entry, not by a `DataKey` lookup.
+| Code | Error | Code | Error |
+| --- | --- | --- | --- |
+| 1 | InvalidRegistry | 12 | LegacyMemoUnknown |
+| 2 | InvalidGovernance | 13 | MemoRequired |
+| 3 | NotInitialized | 14 | UpgradePending |
+| 4 | MalformedName | 15 | NoPendingUpgrade |
+| 5 | NamespaceNotFound | 16 | UpgradeNotReady |
+| 6 | RegistrarMissing | 17 | UpgradeHashMismatch |
+| 7 | NameInactive | 18 | TimestampOverflow (reserved) |
+| 8 | ContextMismatch | 19 | PrimaryNotConfigured |
+| 9 | UnsupportedImplementation | 20 | InvalidPrimary |
+| 10 | DependencyUnavailable | 21 | ReadTooLarge |
+| 11 | InvalidPayment | | |
 
-<Warning>
-Unlike the [view-function path](#resolve-a-name-to-an-address) — one
-`simulateTransaction` against a single ledger snapshot — this makes several
-`getLedgerEntries` calls that can land on **different ledgers**. A transfer,
-reissue, or resolver repoint between the reads can yield an obsolete address.
-Treat this as an **indexer illustration**, not an atomic resolve; for a
-point-in-time answer use the view path.
-</Warning>
+Dependency failure never means a memo-free result. Unsupported methods on an older Lookup must not trigger a silent direct-read fallback.
 
-```js
-import { rpc, xdr, Address, scValToNative } from "@stellar/stellar-sdk";
-const server = new rpc.Server("https://soroban-testnet.stellar.org");
+## Raw state and discovery
 
-// A DataKey enum → ScVal. A tuple variant is scvVec([symbol, ...payload]); a
-// unit variant is a single-element vec scvVec([symbol]) — but the only unit
-// keys (Config, the Resolver's Provenance) are instance storage, not read here.
-const dataKey = (variant, ...payload) => xdr.ScVal.scvVec([xdr.ScVal.scvSymbol(variant), ...payload]);
-const B = (bytes) => xdr.ScVal.scvBytes(bytes);
+Raw ledger entries are useful for indexing but bypass contract validation. Separate reads can mix generations or routing, and missing live entries may be archived rather than unowned. Use typed contract methods for payment answers and [versioned events](/api/events) for discovery. Historical data can be displayed as history, not silently promoted to a current destination.
 
-function key(contractId, keyScVal) {
-  return xdr.LedgerKey.contractData(new xdr.LedgerKeyContractData({
-    contract: new Address(contractId).toScAddress(),
-    key: keyScVal,
-    durability: xdr.ContractDataDurability.persistent,
-  }));
-}
-
-async function readEntry(contractId, keyScVal) {
-  const { entries, latestLedger } = await server.getLedgerEntries(key(contractId, keyScVal));
-  if (!entries?.length) return null;                        // absent from LIVE state — see the archival caveat
-  const e = entries[0];
-  // Compare against undefined, not truthiness — a 0 liveUntilLedgerSeq must not skip the check.
-  if (e.liveUntilLedgerSeq !== undefined && e.liveUntilLedgerSeq < latestLedger) return null; // archived → stale
-  return scValToNative(e.val.contractData.val);             // Soroban struct → object keyed by field name
-}
-
-// Expiry is measured against the LEDGER clock, not the local one. Read the
-// current ledger close time PER lookup — a cached value goes stale and would
-// keep resolving expired names in a long-running indexer.
-async function resolveRaw(namespace, name) {
-  const now  = BigInt((await server.getLatestLedger()).closeTime);
-  const live = (rec) => rec && (rec.expires_at === 0n || rec.expires_at > now);
-  const ns   = nsNode(namespace);
-  const node = subNode(ns, name);
-
-  const record    = await readEntry(REGISTRY, dataKey("Node", B(ns)));       // Record{ owner, resolver, … }
-  const registrar = await readEntry(REGISTRY, dataKey("Registrar", B(ns)));  // the namespace's registrar
-  if (!registrar) return null;                                              // namespace not allocated
-  const nameRec   = await readEntry(registrar, dataKey("Name", B(node)));    // Name{ holder, address, expires_at, generation }
-  if (!live(nameRec)) return null;
-
-  // PRIMARY: the resolver POINTER lives in the Node record's `resolver` field
-  // (the owner-set pointer, NOT the attested Resolver(nsNode) key). null ⇒ the
-  // namespace runs closed — skip the resolver and use the built-in Name.address.
-  const resolver = record?.resolver;
-  if (resolver) {
-    const rec = await readEntry(resolver, dataKey("Addr", B(node)));         // AddrRec{ addr, generation }
-    if (rec && rec.generation === nameRec.generation) return rec.addr;       // gate: generation must match
-  }
-  return nameRec.address;                                                    // FALLBACK: built-in target
-}
-
-await resolveRaw("nova", "alice");
-// GDHNO4WKFQJJAPX6YLQTGWFR5QCKZXKJBHKRFCSNRRFSTEJIQZ4Y5UBU
-```
-
-<Warning>
-Raw reads bypass the on-chain gates, so to match the resolvers you must
-replicate them yourself:
-- **Resolver pointer.** Read the resolver from the Registry `Node(nsNode)`
-  record's `resolver` field (`resolver_of`) — **not** the `Resolver(nsNode)`
-  key, which is the *attested* deployment. They're equal for the reference
-  stack today, but diverge the moment an owner repoints. `resolver == None`
-  means a closed namespace — use `Name.address` (expiry-gated) directly.
-- **Generation + expiry.** Every Resolver record — `Addr(node)` → `AddrRec{ addr, generation }`,
-  `Text(node, key)` → `TextRec{ value, generation }`, `Reverse(addr)` → `RevRec{ node, name, generation }`
-  — carries the `generation` it was written under, and only counts when that
-  equals the Registrar `Name(node).generation`; a transfer or reissue bumps
-  `Name.generation` and orphans the old records. A `Name` with nonzero
-  `expires_at` in the past resolves nothing (`0` = never expires).
-- **Reverse needs a forward-match too.** For a `RevRec`, generation-equality is
-  necessary but **not** sufficient: also read the current-generation
-  `Addr(rev.node)` and confirm it resolves back to the queried address. If the
-  forward record is absent, stale-generation, or points elsewhere, the reverse
-  is dead even when generations match (the contract's `name_of` anti-spoof gate).
-- **Archival.** `getLedgerEntries` reads only **live** ledger state, so an
-  **empty** result (`entries: []`) is ambiguous: the key may never have been
-  written, **or** it may be an archived entry that has been evicted from live
-  state and is inaccessible until restored. Do not treat empty as proof a name
-  is free. A **present** entry can also be archived-but-not-yet-evicted
-  (`liveUntilLedgerSeq < latestLedger`). Either way a read-only indexer need
-  not restore — treat an archived/absent entry as stale/unavailable and keep
-  your last-known value. (Restore is a permissionless ledger operation: any
-  funded account — a relayer or your own indexer — can restore persistent
-  state, no original-owner authorization required. A reader simply doesn't
-  need to.)
-- **RPC limits.** `getLedgerEntries` accepts at most ~200 keys per call and the
-  public node rate-limits — chunk your reads, and run your own Soroban RPC for
-  indexing workloads.
-
-Unless you're building a full indexer, the [view-function path](#resolve-a-name-to-an-address)
-above is simpler and correct by construction.
-</Warning>
-
-## Storage layout
-
-These record keys are all `PERSISTENT` contract data, keyed by the 32-byte
-node (or an address). A Soroban struct decodes to an object keyed by its
-field-name symbols; `u64` fields come back as `BigInt`.
-
-| Contract | Key → value |
-| --- | --- |
-| **Registry** (platform) | `Node(node)` → `Record{ owner: Address, resolver: Option<Address>, registrar_status, resolver_status }` · `Registrar(nsNode)` → `Address` · `Resolver(nsNode)` → `Address` |
-| **Registrar** (per namespace) | `Name(node)` → `Name{ holder: Address, address: Address, expires_at: u64, generation: u64 }` · `PendingTransfer(node)` |
-| **Resolver** (per namespace) | `Addr(node)` → `AddrRec{ addr: Address, generation: u64 }` · `Text(node, key)` → `TextRec{ value: String, generation: u64 }` (`key` is a `Symbol`) · `Reverse(addr)` → `RevRec{ node: BytesN<32>, name: String, generation: u64 }` |
-| **PrimaryName** (platform) | `Primary(addr)` → `PrimaryRec{ name: String, ns_node, node }` — an **unverified** cache; call `primary_of(addr)`, which re-checks it live |
-
-A few encoding notes for raw reads: the `Node` record carries two extra
-provenance-status fields beyond `owner`/`resolver` (only those two matter for
-resolution). `Registrar(nsNode)`/`Resolver(nsNode)` are the Registry's
-**attested** deployments — for resolution use the `resolver_of` pointer, which
-equals the attested resolver for reference-stack namespaces but can differ if
-an owner repoints it. `Text`'s second key element is a `Symbol`
-(`scvSymbol`), so its key is `scvVec([scvSymbol("Text"), scvBytes(node), scvSymbol(key)])`.
-
-## Discovering names
-
-Both read paths resolve a name you already hold — but **on-chain state is not
-enumerable**, so you can't list every name by scanning storage. You learn which
-nodes exist by indexing the contracts' **events**:
-
-- **Registry** — `alloc` / `claim` carry the **node** directly (a namespace
-  node, e.g. `857f99…` for `nova`).
-- **Registrar** — `issued` / `transfer` / `reclaimed` carry a **label** + holder
-  (e.g. `["alice", G…]`), *not* a node. Recompute `node = subNode(nsNode(ns), label)`,
-  mapping the emitting Registrar contract to its namespace.
-- **Resolver** — emits only `set_rev` / `clr_rev` (reverse-record changes).
-  Forward `Addr` and `Text` updates are **silent** — re-read `addr(node)` /
-  `text(node, key)` per node rather than waiting for events. (The `set_addr`
-  event that exists is the *Registrar's* built-in `Name.address` setter, a
-  different contract — don't conflate them.)
-
-```js
-// Drain events forward from a start point, following the cursor to head.
-// filters: [{ type: "contract", contractIds: [REGISTRY, ...registrars] }]  ≤ 5 IDs
-let cursor, startLedger = /* your persisted cursor's ledger, or a recent one */;
-for (;;) {
-  const page = await server.getEvents(
-    cursor ? { cursor, filters, limit: 200 }
-           : { startLedger, filters, limit: 200 });   // startLedger (or cursor) is MANDATORY
-  for (const ev of page.events) handle(ev);           // topic[0] = the event name
-  if (page.cursor === cursor) break;                   // cursor stopped advancing ⇒ reached head
-  cursor = page.cursor;                                // else advance and persist it
-}
-```
-
-Three things a durable indexer must handle, none optional:
-- **Cursor pagination.** Each call scans a bounded chunk and returns a `cursor`;
-  keep calling until head. **Empty pages are normal** and must not stop the
-  drain (a real drain here was 52 empty pages out of 60).
-- **Retention.** The public RPC keeps only ~**7 days** (~120,000 ledgers) of
-  events. Older events are gone — so `getEvents` only catches *recently*
-  created nodes. A durable indexer persists a cursor + its own DB **from
-  genesis** (run your own RPC, or seed the historical set from
-  `GET /v1/namespaces` + the [directory endpoints](/api/directory)) and uses
-  `getEvents` only to stay current — never as a from-scratch full bootstrap.
-- **Contract-ID cap.** A `getEvents` filter accepts at most **5** contract IDs
-  (the RPC rejects a sixth). The Registry plus a namespace's Registrar and
-  Resolver is already 3, so past ~2 namespaces you must shard the IDs across
-  calls, one cursor per shard.
-
-## A resolved address may be a contract
-
-The value you get back is a Soroban `Address` — it can be an **account**
-(`G…`) or a **contract** (`C…`); muxed (`M…`) addresses are never stored.
-Branch on the type: a `C…` result is a contract — pay it through the asset's
-Stellar Asset Contract `transfer`, **not** a classic Payment operation; only a
-`G…` address accepts a classic payment.
-
----
-
-The authoritative storage format is the contract source — the `DataKey` enums
-and structs in `contracts/{registry,registrar,resolver,primary}/src/lib.rs`.
-The [Lookup SDK](/sdk/resolving-names) computes the same resolution. The
-[HTTP API](/api/resolution) is a convenience mirror, not identical state: its
-`/v1/resolve` returns the name's **holder** as `account`, whereas on-chain
-`resolve()` (and this page) returns the **pay-to address**, which can differ;
-and it adds indexed fields (registration time, tx hashes, display metadata,
-resolution counts) that are not current contract state. The
-[trust model](/concepts/trust-model) explains why the Registry's answers
-can't be edited out from under you.
+Lookup stores configuration, including fixed Registry and optional Primary anchors in this implementation. It does not maintain copied names or memos. [Governance](/concepts/governance) can change its executable code without a mandatory delay.

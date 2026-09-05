@@ -1,76 +1,41 @@
 ---
-title: "API overview"
-description: "A public, keyless HTTP read surface over Soran's on-chain state — fast to query, verifiable against the chain."
+title: "HTTP API overview"
+description: "Distinguish strict chain-backed payment reads from indexed discovery and optional services."
 ---
 
-The Soran API is the HTTP counterpart to the [SDK](/sdk/installation): a hosted read mirror of on-chain state, plus a hints layer the SDK can verify. Use it when you want resolution, name records, the directory, or marketplace listings from a backend without running Soroban RPC simulations yourself.
+The HTTP API combines strict current contract reads with indexed discovery, history and hosted services. The source of truth remains the chain; an HTTP response still requires trusting the serving API and its RPC.
 
-## Base URL
+The public testnet API at `https://api.soran.domains` serves the fresh setup in [release status](/reference/release-status). `https://resolve.soran.domains` is a resolution alias. Match the API to the contracts and network you integrate.
 
-The base URL is **deployment-specific** — each Soran deployment serves its own API host. Use the base URL published by the deployment you integrate with; every path in these docs is relative to it.
+## Choose the right source
 
-## What the API is (and isn't)
+| Need | Endpoint or method |
+| --- | --- |
+| Complete address and optional memo | `/v1/payment/{namespace}/{label}` or on-chain `resolve_payment` |
+| Memo-free address convenience | `/v1/resolve/{namespace}/{label}`; required memo returns an error |
+| Current payment plus selected records | `/v1/records/{namespace}/{label}` |
+| Contract source of truth without Soran HTTP | [Universal Lookup ABI](/api/onchain-resolution) |
+| Indexed ownership candidates | `/v1/names/by-holder/{address}` |
+| Verified account Primary | `/v1/primary/{address}` |
+| Namespace discovery | `/v1/namespaces` and optional directory |
+| History, raw events and gaps | [Explorer API](/api/events) |
+| Namespace fee policy/receipt/credit | [Claim fee API](/api/claim-fees) |
 
-The public API is a **read mirror, not the source of truth**. It serves an indexed projection of the contracts — fast, cacheable, and convenient — but the chain is authoritative.
-
-- **Trust-sensitive reads should be verified.** The SDK treats API answers (reverse lookup especially) as *untrusted hints* and re-verifies them against the contracts over Soroban RPC. If you consume the API directly from a backend, apply the same discipline for anything that gates money: confirm the resolution on chain before sending funds.
-- **Convenience reads can be trusted casually.** Browsing listings, showing a directory, rendering a status page — the mirror is fine as-is.
-
-<Note>
-  Authenticated console endpoints (namespace management, issuance, billing, the seller side of the marketplace) exist under separate paths but are out of scope for these docs — they back the hosted console. Everything documented here lives under `/v1` and needs no credentials.
-</Note>
-
-## Access
-
-- **No API key.** Every `/v1` endpoint is public and unauthenticated.
-- **Open CORS.** `/v1/*` and `/health` allow any origin, so you can call them straight from a browser.
-- **Rate limits.** A global per-IP limit applies (600 requests per minute by default; operators can tune it), and sensitive routes carry tighter per-route buckets — for example, minting a marketplace deposit intent is limited to 10 per minute per IP by default. Exceeding a limit returns `429`.
+The new payment routes use configured Universal Lookup with anchor/version checks and no fallback on failure. Compatibility deployments can explicitly operate a native direct path; verify which setup you are integrating. Indexed holders, cold records and cached Registrar addresses are never substitutes for a failed current payment read.
 
 ## Conventions
 
-- All responses are JSON.
-- Names are lowercase; name paths take the namespace and label as separate segments: `/v1/resolve/{namespace}/{label}` resolves `label.namespace`.
-- Errors return a machine-readable code, optionally with a human-readable detail:
+- Public `/v1` routes need no API key. Some optional marketplace routes create intents rather than merely reading data.
+- Responses are JSON; errors have a machine-readable `error` field.
+- Full-name payment inputs reject non-ASCII before lowercasing ASCII uppercase. Names are not Unicode-normalized.
+- Large integer token amounts and generations use decimal strings where JSON cannot preserve their contract precision.
+- Rate limits apply and may differ by deployment; handle `429`.
+- Payment, records, Primary and claim-fee reads use `Cache-Control: no-store`. Recheck instructions before signing or paying.
 
-```json
-{ "error": "name_not_found", "name": "alice.nova" }
-```
+## Discovery and freshness
 
-- Server-side failures return a generic `500` body — internals are never serialized to the client:
+`/v1/namespaces`, holdings, directory and history endpoints use bounded pages with opaque cursors. Follow `nextCursor` and inspect `hasMore`, `truncated` and coverage. `/v1/lookup?q=...` is bounded search with truncation signals; `/v1/showcase` is a curated active-namespace grid, not exhaustive discovery.
 
-```json
-{ "error": "internal_error", "detail": "the request failed — retry shortly" }
-```
+`/v1/stats` gives indexed counts. `/v1/ledger/head` gives the observed head. Neither is proof of complete, fresh indexing; inspect `/v1/coverage` and [status](/api/status).
 
-- Several responses include a `ledger` field, and its meaning is per-endpoint. On `/v1/status`, `/v1/allocations`, and `/v1/stats` it's the chain ledger the mirror has observed — useful for judging freshness — and `GET /v1/ledger/head` returns it on its own. On `/v1/resolve`, `ledger` is different: it's the ledger the name was issued in, not the observed head.
-
-## Endpoint map
-
-<CardGroup cols={2}>
-  <Card title="Resolution" icon="bolt" href="/api/resolution">
-    Resolve names, read full name records and resolver record sets, reverse-lookup an address.
-  </Card>
-  <Card title="Directory" icon="address-book" href="/api/directory">
-    The cross-tenant reverse directory: every name an address holds, across all of Soran.
-  </Card>
-  <Card title="Marketplace" icon="tag" href="/api/market">
-    Browse namespace listings, mint a deposit intent, read escrow-settled sale history.
-  </Card>
-  <Card title="Status & allocations" icon="wave-pulse" href="/api/status">
-    Component health with honest freshness signals, plus the public namespace claim queue.
-  </Card>
-</CardGroup>
-
-## Discovery endpoints
-
-Five small endpoints round out the read surface:
-
-- `GET /v1/namespaces` — the public namespace list: label, display name, policy, whether it's activated, and when it was awarded (bounded to 500).
-- `GET /v1/namespaces/{namespace}` — one namespace's record: operator account, policy, on-chain node, award ledger, issued-name count.
-- `GET /v1/lookup?q={query}` — whois-style search across namespaces and names (up to 8 of each; the query is capped at 64 characters).
-- `GET /v1/showcase` — the most-active namespaces (up to 12, ranked by issued-name count) with their logos and name counts — built for landing-page grids.
-- `GET /v1/stats` — headline counts: total namespaces, total names, and the observed chain `ledger`.
-
-## Health
-
-`GET /health` returns `{ "ok": true, "service": "soran-api" }` — a liveness probe only. For real component health, use [`/v1/status`](/api/status).
+`GET /health` is a process-liveness endpoint. Use `/v1/status` for component measurements. Authenticated console management routes are outside this public reference except the tenant-facing paid-claim preparation contract described in the claim fee guide.

@@ -9,12 +9,37 @@
   },
   "favicon": "/favicon.svg",
   "navigation": {
-    "pages": [
+    "global": {
+      "anchors": [
+        {
+          "anchor": "Lookup SDK on npm",
+          "href": "https://www.npmjs.com/package/@sorandomains/lookup",
+          "icon": "npm"
+        },
+        {
+          "anchor": "Owner SDK on npm",
+          "href": "https://www.npmjs.com/package/@sorandomains/owner",
+          "icon": "npm"
+        },
+        {
+          "anchor": "Holder SDK on npm",
+          "href": "https://www.npmjs.com/package/@sorandomains/holder",
+          "icon": "npm"
+        },
+        {
+          "anchor": "SDKs on GitHub",
+          "href": "https://github.com/SoranDomains/sdk",
+          "icon": "github"
+        }
+      ]
+    },
+    "groups": [
       {
         "group": "Get started",
         "pages": [
           "index",
-          "quickstart"
+          "quickstart",
+          "reference/release-status"
         ]
       },
       {
@@ -23,7 +48,8 @@
           "concepts/names-and-namespaces",
           "concepts/ownership-guarantees",
           "concepts/claiming-a-namespace",
-          "concepts/trust-model"
+          "concepts/trust-model",
+          "concepts/governance"
         ]
       },
       {
@@ -62,6 +88,8 @@
           "api/overview",
           "api/resolution",
           "api/onchain-resolution",
+          "api/events",
+          "api/claim-fees",
           "api/directory",
           "api/market",
           "api/status"
@@ -77,31 +105,7 @@
           "platform/marketplace"
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Lookup SDK on npm",
-          "href": "https://www.npmjs.com/package/@sorandomains/lookup",
-          "icon": "npm"
-        },
-        {
-          "anchor": "Owner SDK on npm",
-          "href": "https://www.npmjs.com/package/@sorandomains/owner",
-          "icon": "npm"
-        },
-        {
-          "anchor": "Holder SDK on npm",
-          "href": "https://www.npmjs.com/package/@sorandomains/holder",
-          "icon": "npm"
-        },
-        {
-          "anchor": "SDKs on GitHub",
-          "href": "https://github.com/SoranDomains/sdk",
-          "icon": "github"
-        }
-      ]
-    }
+    ]
   },
   "logo": {
     "light": "/logo/light.svg",

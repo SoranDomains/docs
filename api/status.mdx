@@ -33,7 +33,7 @@ Real signals only: the status endpoint measures what it reports — database rea
 
 - **Database** — `operational` or `down`.
 - **Stellar RPC** — `operational` when the API can observe a chain head, `down` otherwise.
-- **Indexer** — the honesty signal for the whole read mirror. `lag` is how many ledgers the indexer trails the chain head; `processedAt` is when it last wrote progress. The indexer is `operational` only while its mirror is fresh and keeping pace with the chain head — a wedged indexer shows up as a growing `lag` or stale `processedAt`, never as a quiet chain. `deadLetters` counts unresolved indexing failures; nonzero means some events await operator attention.
+- **Indexer** — the honesty signal for the whole read mirror. `lag` is how many ledgers the indexer trails the chain head; `processedAt` is when it last wrote progress. The indexer is `operational` only while its mirror is fresh and keeping pace with the chain head — a wedged indexer shows up as a growing `lag` or stale `processedAt`, never as a quiet chain. `deadLetters` counts unresolved indexing failures; inspect it separately even if the freshness-based component state is `operational`. Use `/v1/coverage` for explicit history gaps and completeness.
 
 ### Extra components, when enabled
 
@@ -96,4 +96,8 @@ The public queue behind [namespace claiming](/concepts/claiming-a-namespace): re
 { "objector": "Other Corp", "basis": "prior-use", "bondXlm": "100.0000000" }
 ```
 
-Poll this endpoint to build claim-tracking UIs; the included `ledger` tells you how fresh the snapshot is.
+Poll this endpoint to build claim-tracking UIs. Its `ledger` is the observed head, not proof every displayed claim was processed through that ledger. Check indexer status and coverage; confirm claim and fee state on chain before signing.
+
+The queue is not a fee receipt or complete settlement archive. Use the [claim fee API](/api/claim-fees) for escrow policy, outcome and recoverable credit. The fresh deployment uses 5,000 testnet XLM for public namespace claims; objection bonds are separate. Removing Lookup upgrade delay does not remove the claim window.
+
+See [release status](/reference/release-status) for which setup is deployed.

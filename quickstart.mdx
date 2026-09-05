@@ -1,86 +1,61 @@
 ---
 title: "Quickstart"
-description: "Resolve a Soran name from your app in five minutes — trustlessly, straight from the chain."
+description: "Read and recheck complete address-and-memo instructions through Universal Lookup."
 ---
 
-## 1. Install the SDK
-
-The SDK's only peer dependency is the Stellar SDK you almost certainly already have.
-
-```bash
-npm install @sorandomains/lookup @stellar/stellar-sdk
-```
-
 <Note>
-  Published on npm as [`@sorandomains/lookup`](https://www.npmjs.com/package/@sorandomains/lookup); source on [GitHub](https://github.com/SoranDomains/sdk).
+This quickstart uses published Lookup 0.5.0 and the fresh testnet contracts deployed on 5 September 2026. See [release status](/reference/release-status) for addresses and hosted endpoints.
 </Note>
 
-## 2. Resolve a name
+## Configure one shared reader
+
+Install Lookup with Stellar SDK 17:
+
+```bash
+npm install @sorandomains/lookup@0.5.0 @stellar/stellar-sdk@^17
+```
+
+The package's testnet preset includes the verified Registry, Lookup and Primary addresses:
 
 ```ts
 import { Soran } from "@sorandomains/lookup";
 
-const soran = new Soran({ network: "testnet" });
-
-const address = await soran.resolve("alice.nova");
-// "GDHNO4WK…" — or null if unissued, expired, or the namespace has no public resolver
+const soran = new Soran({
+  network: "testnet",
+  reverseNamespaces: ["nova"],
+});
 ```
 
-Every call is a **read-only Soroban RPC simulation against the deployed contracts**. Point `rpcUrl` at any RPC you trust — including your own node — and Soran's servers are nowhere in the trust path.
+Universal mode is the default. Its contract validates current namespace routing on chain. Missing Lookup configuration throws `CONFIG`; it does not silently read a Resolver directly.
 
-## 3. The wallet pattern: resolve, verify, reverse
+## Read the whole payment instruction
 
 ```ts
-// Send-to-name: swap the address field for a name field.
-const dest = await soran.resolve(input);
-if (!dest) throw new Error("name doesn't resolve");
+const payment = await soran.resolvePayment("Alice.Nova");
+// payment = { address: "G... or C...", memo: { type: "none" } }
+// or memo: { type: "id", value: "123456" }, text, or hash
 
-// Re-check at CONFIRM time — names can move between keystrokes and confirmation.
-if (!(await soran.verify(input, dest))) throw new Error("resolution changed");
-
-// Show names instead of addresses in history — contract-verified, never spoofable.
-const name = await soran.reverseLookup(senderAddress);
+if (!(await soran.verifyPayment("alice.nova", payment))) {
+  throw new Error("Payment instructions changed; review them again");
+}
 ```
 
-As configured here, `reverseLookup` answers from the address's **primary name** only. To also surface per-namespace reverse records, pass `reverseNamespaces: ["nova", …]` at construction (or a per-call namespace list, or set `hintUrl`) — see [Reverse lookup & primary names](/sdk/reverse-and-primary).
+Preserve **both** fields when constructing the payment. No memo is needed for `memo.type === "none"`. For a required memo, include its exact type and value or refuse the payment. IDs are decimal strings; never convert them to JavaScript numbers.
 
-## 4. Show the guarantee
+A `G...` address can use a classic Stellar payment. A `C...` address requires an appropriate contract/token transfer flow and supports only memo `none` in this ABI. Also honor the recipient account's memo-required setting. A transaction has only one classic memo: split payments needing different memos.
 
-Every name declares what can happen to it, and the resolution layer itself can be proven immutable. `assurance()` runs the on-chain proof:
+A successful read is a point-in-time answer. Rechecking catches stale client data; it cannot prevent a later record change before a separate payment settles.
+
+## Read ownership and display names separately
 
 ```ts
-const a = await soran.assurance("alice.nova");
-// {
-//   resolverLocked:   true,  // the resolver pointer can never change again
-//   resolverAttested: true,  // it is the provenance-bound resolver the Registry deployed
-//   resolverTainted:  false, // it has never been upgraded
-//   trustworthy:      true,  // locked ∧ attested ∧ ¬tainted — resolution is immutable
-// }
+const name = await soran.nameMetadata("alice.nova");
+const namespace = await soran.namespaceMetadata("nova");
+const displayName = await soran.primaryOf(senderAddress);
 ```
 
-Gate high-value flows on `trustworthy`, and render the ownership model — served on the name record by the HTTP API's [`/v1/resolve` and `/v1/names` endpoints](/api/resolution), not by the SDK's `record()` — with the glyph language:
+`name.holder` and `name.builtinAddress` are ownership metadata, not necessarily the effective payment address. Use the complete payment result for payments. Primary and reverse names identify an account, not a customer memo on a pooled exchange account.
 
-| Guarantee | Meaning |
-| --- | --- |
-| ● Permanent | Cannot be reclaimed or expired by anyone — the contract enforces it |
-| ◔ Reclaimable | The issuer can take the name back, and says so up front |
-| ◐ Timed | Ownership until a visible date, never a surprise |
+Use [namespace assurance](/sdk/assurance) to assess Resolver provenance. It does not freeze holder records or remove Lookup governance and RPC trust.
 
-Details: [Assurance](/sdk/assurance).
-
-## Next steps
-
-<CardGroup cols={2}>
-  <Card title="Reverse lookup & primary names" href="/sdk/reverse-and-primary" icon="arrow-right-arrow-left">
-    Address → name, the verified way.
-  </Card>
-  <Card title="SDK reference" href="/sdk/reference" icon="book">
-    Every method, typed.
-  </Card>
-  <Card title="HTTP API" href="/api/overview" icon="server">
-    The read surface over HTTP, for backends.
-  </Card>
-  <Card title="Run a namespace" href="/concepts/claiming-a-namespace" icon="flag">
-    Claim your brand and issue names.
-  </Card>
-</CardGroup>
+Continue with [payment semantics](/sdk/resolving-names), [SDK configuration](/sdk/installation), or the [direct contract ABI](/api/onchain-resolution).

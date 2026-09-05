@@ -1,57 +1,28 @@
 ---
-title: "Assurance"
-description: "One opt-in call that tells you whether a name's resolution is immutable — or could be repointed underneath the payer."
+title: "Resolver assurance"
+description: "Understand precisely what locked, attested and untainted Resolver provenance proves."
 ---
 
-`resolve()` answers "what does this name pay to *right now*?" — it follows the namespace owner's current resolver pointer, whatever that is. For a reclaimable namespace, the owner can repoint that resolver at will. That is holder sovereignty, not a bug — but before a high-value payment, you may want to know whether the mapping *can* move at all.
-
-`assurance(name)` is that check: an opt-in trust verdict on the name's namespace resolver.
+`assurance(name)` describes a namespace's Resolver provenance. It does not certify that a payment is safe or that its destination cannot change.
 
 ```ts
-const a = await soran.assurance("alice.nova");
-// {
-//   resolverAttested: true,   // live pointer === the Registry-attested resolver
-//   resolverTainted: false,   // the attested resolver has never upgraded
-//   resolverLocked: true,     // the pointer can no longer be changed
-//   trustworthy: true,        // locked ∧ attested ∧ ¬tainted
-// }
+const assurance = await soran.assurance("alice.nova");
+// { resolverAttested, resolverTainted, resolverLocked, trustworthy }
 ```
 
-## What it reads on chain
+| Field | Meaning |
+| --- | --- |
+| `resolverAttested` | Current Resolver pointer matches Registry's attested deployment |
+| `resolverTainted` | Registry records that the attested Resolver has upgraded |
+| `resolverLocked` | Current pointer has been permanently locked |
+| `trustworthy` | Locked, attested and untainted |
 
-One call fires four reads against the immutable Registry, in parallel, for the name's namespace node:
+Universal mode obtains these facts through Lookup's namespace metadata. Direct compatibility mode reads their Registry equivalents.
 
-| Registry read | Feeds | Proves |
-| --- | --- | --- |
-| `resolver_locked` | `resolverLocked` | The resolver pointer is locked and can never be changed again |
-| `attested_resolver_of` vs `resolver_of` | `resolverAttested` | The live pointer is the Registry-attested, provenance-bound resolver — not a substitute |
-| `resolver_tainted` | `resolverTainted` | Whether the attested resolver has ever upgraded (an upgrade bars permanence) |
+## Limits of the result
 
-`trustworthy` is the conjunction: **locked, attested, and never upgraded**. When it's true, the name→address mapping is served by a resolver whose code has never changed, whose identity the Registry vouches for, and whose pointer can never be swapped — the resolution is immutable and cannot be changed underneath the payer between your check and the payment.
+Holders may change their address, memo and text even when `trustworthy` is true. A recipient account can belong to an exchange or another party. The result does not establish that a name holder owns the destination account or that a memo identifies a particular person.
 
-These three legs are the on-chain proof behind a **permanent** ownership guarantee at the resolution layer. The other guarantee dimensions are enforced elsewhere: a **reclaimable** name can be taken back by its issuer, and a **timed** name stops resolving at expiry — both through the generation gates that `resolve()` itself already honors on every read. `assurance()` adds the piece `resolve()` can't tell you: whether the resolver serving those answers is itself pinned.
+It also does not attest Universal Lookup's current executable code or governance. Lookup can be upgraded with no mandatory delay, and your RPC remains a trusted input. Use [namespace metadata](/concepts/ownership-guarantees) for the broader permanence predicate; do not infer all ownership guarantees from this narrower result.
 
-## How a wallet should render it
-
-- **Gate, don't decorate, high-value sends.** For amounts above your threshold, check `trustworthy` alongside the confirm-time [`verify()`](/sdk/resolving-names#verify--the-confirm-time-re-check). If it's false, show the send anyway — most names on reclaimable namespaces are perfectly legitimate — but drop any "verified/immutable" badge and consider a one-line notice that the namespace owner can change where this name points.
-- **Badge on `trustworthy`, not on the individual legs.** The three booleans exist so power users and explorers can see *why* a verdict is what it is; a payment UI needs only the conjunction.
-- **Don't cache the verdict across sessions.** It's four cheap parallel reads; fetch it when you're about to rely on it.
-
-<Warning>
-  `assurance()` is opt-in — `resolve()` never runs it for you. Resolution deliberately follows the owner's pointer regardless of assurance, because repointing is a legitimate right on non-permanent namespaces. It's your UI's job to decide when immutability matters enough to check.
-</Warning>
-
-## Error semantics
-
-Like every read, a failed chain read throws `SoranError` — it never comes back as a falsely reassuring or falsely alarming verdict. A malformed name also throws before any network call.
-
-## Next
-
-<CardGroup cols={2}>
-  <Card title="Ownership guarantees" href="/concepts/ownership-guarantees" icon="shield-check">
-    Permanent, reclaimable, timed — the full model.
-  </Card>
-  <Card title="SDK reference" href="/sdk/reference" icon="book">
-    Every method, typed.
-  </Card>
-</CardGroup>
+For a payment, assess these boundaries, inspect the complete instruction and call `verifyPayment` near confirmation. Never replace a required memo with an address-only convenience read because provenance is locked.
