@@ -5,7 +5,7 @@ description: "Use the Owner SDK to issue names through the namespace Registrar w
 
 The Owner SDK writes to Registry and the namespace's Registrar/Resolver. It does not route writes through Universal Lookup. Read integrations use the [Lookup SDK](/sdk/installation).
 
-These examples target Owner 0.6.0 with Stellar SDK 17. Owner 0.6.0 npm publication is pending; the examples require that release once available. See [release status](/reference/release-status) for availability and the matching testnet contracts. You can use the live app for namespace operations while waiting.
+These examples use published Owner **0.6.0** with Stellar SDK 17. See [release status](/reference/release-status) for verified package versions and the matching testnet contracts. You can also use the app for namespace operations.
 
 ```ts
 import { SoranOwner } from "@sorandomains/owner";
@@ -17,7 +17,7 @@ const owner = new SoranOwner({
 });
 ```
 
-`walletSigner` implements `publicKey()` and `signTransaction(xdr, options)`. `keypairSigner` is available for securely configured backend scripts. The SDK discovers the namespace Registrar from Registry.
+`walletSigner` implements `publicKey()` and `signTransaction(xdr, options)` using a classic G transaction-source account. `keypairSigner` is available for securely configured backend scripts. Contract C ownership or recipient support does not imply arbitrary contract-wallet signing through this adapter; contract authorization needs a compatible integration. The SDK discovers the namespace Registrar from Registry.
 
 ## Issue one or a batch
 

@@ -4,7 +4,7 @@ description: "Configure the matching Universal Lookup, Registry, Primary and Ste
 ---
 
 <Note>
-Lookup **0.6.0** is required for these examples and native muxed support, but its npm publication is pending. Run the install command below after publication. Older packages do not implement Lookup ABI 2. The current [contract ABI](/api/onchain-resolution) and [HTTP payment endpoint](/api/resolution) are live and can be used now. Check [release status](/reference/release-status) for package availability.
+Lookup **0.6.0** is published and required for these examples and native muxed support. Older packages do not implement Lookup ABI 2. You can also use the [contract ABI](/api/onchain-resolution) or [HTTP payment endpoint](/api/resolution) directly. Check [release status](/reference/release-status) for verified package versions and deployments.
 </Note>
 
 These pages target Lookup 0.6.0. Its testnet preset matches the current Registry, Lookup and Primary in the deployment record.
@@ -14,6 +14,8 @@ npm install @sorandomains/lookup@0.6.0 @stellar/stellar-sdk@^17
 ```
 
 The supported Stellar SDK peer range is `>=17 <18`. The package is ESM with TypeScript types and supports Node, browsers and workers.
+
+Lookup reads require no signer. The Owner and Holder SDKs' `TxSigner` write flows use a classic G account as the transaction source. C-address support for recipients or contract ownership does not mean arbitrary contract-wallet signing is supported by these adapters. Contract-wallet authorization needs a compatible integration of its own.
 
 ## Universal mode is the default
 

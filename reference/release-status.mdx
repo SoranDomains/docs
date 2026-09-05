@@ -9,7 +9,7 @@ The native-muxed contracts were deployed on **5 September 2026**. Their Wasm has
 | --- | --- |
 | Registry, Allocator, nova Registrar/Resolver, Primary and Universal Lookup | Deployed and verified |
 | Public namespace claim fee | **5,000 testnet XLM** paid upfront into Allocator escrow |
-| SDK npm packages | Lookup 0.6.0, Holder 0.4.0, Owner 0.6.0 and MCP 0.6.0 are not yet published |
+| SDK npm packages | Lookup 0.6.0, Holder 0.4.0, Owner 0.6.0 and MCP 0.6.0 published and verified by 18:48 UTC |
 | Public app | Live on the native-muxed deployment; current assets and contract pins verified at 18:24 UTC |
 | Public API | Live on the native-muxed deployment; configuration, reads and indexed coverage verified at 18:24 UTC |
 | Hosted MCP | Live on 0.6.0 with current contract pins; read tools verified at 18:23 UTC |
@@ -57,12 +57,12 @@ The fee stays in Allocator escrow until its [claim outcome](/concepts/claiming-a
 
 | Package | Version | Status |
 | --- | --- | --- |
-| [Lookup](https://www.npmjs.com/package/@sorandomains/lookup) | **0.6.0** | Not yet published to npm |
-| [Holder](https://www.npmjs.com/package/@sorandomains/holder) | **0.4.0** | Not yet published to npm |
-| [Owner](https://www.npmjs.com/package/@sorandomains/owner) | **0.6.0** | Not yet published to npm |
-| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.6.0** | Not yet published to npm |
+| [Lookup](https://www.npmjs.com/package/@sorandomains/lookup/v/0.6.0) | **0.6.0** | Published and verified |
+| [Holder](https://www.npmjs.com/package/@sorandomains/holder/v/0.4.0) | **0.4.0** | Published and verified |
+| [Owner](https://www.npmjs.com/package/@sorandomains/owner/v/0.6.0) | **0.6.0** | Published and verified |
+| [MCP](https://www.npmjs.com/package/@sorandomains/mcp/v/0.6.0) | **0.6.0** | Published and verified |
 
-These versions target `@stellar/stellar-sdk >=17 <18` and the current deployment above. Their prepared release artifacts and documentation examples have been checked, but they are not available through npm yet. SDK install commands and examples require these versions after publication. Until then, integrate with the live [contract ABI](/api/onchain-resolution), [HTTP payment API](/api/resolution) or [hosted MCP](/agents/access). Older packages do not implement the new muxed ABI or its current preset.
+All four versions were downloaded from npm and verified against the reviewed release artifacts on **5 September 2026**, completing at **18:48:24 UTC**. Each package's npm `latest` tag matched the version above at that check. These versions target `@stellar/stellar-sdk >=17 <18` and the current deployment; older packages do not implement the new muxed ABI or its current preset. The [contract ABI](/api/onchain-resolution), [HTTP payment API](/api/resolution) and [hosted MCP](/agents/access) remain separate integration options.
 
 The [quickstart](/quickstart) pins Registry, Lookup and Primary explicitly. Recheck configuration when upgrading an older package.
 
@@ -76,7 +76,7 @@ Universal Lookup is the default read path. Missing Lookup configuration throws `
 
 On **5 September 2026**, hosted MCP 0.6.0 was verified at **18:23 UTC** and the app/API cutover was verified at **18:24 UTC**. Checks confirmed the app's current contract pins, API fee and namespace configuration, expected inactive-name errors, indexed event coverage and hosted MCP read tools. The API reported zero coverage gaps through its observed head. These are dated deployment checks, not a promise of continuous availability or a test of every wallet provider.
 
-Recheck [service status](/api/status), coverage and network settings during integration. The console's [automatic branded-address preparation](/platform/issuing-names#automatic-branded-contract-addresses) remains namespace- and role-bound. Billing and marketplace features are disabled on this setup. Hosted MCP is deployed independently; its live 0.6.0 service does not mean the npm package has been published.
+Recheck [service status](/api/status), coverage and network settings during integration. The console's [automatic branded-address preparation](/platform/issuing-names#automatic-branded-contract-addresses) remains namespace- and role-bound. Billing and marketplace features are disabled on this setup. Hosted MCP deployment and npm package publication are verified separately.
 
 ## Fresh namespace and older deployments
 
