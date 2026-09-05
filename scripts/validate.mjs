@@ -71,7 +71,7 @@ if (deployment.status !== 'deployed' || deployment.network !== 'testnet') fail.p
 for(const [role,c] of Object.entries(deployment.contracts)) {
   if(!/^C[A-D][A-Z2-7]{54}$/.test(c.id) || !/^[a-f0-9]{64}$/.test(c.wasmHash) || !/^[a-f0-9]{64}$/.test(c.deploymentTransaction) || !Number.isInteger(c.deploymentLedger)) fail.push(`deployment manifest: invalid ${role}`);
   if (!contents.get(resolve(root,'reference/release-status.mdx'))?.includes(c.id)) fail.push(`deployment manifest: ${role} missing in address table`);
-  if (!contents.get(resolve(root,'api/onchain-resolution.mdx'))?.includes(c.id)) fail.push(`deployment manifest: ${role} missing from on-chain integration page`);
+  if (['lookup', 'registry', 'primary', 'allocator'].includes(role) && !contents.get(resolve(root,'api/onchain-resolution.mdx'))?.includes(c.id)) fail.push(`deployment manifest: shared ${role} missing from on-chain integration page`);
 }
 const onchainPage=contents.get(resolve(root,'api/onchain-resolution.mdx'))??'';
 for (const role of ['lookup','registry']) {

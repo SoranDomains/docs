@@ -50,6 +50,8 @@ Tools combine different sources. Payment reads come from chain contracts; discov
 
 `set_payment` atomically updates a Resolver address and optional memo. Use type `none` to remove a memo. IDs remain decimal strings, text remains exact UTF-8 and hashes remain 64 lowercase hex characters.
 
+Payment addresses are G or C; C supports `none` only. M addresses are rejected rather than silently converted. Use the [supported address and memo examples](/concepts/payment-destinations) when constructing tool inputs.
+
 `claim_display_name` coordinates forward, reverse and Primary operations for the wallet's own address. These are multiple writes, not one atomic universal transaction; handle partial completion. Account display names do not identify a customer's memo on a shared exchange address.
 
 Owner tools include issuance, reclaim, renew, treasury, Resolver routing, namespace transfers and guarded permanence. Holder tools include profile/payment records and name transfers. All remain subject to contract authorization; console/API data cannot grant ownership authority.

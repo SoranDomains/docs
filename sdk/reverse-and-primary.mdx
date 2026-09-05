@@ -20,6 +20,8 @@ A returned name must be canonical, active, in the expected namespace and forward
 
 **Primary and reverse identify an account.** They do not identify an individual customer or subaccount behind a pooled exchange address. A customer's name and memo should not be presented as the identity of everyone using that address.
 
+These account inputs accept G or C, not direct muxed M addresses. Decoding M to its base G account changes the question to that shared account's identity; it does not provide a customer-specific reverse result. See [muxed-address limits](/concepts/payment-destinations#muxed-accounts-what-is-and-is-not-supported).
+
 A Primary record is elected by its address. Holders cannot elect a primary for a destination they do not control merely because they own a name that points there.
 
 ## Discovery scope

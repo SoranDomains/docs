@@ -24,6 +24,8 @@ Wallets, explorers and other contracts read **Universal Lookup**. It follows the
 
 Namespace ownership, a name's holder and its payment recipient are separate roles. An exchange deposit name can resolve to the exchange's account plus a customer memo without making that account the name holder.
 
+Payment destinations support classic G accounts, G accounts with ID/text/hash memos, and C contract addresses without a memo. Direct muxed M addresses are not currently supported. See [address types and examples](/concepts/payment-destinations).
+
 ## Claim once, then issue names
 
 Public namespace claims pay an upfront fee into the Allocator and pass through a public objection window. The fresh testnet release charges 5,000 XLM, with the receiving wallet published in the deployment record. The proposed mainnet fee is 5,000 USDC, with no mainnet deployment claimed. [Claim outcomes](/concepts/claiming-a-namespace) determine payment or refund.

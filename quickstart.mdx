@@ -44,6 +44,8 @@ Preserve **both** fields when constructing the payment. No memo is needed for `m
 
 A `G...` address can use a classic Stellar payment. A `C...` address requires an appropriate contract/token transfer flow and supports only memo `none` in this ABI. Also honor the recipient account's memo-required setting. A transaction has only one classic memo: split payments needing different memos.
 
+Direct muxed `M...` addresses are not currently supported by Soran's payment interface. They must not be stripped to a G address or automatically converted to a memo. See [supported addresses and complete examples](/concepts/payment-destinations) for G, G plus memo, C and the M-address limitation.
+
 A successful read is a point-in-time answer. Rechecking catches stale client data; it cannot prevent a later record change before a separate payment settles.
 
 ## Read ownership and display names separately

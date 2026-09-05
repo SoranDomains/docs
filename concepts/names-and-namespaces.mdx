@@ -35,7 +35,18 @@ namespaceNode = sha256(ZERO32 || sha256(namespace))
 nameNode      = sha256(namespaceNode || sha256(label))
 ```
 
-Labels are canonical bytes. Nodes are 32 raw bytes; a 64-character hex rendering is not interchangeable with those bytes. The SDK's `namehash(namespace)` and `node(name)` return hex representations of the same hashes.
+Labels are canonical bytes. Nodes are 32 raw bytes; a 64-character hex rendering is not interchangeable with those bytes. The SDK's `namehash(namespace)` and `node(name)` each return a `Promise<Uint8Array>` containing those 32 bytes. Metadata fields such as `NameMetadata.node` instead use a hex string.
+
+```ts
+const namespaceBytes = await soran.namehash("nova");
+const nameBytes = await soran.node("alice.nova");
+const toHex = (bytes: Uint8Array) =>
+  Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+const namespaceHex = toHex(namespaceBytes);
+const nameHex = toHex(nameBytes);
+```
+
+Use the raw bytes for contract `BytesN<32>` arguments. Use the explicit hex rendering for API fields that request a namespace or name node as hex.
 
 ## Generations
 

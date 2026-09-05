@@ -46,6 +46,7 @@
         "group": "Concepts",
         "pages": [
           "concepts/names-and-namespaces",
+          "concepts/payment-destinations",
           "concepts/ownership-guarantees",
           "concepts/claiming-a-namespace",
           "concepts/trust-model",

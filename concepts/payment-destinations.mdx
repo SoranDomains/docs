@@ -1,0 +1,136 @@
+---
+title: "Supported addresses and memos"
+description: "Classic G accounts, G accounts with memos, contract C addresses and the current muxed M limitation, with examples."
+---
+
+Soran's deployed payment interface returns a **destination address and an optional memo together**. It supports classic Stellar `G...` accounts and Soroban `C...` contract addresses. Direct `M...` muxed input is not supported by the current Resolver, SDKs, API or console.
+
+These are payment-destination capabilities, not a promise that every wallet can sign for every account type. This page describes the deployed Resolver and Lookup ABI 1, Lookup SDK 0.5.0 and Holder SDK 0.3.0 in [release status](/reference/release-status).
+
+## Support at a glance
+
+| Destination | Current Soran support | Payment handling |
+| --- | --- | --- |
+| Classic `G...`, without a memo | Yes | Return `memo: { type: "none" }`; a classic payment can use the G address |
+| Classic `G...` with an ID memo | Yes | Include the exact unsigned 64-bit ID as a transaction memo |
+| Classic `G...` with a text memo | Yes | Include the exact 1–28 UTF-8 bytes as a transaction memo |
+| Classic `G...` with a hash memo | Yes | Include the exact 32 bytes as a transaction hash memo |
+| Soroban contract `C...` | Yes, with `none` only | Use the supported Soroban asset/token transfer flow, not a classic Payment operation |
+| Muxed `M...` | Not as direct input or output | Obtain an explicitly supported G-address-and-memo route from the recipient; do not strip or silently convert the muxed ID |
+
+No memo is required for an ordinary memo-free record. A recipient account's own memo-required policy still applies. Other memo variants, including return-hash, and arbitrary contract routing arguments are outside this Soran ABI.
+
+## Example destinations
+
+The examples below show complete, validly encoded values. They are illustrative: the account comes from Stellar's documentation, the contract address is synthetic, and these names are not promised to exist. Do not send funds to these examples.
+
+### Classic account without a memo
+
+An ordinary `alice.nova` payment could resolve to:
+
+```json
+{
+  "address": "GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ",
+  "memo": { "type": "none" }
+}
+```
+
+No customer memo was published in this instruction. The holder does not have to add one to use Soran.
+
+### Classic account with an ID memo
+
+An exchange deposit name such as `customer420.nova` could resolve to:
+
+```json
+{
+  "address": "GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ",
+  "memo": { "type": "id", "value": "420" }
+}
+```
+
+The wallet sends to that G account with **Memo ID 420**. The memo type matters: text `"420"` is a different instruction. IDs range from `0` to `18446744073709551615`; preserve them as decimal strings, with no leading zeroes except `"0"`.
+
+The exchange supplies the actual account and customer memo. A Soran name removes the need to copy those fields separately; it does not remove the wallet's duty to put the memo in the payment.
+
+### Classic account with a text memo
+
+```json
+{
+  "address": "GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ",
+  "memo": { "type": "text", "value": "customer-420" }
+}
+```
+
+Preserve case, spaces and exact UTF-8 bytes. The limit is 28 **bytes**, not 28 characters. An empty text memo is invalid; use `none` to remove a memo explicitly.
+
+### Classic account with a hash memo
+
+```json
+{
+  "address": "GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ",
+  "memo": {
+    "type": "hash",
+    "value": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  }
+}
+```
+
+This is a 32-byte memo encoded as 64 lowercase hexadecimal characters in the SDK and JSON. Convert those hex bytes to the transaction's hash-memo representation; do not send the 64-character string as a text memo or hash it again.
+
+### Contract address
+
+```json
+{
+  "address": "CADQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQP5KR",
+  "memo": { "type": "none" }
+}
+```
+
+The Resolver can store a contract recipient. Receiving assets requires a supported Soroban transfer flow. Soran's result does not specify an asset, amount, contract method or additional routing arguments, and a valid address alone does not prove that a particular receiving flow is supported.
+
+## Muxed accounts: what is and is not supported
+
+A muxed `M...` address packages a base G account with a 64-bit identifier. For example:
+
+```text
+M address: MA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUAAAAAAAAAABUTGI4
+G account: GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ
+Muxed ID:  420
+```
+
+Stellar supports muxed destinations on selected operations, including classic payments. The muxed ID belongs to the operation's destination; a classic memo belongs to the transaction. They are different representations, even when their numbers match. See [Stellar's muxed-account guide](https://developers.stellar.org/docs/build/guides/transactions/pooled-accounts-muxed-accounts-memos).
+
+Current Soran payment methods reject that M address. They do not automatically turn it into G plus Memo ID 420. If the recipient explicitly supports the G-plus-memo route, publish the recipient's confirmed G address and memo using the ID example above. Otherwise, do not substitute a route.
+
+You can inspect an M address with Stellar SDK 17 without submitting a transaction:
+
+```ts
+import { MuxedAccount } from "@stellar/stellar-sdk";
+
+const muxed = MuxedAccount.fromAddress(
+  "MA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUAAAAAAAAAABUTGI4",
+  "0",
+);
+const baseAddress = muxed.baseAccount().accountId();
+const muxedId = muxed.id(); // "420", kept as a decimal string
+// Inspection only: this does not establish a recipient-approved memo route.
+```
+
+Reverse and Primary names identify the base account, not a muxed customer or a memo customer. Current account-input methods accept G or C addresses, not M addresses.
+
+## Publish and read the whole instruction
+
+With a configured [Holder SDK](/holder/managing-your-name), the name's holder can publish the recipient-approved destination:
+
+```ts
+await me.setPayment("customer420.nova", {
+  address: "GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ",
+  memo: { type: "id", value: "420" },
+});
+```
+
+Address and memo are stored atomically in the namespace's Resolver on chain. Universal Lookup obtains the current instruction from that Resolver; no Soran database is the source of the memo.
+
+Wallets call on-chain `resolve_payment`, SDK `resolvePayment`, or HTTP `/v1/payment/{namespace}/{label}`. Display and preserve the whole pair. A required memo makes address-only lookup fail. Read failures and unknown legacy memo capability must never become memo-free results.
+
+A classic transaction has one memo, so payments requiring different memos need separate transactions. Recheck the full instruction before confirmation, honor recipient memo requirements, and use the correct payment flow for the address type. See [payment integration](/sdk/resolving-names) and the [contract ABI](/api/onchain-resolution).
