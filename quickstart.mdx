@@ -4,7 +4,7 @@ description: "Read and recheck complete address-and-memo instructions through Un
 ---
 
 <Note>
-This quickstart uses published Lookup 0.5.0 and the fresh testnet contracts deployed on 5 September 2026. See [release status](/reference/release-status) for addresses and hosted endpoints.
+This quickstart uses published Lookup 0.5.2 and the replacement contracts verified on 5 September 2026 at 17:15 UTC. Its testnet preset matches the addresses below. See [release status](/reference/release-status) for package and hosted service status.
 </Note>
 
 ## Configure one shared reader
@@ -12,16 +12,19 @@ This quickstart uses published Lookup 0.5.0 and the fresh testnet contracts depl
 Install Lookup with Stellar SDK 17:
 
 ```bash
-npm install @sorandomains/lookup@0.5.0 @stellar/stellar-sdk@^17
+npm install @sorandomains/lookup@0.5.2 @stellar/stellar-sdk@^17
 ```
 
-The package's testnet preset includes the verified Registry, Lookup and Primary addresses:
+Supply the current Registry, Lookup and Primary together:
 
 ```ts
 import { Soran } from "@sorandomains/lookup";
 
 const soran = new Soran({
   network: "testnet",
+  registryId: "CDSORANCV3IFF3MKHJ7KI4MKEJOJZFMTDVAZCD5XFOR4WTGNXJJNOKQE",
+  lookupId: "CDSORANO7K4FSBR2MLV4PNELJ6UXCDNG4MJZSH6HCVZZZQN5B5GMOP64",
+  primaryId: "CCSORANOADXKLSW5CUANBW5WZFVCNZ5KZ4KNMIUWOZOES3LXYRUYZ56X",
   reverseNamespaces: ["nova"],
 });
 ```
@@ -43,6 +46,8 @@ if (!(await soran.verifyPayment("alice.nova", payment))) {
 Preserve **both** fields when constructing the payment. No memo is needed for `memo.type === "none"`. For a required memo, include its exact type and value or refuse the payment. IDs are decimal strings; never convert them to JavaScript numbers.
 
 A `G...` address can use a classic Stellar payment. A `C...` address requires an appropriate contract/token transfer flow and supports only memo `none` in this ABI. Also honor the recipient account's memo-required setting. A transaction has only one classic memo: split payments needing different memos.
+
+Direct muxed `M...` addresses are not currently supported by Soran's payment interface. They must not be stripped to a G address or automatically converted to a memo. See [supported addresses and complete examples](/concepts/payment-destinations) for G, G plus memo, C and the M-address limitation.
 
 A successful read is a point-in-time answer. Rechecking catches stale client data; it cannot prevent a later record change before a separate payment settles.
 

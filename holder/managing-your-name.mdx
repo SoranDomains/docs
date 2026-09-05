@@ -3,7 +3,7 @@ title: "Managing your name"
 description: "Publish an atomic on-chain address and optional memo, profile records and account display names."
 ---
 
-The Holder SDK writes to the current namespace contracts. Lookup remains the shared read entry point. These examples target Holder 0.3.0 with Stellar SDK 17. See [release status](/reference/release-status) for the matching testnet contracts.
+The Holder SDK writes to the current namespace contracts. Lookup remains the shared read entry point. These examples target Holder 0.3.1 with Stellar SDK 17. See [release status](/reference/release-status) for the matching testnet contracts.
 
 ```ts
 import { SoranHolder } from "@sorandomains/holder";
@@ -35,9 +35,9 @@ await me.setPayment("alice.nova", {
 
 The native Resolver updates the address and memo atomically on chain. No separate payment contract or database stores these instructions. Memos are optional: untouched ordinary records resolve with `none`. A configured instruction that is missing or invalid fails rather than reverting to an ordinary address.
 
-`setRecord(name,address)` is the address-only native Resolver convenience for memo-free records. A required memo must be changed through `setPayment`; the contract refuses an address-only write that would discard it. `setAddress(name,address)` changes the Registrar's built-in target, which may be overridden by current Resolver instructions. Use `resolvePayment` to read the effective pair.
+`setRecord(name,address)` is the address-only native Resolver convenience for memo-free records. A required memo must be changed through `setPayment`; the contract refuses an address-only write that would discard it. `setAddress(name,address)` changes the Registrar's built-in target, which may be overridden by current Resolver instructions; the SDK requires a current memo-free payment before preparing this convenience operation. Use `resolvePayment` to read the effective pair.
 
-G destinations support None, ID, text and hash memos; C supports None only. The Holder SDK checks exact [payment constraints](/sdk/resolving-names).
+G destinations support None, ID, text and hash memos; C supports None only. Direct M addresses are rejected, with no automatic conversion to G plus memo. The Holder SDK checks exact [payment constraints](/sdk/resolving-names). See [complete examples for each address and memo type](/concepts/payment-destinations).
 
 ## Profile records
 

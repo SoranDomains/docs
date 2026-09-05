@@ -1,9 +1,9 @@
 ---
 title: "Lookup SDK reference"
-description: "Universal reads, payment types, discovery pages and typed failures in Lookup 0.5.0."
+description: "Universal reads, payment types, discovery pages and typed failures in Lookup 0.5.2."
 ---
 
-This reference targets Lookup 0.5.0. See [release status](/reference/release-status) for the matching testnet contracts. All write flows are in the Owner or Holder SDKs; Lookup reads through Soroban RPC and optionally uses HTTP discovery/history.
+This reference targets Lookup 0.5.2. See [release status](/reference/release-status) for the matching testnet contracts. All write flows are in the Owner or Holder SDKs; Lookup reads through Soroban RPC and optionally uses HTTP discovery/history.
 
 ## Constructor
 
@@ -47,7 +47,7 @@ Custom Registry/passphrase settings inherit no unrelated Lookup or Primary pin. 
 | `namesOf(address)` | Compatibility holdings aggregate; throws when incomplete |
 | `walletProfile(address)` | Primary, reverse, first holdings page and profile |
 | `history(name)` | Bounded indexed informational history |
-| `namehash(namespace)`, `node(name)` | Canonical hash helpers |
+| `namehash(namespace)`, `node(name)` | `Promise<Uint8Array>` containing the 32 raw hash bytes; [explicit hex conversion](/concepts/names-and-namespaces#namehash) |
 
 SDK metadata uses camelCase, such as `builtinAddress`, `expiresAt` and `namespacePermanent`. Contract ABI fields use snake_case. Generations and ownership timestamps remain exact `bigint` values in SDK metadata; JSON consumers must explicitly encode them, usually as decimal strings.
 
@@ -62,7 +62,7 @@ type PaymentMemo =
 type PaymentDestination = { address: string; memo: PaymentMemo };
 ```
 
-The SDK exports payment validation/encoding helpers and `LookupResult`, `NameMetadata`, `NamespaceMetadata` and `NamespacePolicy`. See [payment constraints](/sdk/resolving-names).
+`address` must be a valid G or C address; direct M input is rejected. Memos require G, except `none`, which also supports C. The SDK exports payment validation/encoding helpers and `LookupResult`, `NameMetadata`, `NamespaceMetadata` and `NamespacePolicy`. See [address examples](/concepts/payment-destinations) and [payment constraints](/sdk/resolving-names).
 
 ## Failures
 

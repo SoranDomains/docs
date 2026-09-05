@@ -3,19 +3,21 @@ title: "Soran for AI agents"
 description: "Use MCP with Universal Lookup, explicit payment memos and reviewed namespace claim fees."
 ---
 
-The MCP server exposes read tools to local and hosted agents. Local mode additionally supports wallet-authorized writes. MCP 0.5.0 uses Lookup 0.5.0, Holder 0.3.0, Owner 0.5.0 and Stellar SDK 17. See [release status](/reference/release-status) for package publication and the matching testnet contracts.
+The MCP server exposes read tools to local and hosted agents. Local mode additionally supports wallet-authorized writes. Published MCP 0.5.1 uses Lookup 0.5.2, Holder 0.3.1, Owner 0.5.1 and Stellar SDK 17. See [release status](/reference/release-status) for package availability and the matching testnet contracts.
 
 ## Connect
 
-The hosted MCP URL is `https://mcp.soran.domains/mcp`. It serves the fresh testnet setup and was verified on 5 September 2026. Remote mode provides read tools, without receiving a signing key.
+The hosted MCP URL is `https://mcp.soran.domains/mcp`. It serves the replacement contracts in [release status](/reference/release-status), verified on 5 September 2026. Remote mode provides read tools, without receiving a signing key.
 
-After the matching package version is published, a local client can run:
+A local client can run:
 
 ```bash
-npx -y @sorandomains/mcp@0.5.0
+npx -y @sorandomains/mcp@0.5.1
 ```
 
 Configure `SORAN_REGISTRY_ID`, `SORAN_LOOKUP_ID`, `SORAN_PRIMARY_ID`, `SORAN_ALLOCATOR_ID`, `SORAN_RPC_URL` and `SORAN_PASSPHRASE` from one verified deployment. `SORAN_HINT_URL` selects indexed discovery. `SORAN_RESOLUTION_MODE` defaults to universal; missing Lookup configuration fails closed. `SORAN_PRIMARY_ID=none` disables Primary.
+
+For local namespace activation, `SORAN_REGISTRY_DEPLOYMENT_SALT_VERSION=1` selects the current namespace-bound deployment scheme. The matching testnet preset defaults to `1`; a custom Registry requires an explicit `0` (older raw-salt deployment) or `1`. This is an MCP write configuration, not a Lookup SDK constructor option.
 
 Only local writes use `SORAN_SECRET`. Keep that key private and never place it in prompts, profile records or public configuration.
 
@@ -41,14 +43,20 @@ Tools combine different sources. Payment reads come from chain contracts; discov
 2. Call `claim_fee_quote` and review the amount, network, exact recipient and refund terms.
 3. Call `claim_namespace` with the reviewed `expectedFee` and an explicit `maxNetworkFeeStroops` ceiling. The local signer independently verifies the on-chain policy and exact claim/token authorization.
 4. Follow `claim_status` until the objection and award conditions resolve. A keeper may execute an eligible claim; a countdown alone does not prove an award.
-5. `activate_namespace` prepares Registrar activation and verifies the selected policy, predicted contract, namespace and fee ceiling before signing.
+5. `activate_namespace` prepares Registrar activation and verifies the selected policy, predicted contract, namespace, deployment scheme and fee ceiling before signing. Address generation can return `activated: false`, `pending: true` and `retryAfterMs`; retry the same namespace, policy and fee limit after that interval. This pending response means no deployment transaction was signed or submitted.
 6. Use `issue_name` or `issue_batch` to issue names. Holder tools manage names the wallet holds.
 
 `withdraw_claim` also requires a network-fee ceiling. Namespace fee refunds follow [claim outcomes](/concepts/claiming-a-namespace): delivery is attempted, with protected pull credit for undelivered amounts. Objection bonds and reserved direct claims are separate.
 
+`cancel_namespace_activation({ namespace, role: "registrar" | "resolver" })` cancels or clears the off-chain address-generation job for that namespace and contract role. It does not withdraw a paid claim, return claim fees or undo a deployed contract. Retry activation or Resolver setup to begin a fresh search.
+
+The activation policy named `permanent` selects a non-reclaimable, zero-term policy. The namespace remains unlocked until the separate [permanence transition](/concepts/ownership-guarantees) completes.
+
 ## Publish an identity or payment route
 
 `set_payment` atomically updates a Resolver address and optional memo. Use type `none` to remove a memo. IDs remain decimal strings, text remains exact UTF-8 and hashes remain 64 lowercase hex characters.
+
+Payment addresses are G or C; C supports `none` only. M addresses are rejected rather than silently converted. Use the [supported address and memo examples](/concepts/payment-destinations) when constructing tool inputs.
 
 `claim_display_name` coordinates forward, reverse and Primary operations for the wallet's own address. These are multiple writes, not one atomic universal transaction; handle partial completion. Account display names do not identify a customer's memo on a shared exchange address.
 

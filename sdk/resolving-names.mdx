@@ -23,7 +23,7 @@ if (!unchanged) throw new Error("Review the new instructions before sending");
 
 Ordinary native records without a current-generation payment configuration return their ordinary address with `none`. Holders do not have to create a memo to use Soran. Once a record has been configured, a persistent marker prevents lost instructions from being mistaken for that ordinary default. Removing a memo requires an explicit complete `setPayment` with `none`.
 
-All memo types are supported for `G...` addresses. `C...` destinations support `none` only. Muxed `M...` addresses and contract-specific routing arguments are outside this ABI. Unknown memo types must be refused.
+The four memo variants above are supported for `G...` addresses. `C...` destinations support `none` only. Direct muxed `M...` input, return-hash memos and contract-specific routing arguments are outside this ABI. The SDK does not normalize M addresses into G plus memo. See [supported address types and complete examples](/concepts/payment-destinations), including how a muxed ID differs from a transaction memo. Unknown memo types must be refused.
 
 ## Native and legacy results
 

@@ -13,6 +13,16 @@ The console validates the selected deployment and transaction before signing. An
 
 Deploy/configure a native Resolver for current memo-aware reads. A Registrar record alone is not an invitation to bypass Universal Lookup's strict payment checks.
 
+## Automatic branded contract addresses
+
+The current Soran console automatically searches for a `C?SORAN...` address when you activate a new namespace's Registrar or create its native Resolver. The `?` is Stellar's second address character, one of `A`, `B`, `C` or `D`; the five branding letters follow it.
+
+The console displays search progress and lets you cancel preparation before wallet signing. Search time varies. A canceled or failed search can be restarted. No deployment exists until you authorize the transaction and it is confirmed.
+
+This search computes candidate nonces off chain without wallet signing keys or payment memos. The Registry's [namespace-and-role-bound deployment](/concepts/names-and-namespaces#namespace-contract-addresses), ownership, prediction methods and routing remain on chain. Address and memo records stay in the native Resolver on chain.
+
+Individual names are records, not separate contracts. Existing contract addresses do not change, and direct contract callers can choose ordinary addresses: the Registry enforces namespace and role separation, not a branding prefix. Verify confirmed Registry routing rather than trusting an address because it contains `SORAN`.
+
 ## Issue names
 
 Supply a canonical label and valid holder address. Issuance writes the holder and initial built-in target under the namespace policy. The holder can later publish its own complete Resolver payment instruction.

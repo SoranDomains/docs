@@ -15,12 +15,14 @@ Returns exactly the current payment pair:
 
 ```json
 {
-  "address": "G...",
+  "address": "GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ",
   "memo": { "type": "id", "value": "123456" }
 }
 ```
 
-The abbreviated address illustrates the shape; it is not a valid test destination. A memo-free result is `{ "type": "none" }`. Use the exact memo type/value when building the payment. This no-store read uses Universal Lookup when configured and never substitutes indexed data on failure.
+This is an illustrative account from Stellar's documentation, not a payment request or promised live name record. A memo-free result is `{ "type": "none" }`. Use the exact memo type/value when building the payment. This no-store read uses Universal Lookup when configured and never substitutes indexed data on failure.
+
+The address is G or C. G supports none, ID, text and hash memos; C supports none only. M addresses are not part of the current result format. See [supported addresses and examples](/concepts/payment-destinations).
 
 ## Address-only convenience
 

@@ -15,6 +15,8 @@ The Allocator must have a governance-configured fee policy before any public `an
 
 The claimant signs an announcement that transfers the exact fee into the Allocator. The payment stays reserved while the claim is pending. Objection bonds use a separate accounting system and may use a different token.
 
+The Allocator's governance address cannot itself announce a public claim. Use the actual claimant's authorized account; being the configured fee recipient does not grant an exemption.
+
 The app and local MCP claim flow require a reviewed fee quote and an explicit network-fee ceiling. They re-read the on-chain fee policy and check the exact authorization before signing. The namespace fee and Stellar transaction/resource fees are separate.
 
 ## The claim window

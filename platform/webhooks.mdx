@@ -1,6 +1,6 @@
 ---
 title: "Webhooks"
-description: "Signed HTTP notifications for everything that happens in your namespace — on-chain events, archival signals, and billing and marketplace updates."
+description: "Signed HTTP notifications for supported namespace events, dormancy signals and optional hosted services."
 ---
 
 Webhooks push namespace events to your backend so you don't have to poll. Create them in the console's **Developers** tab: give a public HTTPS endpoint and pick the events you want. Endpoints resolving to private or internal hosts are rejected.
@@ -64,7 +64,7 @@ function verifySoranWebhook(rawBody: string, signatureHeader: string, secret: st
 
 ### Rotating the secret
 
-If the secret leaks — or you never copied it — rotate it from the Developers tab. Rotation mints a fresh secret (again shown once) and the old one stops validating. Rotation is always available, even when a deployment's billing would otherwise gate console extras: replacing a possibly-compromised key is a security action, never held hostage.
+If the secret leaks or you never copied it, rotate it from the Developers tab. Rotation creates a fresh secret, shown once, for subsequent signatures. Deliveries already signed with the previous secret can still arrive; handle those according to your rotation policy and deduplicate on delivery ID. Rotation remains available to an authorized owner/admin even when billing would otherwise gate console extras.
 
 ## Retries and timeouts
 

@@ -1,6 +1,6 @@
 ---
 title: "Status & allocations"
-description: "Component health with real freshness signals, and the public namespace claim queue with live timelock math."
+description: "Component status, cached ledger observations and estimated namespace claim countdowns."
 ---
 
 ## Status
@@ -9,7 +9,7 @@ description: "Component health with real freshness signals, and the public names
 GET /v1/status
 ```
 
-Real signals only: the status endpoint measures what it reports — database reachability, RPC reachability, and indexer freshness against the actual chain head — rather than echoing a static "all systems operational".
+The endpoint checks database access, reports the API's last observed RPC ledger and compares stored indexer progress with that cached head. The example below illustrates its shape; it is not the current service status.
 
 ```json
 {
@@ -32,8 +32,8 @@ Real signals only: the status endpoint measures what it reports — database rea
 ### Component semantics
 
 - **Database** — `operational` or `down`.
-- **Stellar RPC** — `operational` when the API can observe a chain head, `down` otherwise.
-- **Indexer** — the honesty signal for the whole read mirror. `lag` is how many ledgers the indexer trails the chain head; `processedAt` is when it last wrote progress. The indexer is `operational` only while its mirror is fresh and keeping pace with the chain head — a wedged indexer shows up as a growing `lag` or stale `processedAt`, never as a quiet chain. `deadLetters` counts unresolved indexing failures; inspect it separately even if the freshness-based component state is `operational`. Use `/v1/coverage` for explicit history gaps and completeness.
+- **Stellar RPC** — `operational` when the API has a nonzero cached ledger observation, `down` before one is available. Failed refreshes retain the last successful value, so this flag alone does not prove current RPC reachability or a fresh head.
+- **Indexer** — `lag` compares its processed ledger with the API's cached head, clamped to zero; `processedAt` is when it last wrote progress. It is `operational` when it has progress less than 120 seconds old and the known lag is below 200 ledgers. `deadLetters` counts unresolved indexing failures separately. An operational state does not establish complete history; inspect `/v1/coverage`, its freshness and explicit gaps.
 
 ### Extra components, when enabled
 
@@ -59,7 +59,7 @@ States you may see across components: `operational`, `lagging`, `degraded`, `dow
 GET /v1/allocations
 ```
 
-The public queue behind [namespace claiming](/concepts/claiming-a-namespace): recent claims in the announced, objected, and awarded states, grouped by state, with **live timelock math** so you can render a countdown without doing ledger arithmetic. The queue is drawn from the most recent 200 claims; withdrawn and rejected claims are not shown.
+The public queue behind [namespace claiming](/concepts/claiming-a-namespace) groups recent claims in the announced, objected and awarded states. It includes an **estimated countdown** based on indexed announcement/window data and the server's clock. The queue is drawn from the most recent 200 claims; withdrawn and rejected claims are not shown.
 
 ```json
 {
@@ -89,14 +89,14 @@ The public queue behind [namespace claiming](/concepts/claiming-a-namespace): re
 
 - `pending` / `objected` / `awarded` — claims in the announced window, claims under an active objection, and completed awards.
 - `basis` — an **array** of the claim's asserted basis kinds (e.g. `["trademark", "dns", "first_use"]`); `evidence` — an **array of labeled links**, each a `{ "label", "url" }` object.
-- `deadline`, `remainingSeconds`, `elapsed` — the claim window's timelock, computed at response time. `elapsed: true` means the window has closed.
+- `deadline`, `remainingSeconds`, `elapsed` — an estimated claim-window countdown computed at response time. `remainingSeconds` is rounded to the nearest second. `elapsed: true` does not establish on-chain readiness: the contract uses ledger time and checks the claim's current state.
 - `objections` — **live** objections only (dismissed or timed-out objections are resolved on chain and don't display as active disputes). Each carries the objector's name, the basis, and the objection bond in XLM:
 
 ```json
 { "objector": "Other Corp", "basis": "prior-use", "bondXlm": "100.0000000" }
 ```
 
-Poll this endpoint to build claim-tracking UIs. Its `ledger` is the observed head, not proof every displayed claim was processed through that ledger. Check indexer status and coverage; confirm claim and fee state on chain before signing.
+Poll this endpoint to build claim-tracking UIs. Its `ledger` is a cached observed head, not proof every displayed claim was processed through that ledger. Check indexer status and coverage; confirm claim and fee state on chain before signing.
 
 The queue is not a fee receipt or complete settlement archive. Use the [claim fee API](/api/claim-fees) for escrow policy, outcome and recoverable credit. The fresh deployment uses 5,000 testnet XLM for public namespace claims; objection bonds are separate. Removing Lookup upgrade delay does not remove the claim window.
 
