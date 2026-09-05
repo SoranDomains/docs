@@ -68,6 +68,7 @@ for (const name of nav) if (!contents.has(resolve(root,`${name}.mdx`))) fail.pus
 for (const page of pages) if (!nav.includes(relative(root,page).replace(/\.mdx$/,''))) fail.push(`docs.json: unlisted page ${relative(root,page)}`);
 const deployment=JSON.parse(await readFile(resolve(root,'reference/deployments/testnet.json'),'utf8'));
 if (deployment.status !== 'deployed' || deployment.network !== 'testnet') fail.push('deployment manifest: unexpected release status');
+if (deployment.namespaceDeploymentSaltVersion !== 1) fail.push('deployment manifest: expected namespace-bound salt version 1');
 for(const [role,c] of Object.entries(deployment.contracts)) {
   if(!/^C[A-D][A-Z2-7]{54}$/.test(c.id) || !/^[a-f0-9]{64}$/.test(c.wasmHash) || !/^[a-f0-9]{64}$/.test(c.deploymentTransaction) || !Number.isInteger(c.deploymentLedger)) fail.push(`deployment manifest: invalid ${role}`);
   if (!contents.get(resolve(root,'reference/release-status.mdx'))?.includes(c.id)) fail.push(`deployment manifest: ${role} missing in address table`);
@@ -77,6 +78,11 @@ const onchainPage=contents.get(resolve(root,'api/onchain-resolution.mdx'))??'';
 for (const role of ['lookup','registry']) {
   const configuredId=onchainPage.match(new RegExp(`${role}Id: "([^"]+)"`))?.[1];
   if(configuredId!==deployment.contracts[role].id) fail.push(`on-chain RPC example: ${role} address differs from deployment manifest`);
+}
+const quickstartPage=contents.get(resolve(root,'quickstart.mdx'))??'';
+for (const role of ['lookup','registry','primary']) {
+  const configuredId=quickstartPage.match(new RegExp(`${role}Id: "([^"]+)"`))?.[1];
+  if(configuredId!==deployment.contracts[role].id) fail.push(`quickstart: ${role} address differs from deployment manifest`);
 }
 if(!anchors.get(resolve(root,'api/onchain-resolution.mdx'))?.has('on-chain-resolution')) fail.push('on-chain page: missing existing shared-link anchor');
 if(fail.length) { console.error(fail.join('\n')); process.exitCode=1; }

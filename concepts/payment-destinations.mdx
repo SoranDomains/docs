@@ -12,13 +12,15 @@ These are payment-destination capabilities, not a promise that every wallet can 
 | Destination | Current Soran support | Payment handling |
 | --- | --- | --- |
 | Classic `G...`, without a memo | Yes | Return `memo: { type: "none" }`; a classic payment can use the G address |
-| Classic `G...` with an ID memo | Yes | Include the exact unsigned 64-bit ID as a transaction memo |
-| Classic `G...` with a text memo | Yes | Include the exact 1–28 UTF-8 bytes as a transaction memo |
-| Classic `G...` with a hash memo | Yes | Include the exact 32 bytes as a transaction hash memo |
+| Classic `G...` with an ID memo | Yes | For a classic payment, include the exact unsigned 64-bit ID as a transaction memo |
+| Classic `G...` with a text memo | Yes | For a classic payment, include the exact 1–28 UTF-8 bytes as a transaction memo |
+| Classic `G...` with a hash memo | Yes | For a classic payment, include the exact 32 bytes as a transaction hash memo |
 | Soroban contract `C...` | Yes, with `none` only | Use the supported Soroban asset/token transfer flow, not a classic Payment operation |
 | Muxed `M...` | Not as direct input or output | Obtain an explicitly supported G-address-and-memo route from the recipient; do not strip or silently convert the muxed ID |
 
 No memo is required for an ordinary memo-free record. A recipient account's own memo-required policy still applies. Other memo variants, including return-hash, and arbitrary contract routing arguments are outside this Soran ABI.
+
+Contract-account senders need a compatible transfer flow that preserves the recipient's routing requirement. Soroban transfers cannot use the classic transaction memo field. A supported numeric-ID route may use muxed transfer support if the receiver supports it; text and hash memos must not be dropped or silently converted. Refuse a payment when the chosen flow cannot carry its required instruction. See [Stellar's contract-account payment guide](https://developers.stellar.org/docs/build/guides/transactions/send-and-receive-c-accounts).
 
 ## Example destinations
 

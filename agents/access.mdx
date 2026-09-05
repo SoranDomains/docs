@@ -3,16 +3,16 @@ title: "Soran for AI agents"
 description: "Use MCP with Universal Lookup, explicit payment memos and reviewed namespace claim fees."
 ---
 
-The MCP server exposes read tools to local and hosted agents. Local mode additionally supports wallet-authorized writes. MCP 0.5.0 uses Lookup 0.5.0, Holder 0.3.0, Owner 0.5.0 and Stellar SDK 17. See [release status](/reference/release-status) for package publication and the matching testnet contracts.
+The MCP server exposes read tools to local and hosted agents. Local mode additionally supports wallet-authorized writes. The prepared MCP 0.5.1 release uses Lookup 0.5.1, Holder 0.3.1, Owner 0.5.1 and Stellar SDK 17. These updated packages are not yet published; see [release status](/reference/release-status) for package availability and the matching testnet contracts.
 
 ## Connect
 
-The hosted MCP URL is `https://mcp.soran.domains/mcp`. It serves the fresh testnet setup and was verified on 5 September 2026. Remote mode provides read tools, without receiving a signing key.
+The hosted MCP URL is `https://mcp.soran.domains/mcp`. Its cutover to the replacement contracts is tracked in [release status](/reference/release-status). Remote mode provides read tools, without receiving a signing key.
 
 After the matching package version is published, a local client can run:
 
 ```bash
-npx -y @sorandomains/mcp@0.5.0
+npx -y @sorandomains/mcp@0.5.1
 ```
 
 Configure `SORAN_REGISTRY_ID`, `SORAN_LOOKUP_ID`, `SORAN_PRIMARY_ID`, `SORAN_ALLOCATOR_ID`, `SORAN_RPC_URL` and `SORAN_PASSPHRASE` from one verified deployment. `SORAN_HINT_URL` selects indexed discovery. `SORAN_RESOLUTION_MODE` defaults to universal; missing Lookup configuration fails closed. `SORAN_PRIMARY_ID=none` disables Primary.
