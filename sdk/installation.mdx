@@ -3,10 +3,10 @@ title: "Installation and configuration"
 description: "Configure the matching Universal Lookup, Registry, Primary and Stellar network."
 ---
 
-These pages target published Lookup 0.5.0. Its bundled testnet preset targets the preceding deployment; use the explicit current Registry, Lookup and Primary addresses in [release status](/reference/release-status). Lookup 0.5.1 with updated defaults is prepared but not yet published.
+These pages target published Lookup 0.5.2. Its testnet preset matches the current Registry, Lookup and Primary in [release status](/reference/release-status).
 
 ```bash
-npm install @sorandomains/lookup@0.5.0 @stellar/stellar-sdk@^17
+npm install @sorandomains/lookup@0.5.2 @stellar/stellar-sdk@^17
 ```
 
 The supported Stellar SDK peer range is `>=17 <18`. The package is ESM with TypeScript types and supports Node, browsers and workers.
@@ -31,7 +31,7 @@ const soran = new Soran({
 
 `deployment` represents your verified network configuration. Universal Lookup is the shared read entry point; per-namespace Registrar and Resolver addresses are discovered on chain, not hard-coded in the app.
 
-A network without a Lookup pin fails with `CONFIG`. Use the matching explicit configuration above for the current deployment. `new Soran({ network: "testnet" })` alone selects this package version's bundled deployment, which can differ from the newest release. Changing Registry or network passphrase prevents inheriting a Lookup or Primary pin from an unrelated preset. There is no supported mainnet preset until a reviewed deployment exists.
+A network without a Lookup pin fails with `CONFIG`. `new Soran({ network: "testnet" })` selects this package version's bundled deployment. Lookup 0.5.2 matches the current testnet release; explicit configuration lets you pin a reviewed deployment independently of package updates. Changing Registry or network passphrase prevents inheriting a Lookup or Primary pin from an unrelated preset. There is no supported mainnet preset until a reviewed deployment exists.
 
 In universal mode, a provided `primaryId` is an extra check against `Lookup.primary()`. `primaryId: null` disables the Primary feature. Omitting it for a custom deployment lets Lookup's configured anchor determine the Primary read.
 

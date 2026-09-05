@@ -3,7 +3,7 @@ title: "The console"
 description: "Wallet sign-in, operator roles and separate contract signing authority."
 ---
 
-The console at [soran.domains](https://soran.domains) provides namespace management, issuance, team access and webhooks. Its cutover to the replacement contracts is tracked in [release status](/reference/release-status). Billing and marketplace features appear **when enabled on a deployment**; both are disabled on this testnet setup.
+The console at [soran.domains](https://soran.domains) provides namespace management, issuance, team access and webhooks. It serves the replacement contracts in [release status](/reference/release-status), verified on 5 September 2026. Billing and marketplace features appear **when enabled on a deployment**; both are disabled on this testnet setup.
 
 ## Wallet sign-in
 
@@ -29,7 +29,7 @@ Console roles do not grant new smart-contract powers. On a self-custody namespac
 
 ## Common flows
 
-- **Issuance:** activate a Registrar and issue names under its policy.
+- **Issuance:** prepare a branded Registrar address, authorize activation and issue names under its policy. [Address preparation](/platform/issuing-names#automatic-branded-contract-addresses) shows progress and supports cancellation before signing.
 - **Names:** inspect current ownership, edit authorized records and manage individual name transfers.
 - **Team:** invite/remove wallet-address operators.
 - **Developers:** manage optional HTTP integrations and [webhooks](/platform/webhooks).

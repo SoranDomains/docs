@@ -9,9 +9,9 @@ The replacement contracts were deployed on **5 September 2026** and their Wasm h
 | --- | --- |
 | Registry, Allocator, nova Registrar/Resolver, Primary and Universal Lookup | Deployed and verified |
 | Public namespace claim fee | **5,000 testnet XLM** paid upfront into Allocator escrow |
-| SDK packages | Existing versions published; updated-default candidates prepared, not yet published |
-| Public app | Cutover to this replacement deployment pending |
-| Public API | Cutover to this replacement deployment pending |
+| SDK packages | Lookup 0.5.2, Holder 0.3.1 and Owner 0.5.1 published; MCP 0.5.1 pending |
+| Public app | Serving this replacement deployment; verified 5 September 2026 at 17:26 UTC |
+| Public API | Serving this replacement deployment; verified 5 September 2026 at 17:28 UTC |
 | Hosted MCP | Cutover to this replacement deployment pending |
 | Mainnet | No deployment or supported preset announced |
 | Mainnet namespace fee | Proposed 5,000 USDC; not a live configured price |
@@ -56,15 +56,14 @@ The fee is reserved in Allocator until its [claim outcome](/concepts/claiming-a-
 
 | Package | Version | Status |
 | --- | --- | --- |
-| [Lookup](https://www.npmjs.com/package/@sorandomains/lookup/v/0.5.0) | **0.5.0** | Published; use explicit current contract addresses |
-| Lookup | **0.5.1** | Updated-default candidate prepared; not yet published |
-| [Holder](https://www.npmjs.com/package/@sorandomains/holder/v/0.3.0) | **0.3.0** | Published; use explicit current contract addresses |
-| Holder | **0.3.1** | Updated-default candidate prepared; not yet published |
-| [Owner](https://www.npmjs.com/package/@sorandomains/owner/v/0.5.0) | **0.5.0** | Published; use explicit current contract addresses |
-| Owner | **0.5.1** | Updated-default candidate prepared; not yet published |
+| [Lookup](https://www.npmjs.com/package/@sorandomains/lookup/v/0.5.2) | **0.5.2** | Published; current testnet defaults |
+| [Holder](https://www.npmjs.com/package/@sorandomains/holder/v/0.3.1) | **0.3.1** | Published; current testnet defaults |
+| [Owner](https://www.npmjs.com/package/@sorandomains/owner/v/0.5.1) | **0.5.1** | Published; current testnet defaults |
 | MCP | **0.5.1** | Updated-default candidate prepared; not yet published |
 
-These versions target `@stellar/stellar-sdk >=17 <18`. The currently published versions bundle the preceding deployment. Supply the current Registry, Lookup and Primary explicitly as shown in the [quickstart](/quickstart); do not assume a package preset selects the newest deployment. Universal Lookup is the default read path. Missing Lookup configuration throws `CONFIG`; it never silently selects direct Resolver reads. Deliberate direct mode only supports the compatible native path.
+The three published packages and their registry artifacts were verified on **5 September 2026 at 17:30 UTC**. These versions target `@stellar/stellar-sdk >=17 <18` and bundle the current deployment above. The [quickstart](/quickstart) also pins the current Registry, Lookup and Primary explicitly. Recheck deployment configuration when upgrading from an earlier package.
+
+Universal Lookup is the default read path. Missing Lookup configuration throws `CONFIG`; it never silently selects direct Resolver reads. Deliberate direct mode only supports the compatible native path.
 
 ## Hosted services
 
@@ -72,7 +71,7 @@ These versions target `@stellar/stellar-sdk >=17 <18`. The currently published v
 - HTTP API: `https://api.soran.domains`; resolution alias: `https://resolve.soran.domains`.
 - Hosted MCP: `https://mcp.soran.domains/mcp`, with read tools only.
 
-These endpoints previously served the earlier 5 September deployment. Their cutover to the replacement contracts listed above is pending verification. Until confirmed, use direct on-chain reads with explicit current addresses. Recheck [service status](/api/status), coverage and network configuration during integration. Billing and marketplace features are disabled on this setup.
+The app and API serve the replacement contracts above, verified on **5 September 2026**. The API reported current complete coverage with no recorded gaps at 17:28 UTC. The console includes [automatic branded-address preparation](/platform/issuing-names#automatic-branded-contract-addresses) for new namespace Registrar/Resolver deployment. Hosted MCP cutover remains pending. Recheck [service status](/api/status), coverage and network configuration during integration. Billing and marketplace features are disabled on this setup.
 
 ## Fresh namespace and older deployments
 
