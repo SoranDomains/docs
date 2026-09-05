@@ -6,7 +6,7 @@ description: "Publish an atomic on-chain address and optional memo, profile reco
 The Holder SDK writes to the current namespace contracts. Lookup remains the shared read entry point. These examples target Holder 0.4.0 with Stellar SDK 17. See [release status](/reference/release-status) for the matching testnet contracts.
 
 <Note>
-Holder **0.4.0** npm publication is pending. M-address writes require this version; older packages do not submit `set_muxed`. You can publish a destination through the live app or its [on-chain Resolver methods](/api/onchain-resolution) while waiting. The SDK examples below apply once this package is published.
+Holder **0.4.0** is published. M-address writes require this version; older packages do not submit `set_muxed`. You can also publish a destination through the app or its [on-chain Resolver methods](/api/onchain-resolution).
 </Note>
 
 ```ts
@@ -21,6 +21,8 @@ const me = new SoranHolder({
 ```
 
 `walletSigner` implements `publicKey()` and `signTransaction(xdr, options)`. A backend can use the package's `keypairSigner` with a securely supplied secret. Never put signing keys in frontend configuration.
+
+This `TxSigner` flow uses a classic G account as the transaction source. C support as a payment recipient or contract holder does not provide arbitrary contract-wallet signing through this adapter. A contract-owned name needs a compatible contract authorization integration; M destinations are payment routes, not signer identities.
 
 ## Address and memo together
 

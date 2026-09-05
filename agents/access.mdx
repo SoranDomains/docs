@@ -9,7 +9,7 @@ The MCP server exposes read tools to local and hosted agents. Local mode additio
 
 The hosted MCP URL is `https://mcp.soran.domains/mcp`. Its independently verified deployment and package status are recorded in [release status](/reference/release-status). Remote mode provides read tools, without receiving a signing key.
 
-The hosted service is live on MCP 0.6.0. Its npm package publication is a separate step and is still pending. After publication, a local client can run:
+The hosted service is live on MCP 0.6.0, and the same version is published to npm for local clients:
 
 ```bash
 npx -y @sorandomains/mcp@0.6.0
@@ -19,7 +19,7 @@ Configure `SORAN_REGISTRY_ID`, `SORAN_LOOKUP_ID`, `SORAN_PRIMARY_ID`, `SORAN_ALL
 
 For local namespace activation, `SORAN_REGISTRY_DEPLOYMENT_SALT_VERSION=1` selects the current namespace-bound deployment scheme. The matching testnet preset defaults to `1`; a custom Registry requires an explicit `0` (older raw-salt deployment) or `1`. This is an MCP write configuration, not a Lookup SDK constructor option.
 
-Only local writes use `SORAN_SECRET`. Keep that key private and never place it in prompts, profile records or public configuration.
+Only local writes use `SORAN_SECRET`, the signing key for a classic G transaction-source account. C recipient or contract-ownership support does not provide an arbitrary contract-wallet signer in local MCP. Keep that key private and never place it in prompts, profile records or public configuration.
 
 ## Read tools
 
