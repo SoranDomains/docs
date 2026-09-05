@@ -3,11 +3,28 @@ title: "Universal Lookup contract"
 description: "A shared on-chain ABI for wallets, explorers and other contracts across all namespaces."
 ---
 
+## On-chain resolution
+
 Read **Universal Lookup** for the authoritative contract result. It follows current Registry routing and invokes each namespace's supported contracts. You do not need a Soran SDK or Soran HTTP API to use it.
 
 <Note>
-Use verified IDs for one network from [release status](/reference/release-status). Predicted vanity IDs and older deployment pins are not interchangeable. The examples below target Stellar SDK 17 and the new Lookup ABI.
+The addresses below are the fresh **5 September 2026 testnet deployment**. Use them together; the previous Registry and Primary addresses belong to a separate deployment. The examples target Stellar SDK 17 and Lookup ABI version 1.
 </Note>
+
+## Current testnet contracts
+
+| Contract | Address | Integration role |
+| --- | --- | --- |
+| **Universal Lookup** | `CCSORANKMVVF5GCHCJAMB6M2FTF7KC53F7WN6V6ZD255TQY3IZCQPDRS` | Shared read entry point for every namespace |
+| Registry | `CBSORANXTUFKBZK74AAM2ZM5OX2V7PIXUADM3HGP6WU3IDN7M3YEEDLU` | Namespace ownership and routing; verify this Lookup anchor |
+| Primary | `CBSORANQVSWYBYGKRZ7RAUGOXDAXMXDXQWJSE42DQZOL4BK75BIEBUQK` | Account-level Primary selection; read through Lookup |
+| Allocator | `CBSORANERRWAG5YT4DNQSCYJMOQ7M7UO5AHIAHVNF5ZLKK4JNK7FSKEE` | Namespace claims and fee escrow |
+| Nova Registrar | `CBSORANTKP3SYFX4LOVKEHNONKTLNPRISRLGX2VP3BQJVS7IOJCNDDF7` | Name ownership and lifecycle within the new `nova` |
+| Nova Resolver | `CASORANTDLWVRVAVZHRVHULP6SJMVL5RQIBYM2CCY4T4VFNSA6SU4C3C` | Address and optional memo records within the new `nova` |
+
+Connect to `https://soroban-testnet.stellar.org` with passphrase `Test SDF Network ; September 2015`. Mainnet is not deployed. [Release status](/reference/release-status) includes deployment transactions, exact code hashes, fees and package availability.
+
+Wallets and explorers call **Universal Lookup**. It discovers the current Registrar and Resolver for the requested namespace through the Registry. The two `nova` addresses are examples of namespace-specific routing; they are not global contracts to hard-code for every namespace.
 
 The constructor is `(registry: Address, governance: Address, legacy: Option<LegacyCodeHashes>, primary: Option<Address>)`. `LegacyCodeHashes` contains exact Registrar and Resolver Wasm hashes. The optional Primary must be an active Wasm contract with the same Registry anchor. These anchors are fixed by the current implementation; governed code replacement remains possible.
 
@@ -72,12 +89,19 @@ Reverse and Primary results receive a current forward check, including required 
 
 ## Read through Soroban RPC
 
-This example makes one unsigned read simulation. `lookupId`, `registryId`, `rpcUrl` and `passphrase` come from verified deployment configuration.
+Each `view` call makes an unsigned read simulation. This example pins the deployed testnet configuration, checks the Lookup anchor and ABI, then requests the address and optional memo together. Replace `alice.nova` with an active, issued name; example names are not promised to exist.
 
 ```ts
 import {
   Account, Contract, TransactionBuilder, rpc, nativeToScVal, scValToNative,
 } from "@stellar/stellar-sdk";
+
+const deployment = {
+  lookupId: "CCSORANKMVVF5GCHCJAMB6M2FTF7KC53F7WN6V6ZD255TQY3IZCQPDRS",
+  registryId: "CBSORANXTUFKBZK74AAM2ZM5OX2V7PIXUADM3HGP6WU3IDN7M3YEEDLU",
+  rpcUrl: "https://soroban-testnet.stellar.org",
+  passphrase: "Test SDF Network ; September 2015",
+};
 
 async function view(contractId: string, fn: string, args: ReturnType<typeof nativeToScVal>[] = []) {
   const server = new rpc.Server(deployment.rpcUrl);

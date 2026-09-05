@@ -71,6 +71,13 @@ if (deployment.status !== 'deployed' || deployment.network !== 'testnet') fail.p
 for(const [role,c] of Object.entries(deployment.contracts)) {
   if(!/^C[A-D][A-Z2-7]{54}$/.test(c.id) || !/^[a-f0-9]{64}$/.test(c.wasmHash) || !/^[a-f0-9]{64}$/.test(c.deploymentTransaction) || !Number.isInteger(c.deploymentLedger)) fail.push(`deployment manifest: invalid ${role}`);
   if (!contents.get(resolve(root,'reference/release-status.mdx'))?.includes(c.id)) fail.push(`deployment manifest: ${role} missing in address table`);
+  if (!contents.get(resolve(root,'api/onchain-resolution.mdx'))?.includes(c.id)) fail.push(`deployment manifest: ${role} missing from on-chain integration page`);
 }
+const onchainPage=contents.get(resolve(root,'api/onchain-resolution.mdx'))??'';
+for (const role of ['lookup','registry']) {
+  const configuredId=onchainPage.match(new RegExp(`${role}Id: "([^"]+)"`))?.[1];
+  if(configuredId!==deployment.contracts[role].id) fail.push(`on-chain RPC example: ${role} address differs from deployment manifest`);
+}
+if(!anchors.get(resolve(root,'api/onchain-resolution.mdx'))?.has('on-chain-resolution')) fail.push('on-chain page: missing existing shared-link anchor');
 if(fail.length) { console.error(fail.join('\n')); process.exitCode=1; }
 else console.log(`Validated ${pages.length} MDX pages, ${checkedLinks} internal links, navigation and deployment manifest.`);
