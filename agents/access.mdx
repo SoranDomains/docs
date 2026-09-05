@@ -3,13 +3,13 @@ title: "Soran for AI agents"
 description: "Use MCP with Universal Lookup, explicit payment memos and reviewed namespace claim fees."
 ---
 
-The MCP server exposes read tools to local and hosted agents. Local mode additionally supports wallet-authorized writes. The prepared MCP 0.5.1 release uses Lookup 0.5.2, Holder 0.3.1, Owner 0.5.1 and Stellar SDK 17. Lookup, Holder and Owner are published; MCP publication remains pending. See [release status](/reference/release-status) for package availability and the matching testnet contracts.
+The MCP server exposes read tools to local and hosted agents. Local mode additionally supports wallet-authorized writes. Published MCP 0.5.1 uses Lookup 0.5.2, Holder 0.3.1, Owner 0.5.1 and Stellar SDK 17. See [release status](/reference/release-status) for package availability and the matching testnet contracts.
 
 ## Connect
 
-The hosted MCP URL is `https://mcp.soran.domains/mcp`. Its cutover to the replacement contracts is tracked in [release status](/reference/release-status). Remote mode provides read tools, without receiving a signing key.
+The hosted MCP URL is `https://mcp.soran.domains/mcp`. It serves the replacement contracts in [release status](/reference/release-status), verified on 5 September 2026. Remote mode provides read tools, without receiving a signing key.
 
-After the matching package version is published, a local client can run:
+A local client can run:
 
 ```bash
 npx -y @sorandomains/mcp@0.5.1
