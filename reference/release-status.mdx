@@ -1,18 +1,18 @@
 ---
 title: "Release status and contract addresses"
-description: "Verified fresh testnet contracts, fee policy and independent package/app release status."
+description: "Verified native-muxed testnet contracts, fee policy and independent package/app release status."
 ---
 
-The replacement contracts were deployed on **5 September 2026** and their Wasm hashes and configuration were verified at testnet ledger **4,520,986** (2026-09-05T17:15:21.603Z). This deployment adds Registry salt derivation version 1, binding namespace contract addresses to their namespace and role. This is a dated record, not a guarantee that upgradeable code remains unchanged later.
+The native-muxed contracts were deployed on **5 September 2026**. Their Wasm hashes and configuration were verified at testnet ledger **4,521,644** (`2026-09-05T18:10:07.748Z`). Resolver payment ABI 2 and Lookup ABI 2 add complete muxed destinations. Registry retains namespace-and-role-bound salt version 1. This is a dated record, not a guarantee that upgradeable code remains unchanged later.
 
 | Item | Status |
 | --- | --- |
 | Registry, Allocator, nova Registrar/Resolver, Primary and Universal Lookup | Deployed and verified |
 | Public namespace claim fee | **5,000 testnet XLM** paid upfront into Allocator escrow |
-| SDK packages | Lookup 0.5.2, Holder 0.3.1, Owner 0.5.1 and MCP 0.5.1 published |
-| Public app | Serving this replacement deployment; verified 5 September 2026 at 17:26 UTC |
-| Public API | Serving this replacement deployment; verified 5 September 2026 at 17:28 UTC |
-| Hosted MCP | Serving this replacement deployment; verified 5 September 2026 at 17:35 UTC |
+| SDK npm packages | Lookup 0.6.0, Holder 0.4.0, Owner 0.6.0 and MCP 0.6.0 are not yet published |
+| Public app | Live on the native-muxed deployment; current assets and contract pins verified at 18:24 UTC |
+| Public API | Live on the native-muxed deployment; configuration, reads and indexed coverage verified at 18:24 UTC |
+| Hosted MCP | Live on 0.6.0 with current contract pins; read tools verified at 18:23 UTC |
 | Mainnet | No deployment or supported preset announced |
 | Mainnet namespace fee | Proposed 5,000 USDC; not a live configured price |
 
@@ -20,50 +20,53 @@ The replacement contracts were deployed on **5 September 2026** and their Wasm h
 
 | Contract | Address | Confirmed transaction |
 | --- | --- | --- |
-| Registry | [`CDSORANCV3IFF3MKHJ7KI4MKEJOJZFMTDVAZCD5XFOR4WTGNXJJNOKQE`](https://stellar.expert/explorer/testnet/contract/CDSORANCV3IFF3MKHJ7KI4MKEJOJZFMTDVAZCD5XFOR4WTGNXJJNOKQE) | [deployment](https://stellar.expert/explorer/testnet/tx/70eaa410ef5c9bd428df3506eb8ec114d1530e07520ea6ce9e9bd3292730f816) |
-| Allocator | [`CASORANSKKNXDJYXPZK7OJFIJQL5EMVO7VLYJJSWTCZLT26WWATBI4HY`](https://stellar.expert/explorer/testnet/contract/CASORANSKKNXDJYXPZK7OJFIJQL5EMVO7VLYJJSWTCZLT26WWATBI4HY) | [deployment](https://stellar.expert/explorer/testnet/tx/b503f0b3c1d8d23a917c26adc6aec3f14057995490152bd7a1e77f8789dd615f) |
-| Primary | [`CCSORANOADXKLSW5CUANBW5WZFVCNZ5KZ4KNMIUWOZOES3LXYRUYZ56X`](https://stellar.expert/explorer/testnet/contract/CCSORANOADXKLSW5CUANBW5WZFVCNZ5KZ4KNMIUWOZOES3LXYRUYZ56X) | [deployment](https://stellar.expert/explorer/testnet/tx/aaf3023cdaf6b601e2bad4970335ebae879d4c70e0035068681be44b2c4be70f) |
-| Lookup | [`CDSORANO7K4FSBR2MLV4PNELJ6UXCDNG4MJZSH6HCVZZZQN5B5GMOP64`](https://stellar.expert/explorer/testnet/contract/CDSORANO7K4FSBR2MLV4PNELJ6UXCDNG4MJZSH6HCVZZZQN5B5GMOP64) | [deployment](https://stellar.expert/explorer/testnet/tx/7e46a3f0787c34d3bf074742e83592599a2493027edfb56a04a6e6407e901a1c) |
+| Registry | [`CASORANI5CN2NJFEO2MGTRDA35AOEF3D3OCVBWN3FS6B6FXNQ74RTJ7H`](https://stellar.expert/explorer/testnet/contract/CASORANI5CN2NJFEO2MGTRDA35AOEF3D3OCVBWN3FS6B6FXNQ74RTJ7H) | [deployment](https://stellar.expert/explorer/testnet/tx/bb93cc23da9470d5fb5599bd7e1aa6619ff25c055cdf96cb1a916349d4307d8b) |
+| Allocator | [`CDSORANPTRS2EYHN57OZEXTW23P2HPDM3WEAC754B7GNHRB5V6FTJ2EE`](https://stellar.expert/explorer/testnet/contract/CDSORANPTRS2EYHN57OZEXTW23P2HPDM3WEAC754B7GNHRB5V6FTJ2EE) | [deployment](https://stellar.expert/explorer/testnet/tx/c054a85b982ed81add42aa0a312af9f36b19351dcd64dacc5f31e0373b2847a2) |
+| Primary | [`CCSORANJZOR5ZYTI4KAW34ESAQFMJAO4NKMTIVOVJOI2VDKCDK3RICXZ`](https://stellar.expert/explorer/testnet/contract/CCSORANJZOR5ZYTI4KAW34ESAQFMJAO4NKMTIVOVJOI2VDKCDK3RICXZ) | [deployment](https://stellar.expert/explorer/testnet/tx/ec3d59aef1589e432bd6892fb74b047d3605f6fa5e8d613735b00d005f447db8) |
+| Lookup | [`CDSORANKG77YZITKWCLWGPKLB2R3HPTP4D6KKZZ7X3R5HLXLMNOTGCDD`](https://stellar.expert/explorer/testnet/contract/CDSORANKG77YZITKWCLWGPKLB2R3HPTP4D6KKZZ7X3R5HLXLMNOTGCDD) | [deployment](https://stellar.expert/explorer/testnet/tx/34dcf6bec18eb9dbe5406d2f81b68ad836ad931cafba198eb41b46aa61cc7947) |
 
-The four contracts above are shared across the deployment. Wallets and explorers use Universal Lookup for reads; the other shared addresses anchor configuration or serve their separate write flows.
+Wallets and explorers use Universal Lookup for reads. The other shared addresses anchor configuration or serve their separate write flows. Always use IDs from the same deployment.
 
 ## Nova namespace contracts
 
-These two contracts serve only the new `nova` namespace. Other namespaces have their own Registrar and Resolver. Discover the current pair through Universal Lookup/Registry.
+These contracts serve only the fresh `nova` namespace. Other namespaces have their own Registrar and Resolver. Discover their current pair through Universal Lookup/Registry.
 
 | Contract | Address | Confirmed transaction |
 | --- | --- | --- |
-| Nova Registrar | [`CCSORANUM6CHXIOLOTA65NNZK6PJNCY44354SXKIANFUY2VVKOPZUYSP`](https://stellar.expert/explorer/testnet/contract/CCSORANUM6CHXIOLOTA65NNZK6PJNCY44354SXKIANFUY2VVKOPZUYSP) | [deployment](https://stellar.expert/explorer/testnet/tx/901152399a62e63192db20c38e4d6ad8fc48c864c901bd98ed5b899aaec61617) |
-| Nova Resolver | [`CCSORANQSCWQXIVDGERI4QRNQS2OB4RRDR7AHABNOJ57Z23JUFQOVCDU`](https://stellar.expert/explorer/testnet/contract/CCSORANQSCWQXIVDGERI4QRNQS2OB4RRDR7AHABNOJ57Z23JUFQOVCDU) | [deployment](https://stellar.expert/explorer/testnet/tx/1cd2aeb1a255ec04bb68e07f1eea12ddaf4a3aff2225f912d5e06c42e9f6be23) |
+| Nova Registrar | [`CDSORANZHOVD6EO345UWC23BNEXSPNFWCYJD4X35HXFC2S3GWQ3S64YX`](https://stellar.expert/explorer/testnet/contract/CDSORANZHOVD6EO345UWC23BNEXSPNFWCYJD4X35HXFC2S3GWQ3S64YX) | [deployment](https://stellar.expert/explorer/testnet/tx/affbab4246dda3ad89e7efff8c76fc302eb1e46939da30c43d964c191e216611) |
+| Nova Resolver | [`CDSORANIUM3QAYBNNVJZOCGV6ZKU4ZLLHDWD25OULB6N6FKMANK6HUFZ`](https://stellar.expert/explorer/testnet/contract/CDSORANIUM3QAYBNNVJZOCGV6ZKU4ZLLHDWD25OULB6N6FKMANK6HUFZ) | [deployment](https://stellar.expert/explorer/testnet/tx/986dcf5ea658f17cf2a9cfe585e02554285a6e7f2daa0bf8484d2a2ecb76e6dc) |
 
-All six listed vanity addresses are **live contracts**, not predictions. A `SORAN` substring is branding, not proof of authenticity or namespace ownership. Verify the deployment network and current Registry routing before relying on any contract address.
+All six listed vanity addresses are **live contracts**, not predictions. A `SORAN` substring is branding, not proof of authenticity or namespace ownership. Verify network, code and current Registry routing before relying on any contract address.
 
-The [machine-readable deployment record](https://raw.githubusercontent.com/SoranDomains/docs/main/reference/deployments/testnet.json) includes exact Wasm hashes, deployment ledgers, transaction hashes, governance and fee configuration. Its contents are public configuration, with no signing secrets.
+The [machine-readable deployment record](https://raw.githubusercontent.com/SoranDomains/docs/main/reference/deployments/testnet.json) includes exact Wasm hashes, deployment ledgers, transaction hashes, governance and fee configuration. It contains public configuration only.
 
 ## Network and fee configuration
 
 - RPC: `https://soroban-testnet.stellar.org`
 - Passphrase: `Test SDF Network ; September 2015`
-- Lookup ABI version: `1`; mandatory Lookup upgrade delay: `0` seconds.
+- Lookup ABI and destination versions: `2`; Resolver payment and destination versions: `2`.
+- Mandatory Lookup upgrade delay: `0` seconds.
 - Registry namespace deployment salt version: `1`; [on-chain prediction methods](/concepts/names-and-namespaces#namespace-contract-addresses).
 - Governance and fee recipient: `GAJCWWNMBKCSTQQISDFTHFTCEOGXYA37YTP3U3ZW7Q5CYQPHSW6TB4QX`.
 - Native XLM asset contract: `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC`.
 - Fee amount: `50000000000` base units, with 7 decimals = **5,000 XLM**.
 
-The fee is reserved in Allocator until its [claim outcome](/concepts/claiming-a-namespace), rather than paid directly to the recipient on announcement. The [fee configuration transaction](https://stellar.expert/explorer/testnet/tx/22742519dda80bd60bb71d9790f6d243c2baebe0832d7e241c55cf68cc42a6ce) records this policy.
+The fee stays in Allocator escrow until its [claim outcome](/concepts/claiming-a-namespace). The [fee configuration transaction](https://stellar.expert/explorer/testnet/tx/e8c6c223b72740adc982e36f5bd69ca94601c0e5f774ae7caef070ab31136c58) records this policy.
 
 ## SDK versions
 
 | Package | Version | Status |
 | --- | --- | --- |
-| [Lookup](https://www.npmjs.com/package/@sorandomains/lookup/v/0.5.2) | **0.5.2** | Published; current testnet defaults |
-| [Holder](https://www.npmjs.com/package/@sorandomains/holder/v/0.3.1) | **0.3.1** | Published; current testnet defaults |
-| [Owner](https://www.npmjs.com/package/@sorandomains/owner/v/0.5.1) | **0.5.1** | Published; current testnet defaults |
-| [MCP](https://www.npmjs.com/package/@sorandomains/mcp/v/0.5.1) | **0.5.1** | Published; current testnet defaults |
+| [Lookup](https://www.npmjs.com/package/@sorandomains/lookup) | **0.6.0** | Not yet published to npm |
+| [Holder](https://www.npmjs.com/package/@sorandomains/holder) | **0.4.0** | Not yet published to npm |
+| [Owner](https://www.npmjs.com/package/@sorandomains/owner) | **0.6.0** | Not yet published to npm |
+| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.6.0** | Not yet published to npm |
 
-Lookup, Holder and Owner registry artifacts were verified on **5 September 2026 at 17:30 UTC**; MCP was verified at **17:38 UTC**. These versions target `@stellar/stellar-sdk >=17 <18` and bundle the current deployment above. The [quickstart](/quickstart) also pins the current Registry, Lookup and Primary explicitly. Recheck deployment configuration when upgrading from an earlier package.
+These versions target `@stellar/stellar-sdk >=17 <18` and the current deployment above. Their prepared release artifacts and documentation examples have been checked, but they are not available through npm yet. SDK install commands and examples require these versions after publication. Until then, integrate with the live [contract ABI](/api/onchain-resolution), [HTTP payment API](/api/resolution) or [hosted MCP](/agents/access). Older packages do not implement the new muxed ABI or its current preset.
 
-Universal Lookup is the default read path. Missing Lookup configuration throws `CONFIG`; it never silently selects direct Resolver reads. Deliberate direct mode only supports the compatible native path.
+The [quickstart](/quickstart) pins Registry, Lookup and Primary explicitly. Recheck configuration when upgrading an older package.
+
+Universal Lookup is the default read path. Missing Lookup configuration throws `CONFIG`; it never silently selects direct Resolver reads. Successful version negotiation selects the matching V1 or V2 ABI; unknown versions and failures never trigger a downgrade. Deliberate direct mode supports compatible native Resolvers.
 
 ## Hosted services
 
@@ -71,19 +74,20 @@ Universal Lookup is the default read path. Missing Lookup configuration throws `
 - HTTP API: `https://api.soran.domains`; resolution alias: `https://resolve.soran.domains`.
 - Hosted MCP: `https://mcp.soran.domains/mcp`, with read tools only.
 
-The app and API serve the replacement contracts above, verified on **5 September 2026**. The API reported current complete coverage with no recorded gaps at 17:28 UTC. The console includes [automatic branded-address preparation](/platform/issuing-names#automatic-branded-contract-addresses) for new namespace Registrar/Resolver deployment. Hosted MCP 0.5.1 was verified at 17:35 UTC with its read tools and current on-chain fee configuration. Recheck [service status](/api/status), coverage and network configuration during integration. Billing and marketplace features are disabled on this setup.
+On **5 September 2026**, hosted MCP 0.6.0 was verified at **18:23 UTC** and the app/API cutover was verified at **18:24 UTC**. Checks confirmed the app's current contract pins, API fee and namespace configuration, expected inactive-name errors, indexed event coverage and hosted MCP read tools. The API reported zero coverage gaps through its observed head. These are dated deployment checks, not a promise of continuous availability or a test of every wallet provider.
+
+Recheck [service status](/api/status), coverage and network settings during integration. The console's [automatic branded-address preparation](/platform/issuing-names#automatic-branded-contract-addresses) remains namespace- and role-bound. Billing and marketplace features are disabled on this setup. Hosted MCP is deployed independently; its live 0.6.0 service does not mean the npm package has been published.
 
 ## Fresh namespace and older deployments
 
-The new `nova` belongs to `GAAHFS7CISNAJOQK5VS447NS6ZFPRLLQQP6IM2EA4W7XZWGJNMXZ4VLK`. It is **reclaimable and unlocked**, not permanent. The bootstrap reserved claim was exempt from the public claim fee. Existing old namespace records were not migrated automatically.
+The fresh `nova` belongs to `GAAHFS7CISNAJOQK5VS447NS6ZFPRLLQQP6IM2EA4W7XZWGJNMXZ4VLK`. It is **reclaimable and unlocked**, not permanent. The bootstrap reserved claim was exempt from the public claim fee. Old namespace records were not migrated automatically.
 
-Two earlier testnet setups remain separate:
+Earlier testnet setups remain separate:
 
-- The earlier **5 September deployment, verified at 09:35 UTC**, used Registry `CBSORANXTUFKBZK74AAM2ZM5OX2V7PIXUADM3HGP6WU3IDN7M3YEEDLU` and Lookup `CCSORANKMVVF5GCHCJAMB6M2FTF7KC53F7WN6V6ZD255TQY3IZCQPDRS`. Its namespace deployments used raw salts. The [historical six-contract manifest](https://raw.githubusercontent.com/SoranDomains/docs/main/reference/deployments/testnet-2026-09-05-unscoped.json) retains its exact addresses and transactions.
+- The **5 September deployment verified at 17:15 UTC** used Registry `CDSORANCV3IFF3MKHJ7KI4MKEJOJZFMTDVAZCD5XFOR4WTGNXJJNOKQE` and Lookup `CDSORANO7K4FSBR2MLV4PNELJ6UXCDNG4MJZSH6HCVZZZQN5B5GMOP64`. It introduced namespace-bound salt version 1 but its native payment ABI was direct G/C only. The [historical bound V1 manifest](https://raw.githubusercontent.com/SoranDomains/docs/main/reference/deployments/testnet-2026-09-05-bound-v1.json) retains its exact addresses and transactions.
+- The **5 September deployment verified at 09:35 UTC** used Registry `CBSORANXTUFKBZK74AAM2ZM5OX2V7PIXUADM3HGP6WU3IDN7M3YEEDLU` and Lookup `CCSORANKMVVF5GCHCJAMB6M2FTF7KC53F7WN6V6ZD255TQY3IZCQPDRS`. It used raw namespace deployment salts. Its [historical manifest](https://raw.githubusercontent.com/SoranDomains/docs/main/reference/deployments/testnet-2026-09-05-unscoped.json) remains available.
 - The **older pre-replacement setup** used Registry `CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI` and Primary `CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2`.
 
-Neither earlier Registry was upgraded or renamed. Do not mix their contract IDs or records with the current deployment.
+Earlier Registries were not upgraded or renamed. Do not mix their IDs or records with the current deployment. A locked old Resolver does not gain memo or muxed support through an SDK change. An unchanged contract ID or version does not prove unchanged code; see [governance](/concepts/governance).
 
-Allocator schema 4 is not an in-place migration of schema 3 unpaid claims. A locked old Resolver does not gain memos through an SDK change. An unchanged contract ID or ABI version does not prove unchanged executable code; see [governance](/concepts/governance).
-
-Testnet resets can remove accounts and contracts. Recheck configuration after a reset; [Stellar documents network differences and resets](https://developers.stellar.org/docs/networks). Example names do not promise a particular holder or live record.
+Allocator schema 4 is a fresh fee deployment, not an in-place migration of schema 3 unpaid claims. Testnet resets can remove accounts and contracts; [Stellar documents network differences and resets](https://developers.stellar.org/docs/networks). Example names do not promise a particular holder or live record.

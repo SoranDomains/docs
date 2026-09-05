@@ -22,7 +22,7 @@ Returns exactly the current payment pair:
 
 This is an illustrative account from Stellar's documentation, not a payment request or promised live name record. A memo-free result is `{ "type": "none" }`. Use the exact memo type/value when building the payment. This no-store read uses Universal Lookup when configured and never substitutes indexed data on failure.
 
-The address is G or C. G supports none, ID, text and hash memos; C supports none only. M addresses are not part of the current result format. See [supported addresses and examples](/concepts/payment-destinations).
+The address is G, M or C. G supports none, ID, text and hash memos; M and C support none only. An M address includes its muxed ID; keep the full address intact. See [supported addresses and examples](/concepts/payment-destinations).
 
 ## Address-only convenience
 
@@ -30,7 +30,7 @@ The address is G or C. G supports none, ID, text and hash memos; C supports none
 GET /v1/resolve/{namespace}/{label}
 ```
 
-`account` is the **effective memo-free destination**, not the name's holder. Required memos return `409 memo_required` rather than a destination with its memo removed. Unknown legacy payment capability and unsupported implementations also fail.
+`account` is the **effective memo-free G or C destination**, not the name's holder. Required memos return `409 memo_required`. Muxed destinations return `409 muxed_destination`; use `/v1/payment` to receive the complete M address. This older HTTP endpoint never strips the embedded ID. Unknown legacy payment capability and unsupported implementations also fail.
 
 The result includes `name`, `account`, and optional indexed display fields `ownership`, `expires_at` and issuance `ledger`. These extra fields may be `null`; issuance ledger is not the observed chain head. `storage: "live"` accompanies a successful current read, not a promise of future storage availability.
 
@@ -44,7 +44,9 @@ Returns `name`, `node`, `holder`, `address`, complete `payment`, decimal-string 
 
 `holder` is distinct from `address`. `displayName` is the checked scoped reverse comparison. A Primary read error sets `primaryName: null` and records the status instead of inventing a false election result. A successful Primary `None` retains the underlying proof limitation described in [reverse and Primary](/sdk/reverse-and-primary).
 
-Payment, metadata, text and reverse reads must succeed; separate reads are not a single atomic snapshot. Errors use `400` for bad input, `404` for recognized absent/inactive context, `409` for incompatible or memo-related conditions and `503` for unavailable/invalid dependent reads. Do not turn any error into a no-memo destination.
+For M destinations, `address` and `payment.address` keep the complete M address. Account-level reverse/Primary checks are skipped, `displayName` is `false`, `primaryName` is `null`, and `primaryStatus` is `muxed_destination_not_account_identity`. The base G account is not substituted as the customer's identity.
+
+Payment, metadata, text and applicable reverse reads must succeed; separate reads are not a single atomic snapshot. Errors use `400` for bad input, `404` for recognized absent/inactive context, `409` for incompatible or memo-related conditions and `503` for unavailable/invalid dependent reads. Do not turn any error into a no-memo destination.
 
 ## Indexed name record
 

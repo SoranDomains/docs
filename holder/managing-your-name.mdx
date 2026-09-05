@@ -3,7 +3,11 @@ title: "Managing your name"
 description: "Publish an atomic on-chain address and optional memo, profile records and account display names."
 ---
 
-The Holder SDK writes to the current namespace contracts. Lookup remains the shared read entry point. These examples target Holder 0.3.1 with Stellar SDK 17. See [release status](/reference/release-status) for the matching testnet contracts.
+The Holder SDK writes to the current namespace contracts. Lookup remains the shared read entry point. These examples target Holder 0.4.0 with Stellar SDK 17. See [release status](/reference/release-status) for the matching testnet contracts.
+
+<Note>
+Holder **0.4.0** npm publication is pending. M-address writes require this version; older packages do not submit `set_muxed`. You can publish a destination through the live app or its [on-chain Resolver methods](/api/onchain-resolution) while waiting. The SDK examples below apply once this package is published.
+</Note>
 
 ```ts
 import { SoranHolder } from "@sorandomains/holder";
@@ -35,9 +39,9 @@ await me.setPayment("alice.nova", {
 
 The native Resolver updates the address and memo atomically on chain. No separate payment contract or database stores these instructions. Memos are optional: untouched ordinary records resolve with `none`. A configured instruction that is missing or invalid fails rather than reverting to an ordinary address.
 
-`setRecord(name,address)` is the address-only native Resolver convenience for memo-free records. A required memo must be changed through `setPayment`; the contract refuses an address-only write that would discard it. `setAddress(name,address)` changes the Registrar's built-in target, which may be overridden by current Resolver instructions; the SDK requires a current memo-free payment before preparing this convenience operation. Use `resolvePayment` to read the effective pair.
+`setRecord(name,address)` is the address-only native Resolver convenience for memo-free records. A required memo or muxed destination must be changed through `setPayment`; the contract refuses an address-only write that would discard its routing information. `setAddress(name,address)` changes the Registrar's built-in target, which may be overridden by current Resolver instructions; the SDK requires a current direct memo-free payment before preparing this convenience operation; muxed destinations must use `setPayment`. Use `resolvePayment` to read the effective pair.
 
-G destinations support None, ID, text and hash memos; C supports None only. Direct M addresses are rejected, with no automatic conversion to G plus memo. The Holder SDK checks exact [payment constraints](/sdk/resolving-names). See [complete examples for each address and memo type](/concepts/payment-destinations).
+G destinations support None, ID, text and hash memos; M and C support None only. Pass the full M address to `setPayment`; the SDK submits `set_muxed` with its exact base G account and u64 ID. It never substitutes a transaction memo. The Holder SDK checks exact [payment constraints](/sdk/resolving-names). See [complete examples for each address and memo type](/concepts/payment-destinations).
 
 ## Profile records
 
@@ -61,7 +65,7 @@ await me.setPrimary("alice.nova");
 
 Reverse and Primary writes require the address's authorization and a current forward match. Name ownership alone does not authorize identity writes for someone else's destination account. The Primary Registry anchor is checked before signing; custom deployments need matching configuration.
 
-`clearReverse(namespace)` and `clearPrimary()` remove the elected display records. These are account names, not identities for individual customer memos on a shared account.
+`clearReverse(namespace)` and `clearPrimary()` remove the elected display records. These identify G/C accounts, not individual customer memos or muxed IDs. Changing a payment destination to M can make a previous reverse/Primary selection stop verifying; use a direct account destination for account identity.
 
 ## Name transfer
 

@@ -1,9 +1,13 @@
 ---
 title: "Lookup SDK reference"
-description: "Universal reads, payment types, discovery pages and typed failures in Lookup 0.5.2."
+description: "Universal reads, payment types, discovery pages and typed failures in Lookup 0.6.0."
 ---
 
-This reference targets Lookup 0.5.2. See [release status](/reference/release-status) for the matching testnet contracts. All write flows are in the Owner or Holder SDKs; Lookup reads through Soroban RPC and optionally uses HTTP discovery/history.
+This reference targets Lookup 0.6.0. See [release status](/reference/release-status) for the matching testnet contracts. All write flows are in the Owner or Holder SDKs; Lookup reads through Soroban RPC and optionally uses HTTP discovery/history.
+
+<Note>
+Lookup 0.6.0 npm publication is pending. The M-address methods and updated contract preset described here require that version; they are not provided by older packages. The current [contract ABI](/api/onchain-resolution) and [HTTP API](/api/resolution) are live.
+</Note>
 
 ## Constructor
 
@@ -62,7 +66,7 @@ type PaymentMemo =
 type PaymentDestination = { address: string; memo: PaymentMemo };
 ```
 
-`address` must be a valid G or C address; direct M input is rejected. Memos require G, except `none`, which also supports C. The SDK exports payment validation/encoding helpers and `LookupResult`, `NameMetadata`, `NamespaceMetadata` and `NamespacePolicy`. See [address examples](/concepts/payment-destinations) and [payment constraints](/sdk/resolving-names).
+`address` must be a valid G, M or C address. Memos require G, except `none`, which also supports M and C. An M address retains its embedded unsigned 64-bit ID and may not be reduced to the base G address. `encodeMuxedAddress(account,id)` accepts a G account and a canonical decimal-string u64 ID; `decodeMuxedAddress(address)` returns `{ account, id }` with an exact decimal-string ID. Neither converts a muxed ID to a memo. The SDK also exports payment validation/encoding helpers and `LookupResult`, `NameMetadata`, `NamespaceMetadata` and `NamespacePolicy`. See [address examples](/concepts/payment-destinations) and [payment constraints](/sdk/resolving-names).
 
 ## Failures
 
