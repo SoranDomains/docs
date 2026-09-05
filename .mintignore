@@ -5,3 +5,6 @@
 # Draft content
 drafts/
 *.draft.mdx
+
+# Validation tooling is source-only, not a public site asset
+scripts/

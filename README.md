@@ -9,6 +9,8 @@ Public [Soran](https://github.com/SoranDomains) documentation built with Mintlif
 
 ## Validate and preview
 
+Use Node 22 LTS. CI installs the exact lockfile and runs the same validator.
+
 ```bash
 npm ci
 npm run validate
