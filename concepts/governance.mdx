@@ -1,0 +1,31 @@
+---
+title: "Governance and upgrades"
+description: "Which contracts can change, what zero delay means, and which addresses remain stable."
+---
+
+The fresh Universal Lookup has **no mandatory upgrade delay**. That decision applies to Lookup's upgrade proposal, not Allocator claims, objections, reopening rules or namespace permanence.
+
+## Universal Lookup upgrade flow
+
+1. Governance authorizes `propose_upgrade(wasm_hash)` for one exact code hash.
+2. The proposal records `execute_after` as the current ledger timestamp. It is immediately eligible.
+3. Anyone may call `execute_upgrade(expected_hash)`. The hash must equal the pending proposal.
+4. A successful execution replaces the contract's Wasm at the same contract address and consumes the proposal. A failed replacement rolls back the transaction.
+
+Governance can call `cancel_upgrade()` while a proposal is pending, but there is no guaranteed time in which cancellation can beat immediate execution. Read `governance()`, `upgrade_delay()` and `pending_upgrade()` when assessing a deployment.
+
+A stable Lookup address makes integration routing consistent. Its Registry/version checks establish reported wiring and ABI compatibility, **not a pin of the executable code**. Integrators requiring reviewed code need their own current-code verification policy.
+
+## Other contracts
+
+| Contract | Upgrade boundary |
+| --- | --- |
+| Registry | No upgrade method in the reviewed implementation; replacing a Registry means a new deployment and configuration |
+| Allocator | Governed code upgrades with its own rules; the new fee schema is a fresh deployment, not automatic migration of old unpaid claims |
+| Registrar and Resolver | The namespace owner can change eligible unlocked contracts; permanence and upgrade taint constrain that ability |
+| Primary | No code upgrade entry point in the reviewed implementation |
+| Universal Lookup | Governed exact-hash code replacement with zero mandatory delay |
+
+Replacing a Resolver with a different contract creates separate storage. Its records do not migrate automatically. An in-place upgrade preserves the address, but compatible storage and access rules are still required. A permanently locked old Resolver cannot be upgraded to gain memo support.
+
+The fresh testnet rollout uses a new setup and does not change the existing deployment in place. See [release status](/reference/release-status).

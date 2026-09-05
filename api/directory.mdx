@@ -1,71 +1,26 @@
 ---
-title: "Directory"
-description: "The cross-tenant reverse directory: one query for every name an address holds across all of Soran, and the roster of namespaces on the network."
+title: "Directory and namespace discovery"
+description: "Bounded indexed discovery, billing filters and explicit continuation."
 ---
 
-The directory is Soran's **cross-tenant discovery surface**. Where [`/v1/reverse/{address}`](/api/resolution#reverse-lookup-untrusted-hint) returns one candidate name, the directory answers the broader question a wallet actually has: *what names does this address hold, anywhere on Soran?* — one query instead of one per namespace.
-
-## Reverse directory
+The directory is a hosted discovery feature. It suggests names held by an address and namespace candidates; it does not prove current ownership, reverse identity or payment instructions.
 
 ```http
-GET /v1/directory/reverse/{address}
+GET /v1/directory/reverse/{address}?limit=20
+GET /v1/directory/namespaces?limit=100
+GET /v1/namespaces?limit=100
 ```
 
-`address` must be a valid Stellar ed25519 public key (`G…`); anything else returns `400` with `error: "invalid_account"`.
+The reverse directory accepts G and C addresses and defaults to 20 entries. Limits are 1–100. Namespace pages default to 100. Continue with the returned `nextCursor`; cursors are opaque and scoped to the endpoint/filter. Responses expose `hasMore`, `truncated` and coverage.
 
-```json
-{
-  "address": "GDHNO4WK…",
-  "filtered": false,
-  "entries": [
-    { "name": "alice.nova", "namespace": "nova", "namespaceDisplay": "Nova Wallet" },
-    { "name": "alice.acme", "namespace": "acme", "namespaceDisplay": "Acme Corp" }
-  ]
-}
-```
+Reverse entries contain `name`, `namespace` and `namespaceDisplay`. Namespace directory entries contain label and hosted presentation metadata, such as display name and logo. Treat uploaded presentation values as untrusted content.
 
-Up to 20 entries are returned. `namespaceDisplay` falls back to the namespace label when no display name is set.
+## Billing filter
 
-## Namespace roster
+When billing enforcement is enabled on a deployment, directory discovery may include only namespaces with an active subscription. The response's `filtered` boolean describes that policy filter.
 
-```http
-GET /v1/directory/namespaces
-```
+`filtered: false` means no subscription filter was applied. It **does not** mean all namespaces fit on the current page, all history was indexed or the result cannot omit anything. Follow continuation and inspect coverage either way.
 
-The list of namespaces on the network (up to 200), with their owner-uploaded logos:
+Directory presence does not gate on-chain forward reads. If you know a name, resolve it directly rather than requiring that it appear in a hosted directory. Hosted service expiry does not revoke the namespace.
 
-```json
-{
-  "filtered": false,
-  "namespaces": [
-    { "label": "nova", "displayName": "Nova Wallet", "logo": "data:image/png;base64,…" }
-  ]
-}
-```
-
-## The `filtered` flag — read this part
-
-Both endpoints report a `filtered` boolean, and it means exactly this:
-
-- **`filtered: false`** — the directory surfaces **every** namespace and every name. This is the behavior whenever billing is not enforcing on the deployment (billing disabled, or still inside its launch grace window).
-- **`filtered: true`** — billing enforcement is active on this deployment, and the directory surfaces **only namespaces with a currently active subscription**. Names in lapsed or suspended namespaces are absent from directory results until the namespace's subscription is active again.
-
-This is deliberate, and it's worth being precise about what is and isn't affected:
-
-<Note>
-  **Forward resolution is never gated.** `/v1/resolve`, `/v1/names`, `/v1/records`, and every on-chain read keep working for every name regardless of any namespace's subscription state — that's a design invariant, not a courtesy. What a lapsed namespace loses is *network reach*: presence in the cross-tenant directory that wallets query for discovery.
-</Note>
-
-Practical guidance for integrators:
-
-- Treat the directory as a **discovery** surface, not a completeness guarantee. `filtered: true` tells you the result set is scoped to subscribed namespaces.
-- If you already know a specific name (say, the user typed it), resolve it directly — don't gate on directory presence.
-- Like all API reads, directory entries are hints from the mirror. Resolve a name forward and verify the holder before treating an entry as proof of ownership.
-
-## Directory vs. reverse lookup
-
-| | `/v1/reverse/{address}` | `/v1/directory/reverse/{address}` |
-| --- | --- | --- |
-| Returns | One candidate name | Up to 20 names across all namespaces |
-| Scope | Any namespace | Subscribed namespaces when `filtered: true`, all otherwise |
-| Intended use | SDK reverse-resolution hint (chain-verified) | Wallet/app discovery UI |
+For holder verification use [holdings pages](/api/resolution#holdings-pages) and current name metadata. For account display identity use on-chain reverse/Primary, not holder membership.

@@ -1,0 +1,57 @@
+---
+title: "Release status and contract addresses"
+description: "Verified fresh testnet contracts, fee policy and independent package/app release status."
+---
+
+The fresh contracts were deployed on **5 September 2026** and their Wasm hashes and configuration were verified at testnet ledger **4,515,471** (2026-09-05T09:35:45.939Z). This is a dated deployment record, not a guarantee that upgradeable code remains unchanged later.
+
+| Item | Status |
+| --- | --- |
+| Registry, Allocator, nova Registrar/Resolver, Primary and Universal Lookup | Deployed and verified |
+| Public namespace claim fee | **5,000 testnet XLM** paid upfront into Allocator escrow |
+| SDK packages | Publication in progress; see version status below |
+| Public app, API and hosted MCP switch | Separate cutover pending verification |
+| Mainnet | No deployment or supported preset announced |
+| Mainnet namespace fee | Proposed 5,000 USDC; not a live configured price |
+
+## New testnet contract addresses
+
+| Contract | Address | Confirmed transaction |
+| --- | --- | --- |
+| Registry | [`CBSORANXTUFKBZK74AAM2ZM5OX2V7PIXUADM3HGP6WU3IDN7M3YEEDLU`](https://stellar.expert/explorer/testnet/contract/CBSORANXTUFKBZK74AAM2ZM5OX2V7PIXUADM3HGP6WU3IDN7M3YEEDLU) | [deployment](https://stellar.expert/explorer/testnet/tx/6220d23c9b76abecd26701de82c45d7b814252d7ad056609437a46702c46d0d3) |
+| Allocator | [`CBSORANERRWAG5YT4DNQSCYJMOQ7M7UO5AHIAHVNF5ZLKK4JNK7FSKEE`](https://stellar.expert/explorer/testnet/contract/CBSORANERRWAG5YT4DNQSCYJMOQ7M7UO5AHIAHVNF5ZLKK4JNK7FSKEE) | [deployment](https://stellar.expert/explorer/testnet/tx/c2dcd8e33a7ee14241b504a7d49d49a7072c8367f8a531b676b743d6c3d28299) |
+| Nova Registrar | [`CBSORANTKP3SYFX4LOVKEHNONKTLNPRISRLGX2VP3BQJVS7IOJCNDDF7`](https://stellar.expert/explorer/testnet/contract/CBSORANTKP3SYFX4LOVKEHNONKTLNPRISRLGX2VP3BQJVS7IOJCNDDF7) | [deployment](https://stellar.expert/explorer/testnet/tx/46dd5151978476f33b3c23d8842cdfe6962932f70d590ec5e8ffd9ed61fe07ca) |
+| Nova Resolver | [`CASORANTDLWVRVAVZHRVHULP6SJMVL5RQIBYM2CCY4T4VFNSA6SU4C3C`](https://stellar.expert/explorer/testnet/contract/CASORANTDLWVRVAVZHRVHULP6SJMVL5RQIBYM2CCY4T4VFNSA6SU4C3C) | [deployment](https://stellar.expert/explorer/testnet/tx/8ba1c4e286bc9da541b450b7ea739b602d1ba43326faef776fa96914c986e9d5) |
+| Primary | [`CBSORANQVSWYBYGKRZ7RAUGOXDAXMXDXQWJSE42DQZOL4BK75BIEBUQK`](https://stellar.expert/explorer/testnet/contract/CBSORANQVSWYBYGKRZ7RAUGOXDAXMXDXQWJSE42DQZOL4BK75BIEBUQK) | [deployment](https://stellar.expert/explorer/testnet/tx/0b6d442c004ed59fcd99ad100fcbca1c2a35a86c6292f2e6ae11911fdd3774a9) |
+| Lookup | [`CCSORANKMVVF5GCHCJAMB6M2FTF7KC53F7WN6V6ZD255TQY3IZCQPDRS`](https://stellar.expert/explorer/testnet/contract/CCSORANKMVVF5GCHCJAMB6M2FTF7KC53F7WN6V6ZD255TQY3IZCQPDRS) | [deployment](https://stellar.expert/explorer/testnet/tx/5caa1391c9e3cef8ab2aa0f2addbf667b1a4b7daf2c1c20836a790712ca3ab47) |
+
+These six vanity addresses are **live contracts**, not predictions. Per-namespace addresses above are for the new `nova`; integrations should discover namespace routing through Universal Lookup/Registry rather than hard-code those two addresses for every namespace.
+
+The [machine-readable deployment record](/reference/deployments/testnet.json) includes exact Wasm hashes, deployment ledgers, transaction hashes, governance and fee configuration. Its contents are public configuration, with no signing secrets.
+
+## Network and fee configuration
+
+- RPC: `https://soroban-testnet.stellar.org`
+- Passphrase: `Test SDF Network ; September 2015`
+- Lookup ABI version: `1`; mandatory Lookup upgrade delay: `0` seconds.
+- Governance and fee recipient: `GAJCWWNMBKCSTQQISDFTHFTCEOGXYA37YTP3U3ZW7Q5CYQPHSW6TB4QX`.
+- Native XLM asset contract: `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC`.
+- Fee amount: `50000000000` base units, with 7 decimals = **5,000 XLM**.
+
+The fee is reserved in Allocator until its [claim outcome](/concepts/claiming-a-namespace), rather than paid directly to the recipient on announcement. The [fee configuration transaction](https://stellar.expert/explorer/testnet/tx/0ad5b54e20c84e2699a5d57a87f68ad17d929dd3fe601521decb1476efdecc12) records this policy.
+
+## SDK versions
+
+The prepared versions are Lookup **0.5.0**, Holder **0.3.0**, Owner **0.5.0** and MCP **0.5.0**. Publication is in progress and must be verified separately from contract deployment. These versions target `@stellar/stellar-sdk >=17 <18`.
+
+Universal Lookup is the new default read path. Until your installed package contains the verified new preset, provide the matching explicit Registry/Lookup/Primary/network configuration from this page. Missing Lookup configuration throws `CONFIG`; it never silently selects direct Resolver reads. Deliberate direct mode only supports the compatible native path.
+
+## Fresh namespace and older deployment
+
+The new `nova` belongs to `GAAHFS7CISNAJOQK5VS447NS6ZFPRLLQQP6IM2EA4W7XZWGJNMXZ4VLK`. It is **reclaimable and unlocked**, not permanent. The bootstrap reserved claim was exempt from the public claim fee. Existing old namespace records were not migrated automatically.
+
+The old Registry `CAUEHYVLLNNDZ4H5QWCPBDWEONRI44SI3XYSEACB4U3HYILIVQGQAMNI` and old Primary `CAZMXB6UBXKL4DGC2GUC5VKHIZMF47CIZXZFAZPYLM2RP6ZJZNSIIYS2` remain separate deployments. Do not mix their IDs or records with the new setup.
+
+Allocator schema 4 is not an in-place migration of schema 3 unpaid claims. A locked old Resolver does not gain memos through an SDK change. An unchanged contract ID or ABI version does not prove unchanged executable code; see [governance](/concepts/governance).
+
+Testnet resets can remove accounts and contracts. Recheck configuration after a reset; [Stellar documents network differences and resets](https://developers.stellar.org/docs/networks). Example names do not promise a particular holder or live record.

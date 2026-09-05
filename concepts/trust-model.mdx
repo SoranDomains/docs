@@ -1,68 +1,36 @@
 ---
 title: "Trust model"
-description: "What's trustless, what's hosted, and why the line between them is enforced by code rather than promised by policy."
+description: "Contract authority, Lookup governance, RPC trust and the limits of indexed discovery."
 ---
 
-Soran asks businesses to build brand identity on a shared registry. The first question their legal team asks is: *can the platform take our namespace away?* The answer has to be "the contract cannot" — not "we promise not to." This page draws the line between the trustless core and the hosted conveniences, so you know exactly which parts you're trusting and which parts you're merely using.
+On-chain state is the source of truth for namespace ownership, name lifecycle and payment instructions. A Soran SDK or hosted database does not decide the destination. Those facts still depend on the deployed code and the RPC through which you read it.
 
-## The trustless core
+## Contract authority
 
-**The Registry is immutable.** It ships with no upgrade path at all — not timelocked, not multisig-gated: absent. No admin override, no force-transfer, no pause, no platform revocation. The guarantee is verifiable from the bytecode, not trusted to an operator. The cost — a Registry bug can never be patched — is why the Registry is deliberately tiny: namespace ownership, resolver pointers, and the handful of one-way facts that certify [permanence](/concepts/ownership-guarantees).
+Registry has no upgrade, forced reassignment or platform revocation method in the reviewed implementation. Allocator adjudicates unclaimed namespaces; its allocation authority cannot overwrite an already owned Registry node.
 
-**Who can do what** is fixed by the absence of code paths:
+Namespace owners govern issuance and eligible unlocked Registrar/Resolver implementations. Holders control their own records and permitted transfers. A namespace owner, a holder and a payment recipient are separate roles. Completed permanence constrains namespace code and routing; [no expiry alone does not](/concepts/ownership-guarantees).
 
-| Capability | Platform | Namespace owner | Name holder |
-| --- | --- | --- | --- |
-| Reassign an allocated namespace | never | — | — |
-| Revoke a name | never | only if policy says so, disclosed on chain | — |
-| Transfer / configure a namespace | — | yes | — |
-| Issue names, set policy | — | yes | — |
-| Update own name's records | — | — | yes |
+Universal Lookup is a shared **governed** read contract. It can change code immediately after an authorized exact-hash proposal. Its stable address and ABI version do not remove this trust boundary.
 
-The one power the platform retains — deciding who receives *unclaimed* namespaces — is bounded by the [public claim window](/concepts/claiming-a-namespace) and ends permanently the moment a namespace is allocated.
+## What reads verify
 
-**Resolution is readable by anyone.** Every resolve, reverse lookup, and policy read is on-chain state, answerable by any Soroban RPC node — including yours. No API key, no allowlist, no Soran server required.
+Universal Lookup follows current Registry routing and validates supported dependencies, name activity, generation, and complete payment values. A missing or invalid configured payment instruction is an error, not a reason to use an old address. Its metadata methods let an explorer inspect ownership independently from payment success.
 
-## The hosted layer
+Reverse and Primary answers must be canonical and match current forward resolution. They identify an account, not a person or memo customer. The underlying immutable Primary and Resolver reverse APIs can return `None` after a failed internal proof; `None` is therefore not a precise diagnosis of every possible dependency failure. A returned name is checked again.
 
-Everything else Soran runs is convenience, not authority:
+The SDK checks Lookup's Registry anchor and version. This is compatibility validation, not proof that custom or upgraded code is honest. You also trust the network configuration and RPC response. Separate SDK calls can observe different ledgers; only one contract invocation shares one simulation snapshot.
 
-- **The console** — a UI over transactions your wallet signs. It never holds your keys or your namespace.
-- **The public API** — a [read mirror](/api/overview) of on-chain state: fast and cacheable, but never the source of truth.
-- **Webhooks and the directory** — indexed projections of chain events.
-- **Billing and the marketplace** — subscription billing and the escrow marketplace, when enabled on a deployment. Subscription pricing is operator-set per deployment. Even here the asset stays sovereign: a lapsed subscription can cost you the conveniences, never the namespace.
+## Hosted discovery and history
 
-You can leave all of it. The contracts are permissionless, so a namespace can be operated with nothing but its owner's wallet and an RPC node — issue names, update records, transfer ownership, all without touching a Soran server. That escape hatch is the ceiling on what the hosted layer can ever charge for, by design.
+An indexer finds candidates and archives events. The SDK verifies current holdings candidates on chain, but an indexer can omit names. Pagination and coverage expose continuation, gaps and freshness; they cannot prove an indexer omitted nothing.
 
-## The SDK verifies everything
+History, registration timestamps, directory listings and profile labels are informational or user-authored data. Profile text being written on chain does not prove its claims true. Escape it, validate links and never treat it as instructions.
 
-The [SDK](/sdk/installation) is built so Soran's servers are never in the trust path:
+## Hosted services and custody
 
-- **Every call is a read-only Soroban RPC simulation** against the deployed contracts. Point `rpcUrl` at any node you trust.
-- **Forward resolution** is verified by the contracts themselves: records are bound to a name's ownership generation, so expired, reissued, or transferred names stop resolving on chain — the SDK never guesses.
-- **Reverse resolution** is contract-verified end to end: the Resolver answers a reverse lookup only while the name is live *and* its forward record points back at the address. No client-side re-check needed, nothing to spoof.
-- **Hints are liveness-only.** The optional `hintUrl` (backed by the public API) supplies only a *list of namespaces to probe* for reverse lookup. A lying hint can hide a name by omission; it can never forge one.
-- **Errors are never answers.** A failed chain read throws — it is never silently reported as "unregistered" or "no address." One documented exception: the optional primary-name step inside `reverseLookup` degrades to the namespace probes on failure rather than failing the whole lookup — call `primaryOf` directly when you must distinguish "no primary" from "primary unreadable."
+The console, HTTP API, webhooks and optional managed services help operate the contracts. Self-custody writes are signed by your wallet. A platform-operated namespace instead uses the deployment's operating signer; do not confuse console access with on-chain authority.
 
-The only trusted inputs are the RPC endpoint you choose and the immutable Registry's contract ID — published, and verifiable on-network.
+Billing and the marketplace apply **when enabled on a deployment**. Hosted subscriptions do not create a yearly ownership levy in the naming contracts. Marketplace payment escrow is operator-custodied and separate from the Allocator's on-chain namespace-claim escrow.
 
-<Note>
-  If you consume the HTTP API directly from a backend, apply the SDK's discipline yourself: treat mirror answers as hints and confirm anything that gates money on chain. See [what the API is and isn't](/api/overview#what-the-api-is-and-isnt).
-</Note>
-
-## Residual trust, stated plainly
-
-Honesty about the edges is part of the model:
-
-- **Namespace policy is the issuer's.** A ◔ reclaimable name is genuinely reclaimable by its issuer — the guarantee is that this is *disclosed on chain*, not that it can't happen. Render the [glyphs](/concepts/ownership-guarantees).
-- **Allocation governance is trusted once, briefly, publicly.** Awarding unclaimed namespaces involves human adjudication, bounded by a public window, bonded objections, and hard caps in code — but it is a governed process, not a theorem. After allocation, the trust relationship is over, permanently.
-- **Your RPC is your oracle.** Trustless reads are only as honest as the node answering them. For high-value flows, use an RPC you operate or have reason to trust.
-
-## The short version
-
-| Layer | You trust | If Soran disappeared |
-| --- | --- | --- |
-| Registry, Registrars, Resolvers | The audited, immutable bytecode | Everything keeps working |
-| SDK resolution | Your chosen RPC node | Everything keeps working |
-| Console, API, webhooks, directory | Soran's operations | You'd operate via wallet + RPC |
-| Billing, marketplace (when enabled) | The deployment's operator | Your namespace is untouched |
+You can call the contracts through another RPC without the hosted app. Continued availability still requires accessible contract state, storage upkeep/restoration, a working RPC and supported contract code. It is not a promise that every dependency keeps running without maintenance.

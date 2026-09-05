@@ -1,86 +1,52 @@
 ---
 title: "Issuing from code"
-description: "Issue names to your users programmatically with @sorandomains/owner — one call per name, or up to 23 per transaction, signed by your own key."
+description: "Use the Owner SDK to issue names through the namespace Registrar with owner authorization."
 ---
 
-`@sorandomains/owner` is the write-side SDK for namespace owners. Where [`@sorandomains/lookup`](/sdk/installation) reads names trustlessly, this package performs the operations that *running* a namespace requires — starting with the one that matters most: issuing names to your users the moment they sign up.
+The Owner SDK writes to Registry and the namespace's Registrar/Resolver. It does not route writes through Universal Lookup. Read integrations use the [Lookup SDK](/sdk/installation).
 
-```bash
-npm install @sorandomains/owner @stellar/stellar-sdk
-```
-
-Every operation is a transaction your own key signs, submitted to any Soroban RPC node. The contracts check the namespace owner's authorization on chain — no Soran account is involved, and nothing here can be done *to* you by anyone else.
-
-## Set up
+These examples target prepared Owner 0.5.0 with Stellar SDK 17. See [release status](/reference/release-status) for package publication and live configuration.
 
 ```ts
-import { SoranOwner, keypairSigner } from "@sorandomains/owner";
-
+import { SoranOwner } from "@sorandomains/owner";
 const owner = new SoranOwner({
-  signer: keypairSigner(process.env.OWNER_SECRET!), // the namespace owner's key
+  signer: walletSigner,
+  registryId: deployment.registryId,
+  rpcUrl: deployment.rpcUrl,
+  passphrase: deployment.passphrase,
 });
 ```
 
-The default preset targets the public testnet deployment. The namespace's Registrar contract is discovered on chain (`registrar_of`) — you never configure it by hand.
+`walletSigner` implements `publicKey()` and `signTransaction(xdr, options)`. `keypairSigner` is available for securely configured backend scripts. The SDK discovers the namespace Registrar from Registry.
 
-In a browser, pass the wallet instead of a raw key — wallet kits already match the `signTransaction` shape:
-
-```ts
-const owner = new SoranOwner({
-  signer: {
-    publicKey: () => walletAddress,
-    signTransaction: (xdr, opts) => kit.signTransaction(xdr, opts),
-  },
-});
-```
-
-## Issue one name
+## Issue one or a batch
 
 ```ts
-await owner.issue("acme", "alice", "G…ALICE");
-// → { hash, ledger, node } — alice.acme now resolves to G…ALICE
-```
+await owner.issue("acme", "alice", aliceAddress);
 
-The name's term and reclaimability come from the namespace's immutable policy (`await owner.policy("acme")`). The issued name's built-in resolution target starts as the holder, so it resolves through [`@sorandomains/lookup`](/sdk/resolving-names) immediately.
-
-## Issue in bulk
-
-Up to 23 names per transaction (a contract limit), with an exact per-label outcome report:
-
-```ts
 const batch = await owner.issueBatch("acme", [
-  { label: "alice", holder: "G…A" },
-  { label: "bob",   holder: "G…B" },
-  // …
+  { label: "alice", holder: aliceAddress },
+  { label: "bob", holder: bobAddress },
 ]);
-
-for (const o of batch.outcomes) {
-  if (!o.issued) console.warn(`${o.label}: ${o.reason}`); // "taken" | "skipped"
+for (const outcome of batch.outcomes) {
+  if (!outcome.issued) console.warn(outcome.label, outcome.reason);
 }
 ```
 
-Two properties worth knowing:
+A batch contains at most 23 names. The resulting name's initial built-in address is its holder; a native Resolver is needed for the strict memo-aware integration. Future holder instructions can override that address. Issuance applies the namespace policy and generation rules.
 
-- **The `issued` flags come from the transaction's own events.** Each successfully issued name emits an `issued` event; the SDK decodes them from the confirmed transaction (`outcomeSource: "events"`), so which names were issued is exact — no clocks, immune to concurrent activity. The `reason` on non-issued entries is a best-effort classification from informational re-reads. (If an RPC node serves unusable transaction meta, the SDK falls back to state re-reads for everything and says so: `outcomeSource: "reread"`.)
-- **Batches are safe to re-run.** The contract skips already-held labels instead of aborting, so re-submitting a batch after a partial failure issues only what's missing.
+The current contracts add no per-name Soran claim fee. Namespace claim escrow was paid at the namespace level. Stellar transaction and storage fees remain separate, and a namespace owner may run its own commercial issuance service.
 
-## Errors are typed
+## Check batch outcomes
 
-Every contract rejection surfaces as an `OwnerError` with the contract's own error code and name:
+The SDK prefers confirmed transaction events (`outcomeSource: "events"`) for per-label issuance outcomes. If transaction metadata is unusable, it can report an informational state reread (`outcomeSource: "reread"`). Re-read classifications can be affected by concurrent state changes; inspect the source of the result.
 
-```ts
-try {
-  await owner.issue("acme", "alice", "G…");
-} catch (e) {
-  if (e instanceof OwnerError) console.error(e.codeName); // e.g. "NameTaken"
-}
-```
+The contract skips already-held labels in a batch. Still check uncertain transaction hashes before retrying: expired/reissued state and other intervening activity can change the result of a later transaction.
 
-Calls are simulated before signing, so most failures cost nothing. Two protections are worth calling out:
+## Authorization
 
-- **Wrong signer fails fast.** If the operation requires authorization from an address other than your signer, the SDK refuses *before* submission — no fee spent, and the error names both parties.
-- **Failures that reach the network carry `txHash`.** If an error has a `txHash`, check that hash before retrying — the transaction may still have been included.
+Namespace issuance requires the on-chain owner. A hosted console admin/issuer role does not create new contract signing authority. Owner power also does not confer a holder's record-update or transfer authority.
 
-## What else the package does
+Names must be ASCII before SDK lowercase normalization. Malformed labels and Unicode lookalikes are rejected. Simulation detects many contract rejections before signing; `OwnerError` exposes code/name and can carry `txHash` after submission.
 
-Issuance is the start; the same client handles the whole lifecycle — reclaim, renew, treasury routing, namespace transfers, and the one-way permanence door. See [Lifecycle & transfers](/owner/lifecycle-and-transfers).
+Continue with [lifecycle and transfers](/owner/lifecycle-and-transfers).

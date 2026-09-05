@@ -1,85 +1,55 @@
 ---
 title: "Names and namespaces"
-description: "How Soran names are shaped, hashed, and stored on chain — and the two clocks that keep ownership and storage rent from ever being confused."
+description: "Name grammar, contract roles, ownership generations and storage availability."
 ---
 
-Soran names are flat and two-level: a **namespace** (`nova`) and a **name** under it (`alice.nova`). That's the whole grammar — no sub-subdomains, no arbitrary depth. It matches how the names are used: a business owns the namespace, its users hold names under it.
+Soran names have exactly two labels: `alice.nova` consists of the name label `alice` and namespace `nova`. There are no deeper subdomains in this ABI.
 
-## The three layers
+## Contract roles
 
+```mermaid
+flowchart TD
+  Client[Wallet, explorer or app] --> Lookup[Universal Lookup]
+  Lookup --> Registry[Registry: namespace ownership and routing]
+  Lookup --> Registrar[Registrar: holder, generation and expiry]
+  Lookup --> Resolver[Resolver: address, optional memo, text and reverse]
+  Lookup --> Primary[Primary: account display name]
+  Holder[Name holder] --> Resolver
+  Owner[Namespace owner] --> Registrar
 ```
-Registry    immutable, platform-deployed
-  namespace node → { owner, resolver }
-  — plus the one-way facts that certify permanence, and nothing else
 
-Registrar   one per namespace, owned by the namespace owner
-  names, policy, issuance, expiry, transfers
+Universal Lookup stores configuration, not a duplicate names database. Registry, Registrar, Resolver and Primary remain the on-chain sources for their respective state. Writes still target the contract that owns that state.
 
-Resolver    records: address, text, reverse
-```
-
-The Registry knows nothing about individual names, policy, or expiry — it stores who owns each namespace node, where its resolver points, and the handful of one-way facts that certify [permanence](/concepts/ownership-guarantees). Everything with product substance lives in the namespace's own Registrar, which the namespace owner controls (and may replace). That ignorance is deliberate: it's what lets the Registry ship [immutable](/concepts/trust-model).
+A **namespace owner** controls issuance under its namespace policy. A **holder** owns an issued name under that policy. A **recipient** is the effective payment destination. These can be different addresses.
 
 ## Labels
 
-A label (the part before or after the dot) has exactly one on-chain representation:
+Each canonical label is 1–63 bytes of lowercase ASCII letters, digits and interior hyphens. Leading/trailing hyphens, whitespace and non-ASCII input are invalid. A full name is at most 127 bytes.
 
-- 1–63 bytes
-- lowercase ASCII `a-z`, digits `0-9`, and `-`
-- no leading or trailing hyphen
-
-The contract rejects uppercase, whitespace, and any non-ASCII byte outright, so there is no normalization step to disagree about — a label is valid byte-for-byte or it doesn't exist.
-
-<Warning>
-  Punycode labels like `xn--…` are valid under this grammar, and the contract never decodes them. If your wallet renders punycode as Unicode, any lookalike becomes a homoglyph attack. Show `xn--` prefixes raw; treat decoded rendering as an explicit, warned-about user choice.
-</Warning>
+The contracts require canonical lowercase input. The SDK accepts ASCII uppercase and lowercases it **after rejecting non-ASCII**. It does not trim whitespace or normalize Unicode lookalikes. Punycode is stored literally; avoid rendering a decoded lookalike as verified identity.
 
 ## Namehash
 
-On chain, names are keyed by a 32-byte recursive hash, not by strings:
-
-```
-nsNode   = sha256(ZERO32 ‖ sha256(namespace))   // the Registry key
-nameNode = sha256(nsNode ‖ sha256(label))       // the Registrar key
+```text
+namespaceNode = sha256(ZERO32 || sha256(namespace))
+nameNode      = sha256(namespaceNode || sha256(label))
 ```
 
-Hashing keeps every key a fixed 32 bytes and makes a name's node derivable from its parent without any extra on-chain state. The SDK exposes the exact construction — `soran.namehash(ns)` for a namespace, `soran.node(name)` for a full name — so anything you compute locally matches what the contracts compute.
+Labels are canonical bytes. Nodes are 32 raw bytes; a 64-character hex rendering is not interchangeable with those bytes. The SDK's `namehash(namespace)` and `node(name)` return hex representations of the same hashes.
+
+## Generations
+
+Issuance, reissue, reclaim and accepted transfer advance a name's ownership generation. Resolver records from a previous generation cannot become the new holder's records. Read current generation and lifecycle metadata through `name_metadata`; use `resolve_payment` for the complete effective destination.
 
 ## The two clocks
 
-Every name record involves two completely different clocks, and Soran never conflates them:
+| Clock | Meaning |
+| --- | --- |
+| Ownership expiry | `expires_at == 0` means no ownership deadline; otherwise expiry occurs when ledger time is **strictly greater** than `expires_at` |
+| Storage TTL | Stellar's availability/rent clock for ledger entries; archival does not itself transfer ownership |
 
-| Clock | What it is | Who it belongs to |
-| --- | --- | --- |
-| **Ownership** | `expires_at` inside the name record (`0` = never) | Business truth — the holder |
-| **Storage** | The ledger entry's TTL (rent) | Infrastructure — Stellar's state archival |
+At the exact finite expiry timestamp, a name remains active. No expiry alone does not establish [permanence](/concepts/ownership-guarantees).
 
-Stellar archives ledger entries whose rent lapses. If availability were derived from "is the entry present," a lapsed entry would look unowned — and someone else could register a name that's still yours. That's the name-theft bug, and Soran's contracts are built so it can't happen: **availability and resolution are decided only by `expires_at`, never by whether the entry is currently live in storage.**
+Archived data may require a funded restoration transaction before a simulation can answer. Read-only resolution does not guarantee automatic restoration. Treat restore requirements and unavailable data as failures to obtain a current answer, never as proof that a name is unowned or memo-free. Keepers can extend relevant contract and record TTLs without changing ownership.
 
-### Live and cold names
-
-- **● Live** — the ledger entry is paid up and resolves normally.
-- **◇ Cold** — the entry's storage TTL lapsed and it was archived. The name is **still owned**; ownership didn't change, only its storage state.
-
-A cold name wakes on use: any transaction that reads it restores the entry first, and only then evaluates `expires_at`. Two permissionless keeper calls let anyone pay to keep entries warm — `touch(label)` bumps one name's storage TTL without touching ownership, and `keep_alive()` bumps the Registrar itself (if the Registrar's own entry goes cold, every name under it stops resolving until restored, so anyone may fund it).
-
-<Note>
-  When a name genuinely expires — its `expires_at` passes under a timed policy — that's the ownership clock, not the storage clock. See [ownership guarantees](/concepts/ownership-guarantees) for what each policy allows.
-</Note>
-
-## What this means for integrators
-
-- Resolve by name; the SDK hashes for you. Compare nodes, not strings, if you cache.
-- Never infer availability or expiry from an RPC "entry not found" — a cold entry is not an unowned name. The SDK's `isAvailable()` and `resolve()` already handle this correctly.
-- If you operate a namespace, budget for storage rent or run a keeper that calls `touch` — or let names go cold and wake on use, which is safe by construction.
-
-## Next
-
-<CardGroup cols={2}>
-  <Card title="Ownership guarantees" href="/concepts/ownership-guarantees" icon="shield-check">
-    Permanent, reclaimable, timed — and how permanence is proven.
-  </Card>
-  <Card title="Claiming a namespace" href="/concepts/claiming-a-namespace" icon="flag">
-    The public window: announce, objections, execution.
-  </Card>
-</CardGroup>
+Hosted dormancy labels are separate from verified on-chain archival. An indexed last-known value can support a history display; it cannot replace current payment instructions.

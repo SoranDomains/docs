@@ -1,79 +1,48 @@
 ---
-title: "Identity & enumeration"
-description: "Wallet holdings, all reverse names, standard profiles, and one-call identity aggregates — with the trust boundary of every field spelled out."
+title: "Identity and discovery"
+description: "Read profiles and verified holdings pages with explicit continuation and coverage."
 ---
 
-Resolution answers "where does this name pay". Identity answers the rest: *what names does this wallet hold, who is behind this name, what have they published about themselves*. `@sorandomains/lookup` (0.4.x) adds that layer — and because some of it can't be answered from chain state alone, every method below tells you exactly which trust bucket it draws from:
+Identity views combine on-chain metadata with optional indexed discovery. Keep their sources visible.
 
-- **Chain-verified** — read from the contracts; can't be forged by anyone, including Soran.
-- **Hint-discovered, chain-verified** — a hosted indexer *suggests* candidates, the SDK verifies each one on chain. The hint can omit; it can never forge.
-- **Indexed** — served by the indexer, marked as informational. Used only where the chain stores nothing (timestamps, history).
-
-## Every name a wallet holds
+## Holdings pages
 
 ```ts
-const soran = new Soran({ hintUrl: "https://your-deployment-api" });
-const held = await soran.namesOf("G…WALLET");
-// → [{ name: "alice.nova", namespace, label, node, holder, expiresAt }, …]
+const page = await soran.namesOfPage(address, { limit: 40 });
+console.log(page.names);
+console.log(page.coverage, page.verification);
+if (page.hasMore) {
+  const next = await soran.namesOfPage(address, { cursor: page.nextCursor!, limit: 40 });
+}
 ```
 
-**Hint-discovered, chain-verified.** Contract storage is keyed by hash and not enumerable, so discovery needs an index — but every candidate is verified with the Registrar's `holder_of_node`, which the *contract* expiry-gates. A hostile or buggy hint can hide a name from the list; it cannot put a name into your wallet. Without `hintUrl` the method throws a `CONFIG` error explaining this. Up to 40 candidates are verified per call; treat a 40-name result as possibly partial.
+`hintUrl` supplies candidate names. The SDK verifies each candidate's current holder and activity through Universal Lookup in universal mode. Each page checks at most 100 candidates with bounded concurrency. A failed check is counted separately from a proven stale or nonheld candidate.
 
-## All reverse names, not just one
+| Field | Meaning |
+| --- | --- |
+| `nextCursor`, `hasMore` | How to continue candidate discovery |
+| `verification` | Counts of candidates, verified names, exclusions and failed checks |
+| `coverage` | Indexer's processed/head ledgers and known gaps, or `null` |
+| `complete` | Final page, indexer reports complete coverage, and no candidate verification failures |
 
-`reverseLookup` answers with one display name. `reverseNames` returns every contract-verified reverse claim, with the cross-namespace primary flagged:
+Coverage is the indexer's report, not proof against omission. `namesOf(address)` is a compatibility aggregate of up to 1,000 candidates and throws `INCOMPLETE` for partial results. `walletProfile.names` is its first verified page; continue using `walletProfile.holdings` instead of assuming it contains every name.
 
-```ts
-await soran.reverseNames("G…WALLET", ["nova", "acme"]);
-// → [{ name: "alice.nova", namespace: "nova", primary: true }, …]
-```
+## Profiles
 
-**Chain-verified.** Same candidate sources and fail-closed probe semantics as `reverseLookup`; the primary is included even when its namespace wasn't probed.
-
-## Standard profiles
-
-Text records are free-form — so the SDK standardizes *which keys everyone looks for*:
+`profile(name)` reads these standard text keys through Lookup:
 
 ```ts
 import { PROFILE_KEYS } from "@sorandomains/lookup";
-// ["org", "url", "email", "description", "avatar", "location", "twitter", "github"]
-
-await soran.profile("alice.nova");
-// → { org: "Acme Inc", url: "https://acme.com", … } — only the keys actually set
+// org, url, email, description, avatar, location, twitter, github
+const profile = await soran.profile("alice.nova");
 ```
 
-**Chain-verified** — each key is a generation-gated resolver read, so records from a previous holder never surface. Two things to hold onto:
+Values are current-generation holder-authored text, not verified real-world claims. Escape them and validate URL schemes before linking. Arbitrary text uses `text(name,key)`; keys are not globally enumerable. Lookup keys are nonempty Soroban Symbols up to 32 bytes and returned text is bounded to 4,096 UTF-8 bytes. Oversized historical text errors rather than being truncated.
 
-- **Values are holder-authored free text.** The chain proves *who published them*, not that they're true. Escape them, and don't auto-link without scheme checks.
-- **Publishing:** the holder signs `set_text` on the namespace's resolver with these keys — one call with [`@sorandomains/holder`'s `setProfile`](/holder/managing-your-name), or any Soroban client. Use the standard keys and every Soran-aware wallet can render the profile.
+## Aggregates and history
 
-Arbitrary keys beyond the standard set remain readable with `text(name, key)` but are not enumerable on chain — that's a contract-storage property, not an SDK gap.
+`identity(name)` combines details, profile and optional display-name enrichments. Details and profile fail closed; the holder/recipient/namespace-owner display-name enrichments can degrade to `null`. `walletProfile(address)` combines Primary, scoped reverse candidates, a holdings page and profile.
 
-## One-call aggregates
+These aggregates perform several reads. They are not one atomic ledger snapshot. `details` checks for inconsistent generation/routing across its reads, but application code must still treat results as point-in-time data.
 
-```ts
-const idn = await soran.identity("alice.nova");
-// details + profile + holderPrimary + addressDisplayName + namespaceOwnerPrimary
-
-const wp = await soran.walletProfile("G…WALLET");
-// primary + reverseNames + names (chain-verified) + the primary's profile
-```
-
-`identity()` renders a name's page: the [`details()`](/sdk/reference) aggregate, the holder's published profile, and three enrichments — the holder's primary name, the pay-to address's verified display name, and **the namespace owner's primary name** (who runs this namespace, as a name instead of a G-address). Core fields are fail-closed; the three enrichments degrade to `null` on transient failure rather than blanking the page.
-
-`walletProfile()` renders an address's page. It works with only `primaryId` configured (you get the primary + its profile); reverse probing and holdings enumeration light up as you configure sources. Expect roughly twenty simulations per aggregate call — cache briefly.
-
-## Registration dates and history
-
-The contracts store no timestamps — that's deliberate (consensus state stays minimal). `history()` answers from the deployment's indexer and says so:
-
-```ts
-await soran.history("alice.nova");
-// → { issuedAt, issuedLedger, events: [{ action: "issued", ledger, txHash, at }] }
-```
-
-**Indexed — informational, not consensus.** Every entry carries its `ledger` and `txHash`, so anything that matters can be verified independently against the chain. Requires `hintUrl`; outages throw rather than pretending a name has no history.
-
-## Running your own hint server
-
-`hintUrl` doesn't have to point at Soran's hosted API. Because the hint role is low-stakes by design — the SDK verifies every candidate on chain, so a hint can omit but never forge — a namespace owner can run their own discovery source with no database and no auth: [`examples/hint-server`](https://github.com/SoranDomains/sdk/tree/main/examples/hint-server) in the SDK repo is a complete implementation in one file. It follows your Registrar's chain events, persists a JSON index, serves the endpoints above for your namespace, and bootstraps names older than your RPC's event-retention window from a simple `seed.json`. Prefer serverless? The [Cloudflare Worker edition](https://github.com/SoranDomains/sdk/tree/main/examples/hint-server-cloudflare) is the same server with **zero dependencies** — Cron Trigger for indexing, KV for state, and Soroban RPC's JSON mode instead of an XDR library.
+`history(name)` is a bounded indexed timeline with transaction and ledger references. Contract state has expiry timestamps, but it does not store a complete registration history. Chain-event timestamps are distinct from indexer ingestion time, and legacy issuance metadata can be unknown. Use the HTTP [history and events cursors](/api/events) for durable pagination rather than assuming a bounded SDK history result is exhaustive.

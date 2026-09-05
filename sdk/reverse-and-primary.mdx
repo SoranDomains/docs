@@ -1,86 +1,37 @@
 ---
-title: "Reverse lookup and primary names"
-description: "Show names instead of addresses — with every answer verified by the contracts, never by a hint service."
+title: "Reverse and Primary names"
+description: "Verify account display names through Universal Lookup without confusing customers and shared accounts."
 ---
 
-Reverse resolution turns an address back into a name, so your history view can read `alice.nova` instead of `GDHNO4WK…`. On Soran, every reverse answer is **contract-verified and unspoofable** — here's why, and how to use it.
+A forward lookup starts with a name. A reverse lookup starts with an address and asks for a currently verified display name.
 
-## Why reverse answers can't be spoofed
-
-Reverse records store the **plaintext name** on chain, on each namespace's resolver. The resolver's `name_of(address)` answers with that name only while two gates both pass, enforced by the contract on every read:
-
-1. **The name is live** — its ownership generation matches (not expired, not reissued, not transferred).
-2. **The forward record matches** — `resolve(name)` still points back at the address.
-
-So a non-null reverse answer is self-contained proof: the address really does own a live name that resolves back to it. A stale or spoofed record returns `null` from the contract itself. There is no hint service, indexer, or SDK heuristic in the trust path, and no client-side re-check needed.
-
-## reverseLookup
+Universal Lookup exposes both namespace-scoped `reverse(namespace,address)` and cross-namespace `primary_name(address)`. SDK methods route through those calls in universal mode.
 
 ```ts
-const name = await soran.reverseLookup(senderAddress);
-// "alice.nova" | null
+const scoped = await soran.reverse("nova", address);
+const primary = await soran.primaryOf(address);
+const preferred = await soran.reverseLookup(address, ["nova", "acme"]);
+const candidates = await soran.reverseNames(address, ["nova", "acme"]);
 ```
 
-`reverseLookup(address, namespaces?)` answers in two steps:
+## How verification works
 
-<Steps>
-  <Step title="PrimaryName first (when configured)">
-    When `primaryId` is set (the testnet preset ships one), the SDK asks the PrimaryName contract first. A non-null primary wins outright — it is the address's declared cross-namespace display name, and it is already contract-verified (see below).
-  </Step>
-  <Step title="Per-namespace reverse records">
-    With no primary, the SDK probes candidate namespaces' resolvers for `name_of(address)` — in parallel, with deterministic priority: the first non-null answer *in your configured order* wins.
-  </Step>
-</Steps>
+A returned name must be canonical, active, in the expected namespace and forward-resolve to the requested address with current generation and routing. A required memo is allowed in this account identity proof. It remains part of the separate payment instruction.
 
-Candidate namespaces for step 2 are scoped, in priority order:
+**Primary and reverse identify an account.** They do not identify an individual customer or subaccount behind a pooled exchange address. A customer's name and memo should not be presented as the identity of everyone using that address.
 
-1. The per-call `namespaces` param — an explicit list wins outright, and `[]` deliberately disables the namespace probes (the primary step still runs).
-2. The `reverseNamespaces` constructor option.
-3. A namespace **list** fetched from `hintUrl`, if set — liveness only. The hint never carries answers, just which namespaces to ask; a lying or offline hint can hide a name (→ `null`), never forge one. Hinted lists are validated and capped client-side.
+A Primary record is elected by its address. Holders cannot elect a primary for a destination they do not control merely because they own a name that points there.
 
-With none of the three, `reverseLookup` returns `null`.
+## Discovery scope
 
-### Failure semantics
+`reverseLookup` tries Primary first, then ordered namespace candidates. Candidates can come from its argument, `reverseNamespaces`, or a configured indexer hint. `reverseNames` checks those candidates and includes a verified Primary when available. Neither method enumerates every namespace on chain.
 
-Namespace-probe failures are fail-closed: a chain-read error **throws** a `SoranError` rather than reporting "no reverse record". The one deliberate exception: if the *primary* read itself fails, the lookup silently falls through to the namespace probes — the optional primary layer must not break the baseline flow that predates it. If you need to distinguish "no primary" from "primary unreadable", call `primaryOf` directly.
+The old HTTP `/v1/reverse/:address` route is a **holder hint**, not the source of these verified reverse answers. Holdings and reverse records answer different questions.
 
-## reverseVerify — checking a candidate
+## Absence and failures
 
-When you already have a claimed name for an address (from a payment memo, a directory, user input), verify it in one call:
+A successful `primaryOf` returning `null` means there is no currently verified election returned by Primary. The existing Primary ABI may hide failed dependent proof reads behind `None`, so even this direct method cannot distinguish every absence from every internal failure. Resolver reverse has a similar limitation. A nonempty answer is independently forward-checked.
 
-```ts
-const ok = await soran.reverseVerify("GDHN…", "alice.nova"); // boolean
-```
+Lookup-level errors, including missing Primary configuration, still throw. `reverseLookup` and `reverseNames` can recover from a Primary failure by probing namespace candidates; failed namespace probes are not fabricated empty results.
 
-This reads the contract-verified plaintext from the namespace's resolver and string-compares it — the generation and forward-match gates already ran on chain. This is the call a wallet shows a checkmark on. Malformed addresses or a namespace without a public resolver return `false`; malformed names throw `SoranError`.
-
-## primaryOf — the cross-namespace display name
-
-An address may declare **one** primary name on the platform-deployed, immutable PrimaryName contract — a single display name across namespaces (a user holding `alice.nova` and `alice.stellar` picks one to show everywhere).
-
-```ts
-const name = await soran.primaryOf("GDHN…"); // "alice.nova" | null
-```
-
-The primary adds no new trust: it is only a pointer to a name, and the contract **re-runs the namespace resolver's own `name_of` gates on every read**, answering `null` the moment the stored name stops verifying. The answer arrives pre-verified; no client-side re-check exists or is needed.
-
-`primaryOf` is strictly fail-closed: a transport or ABI failure **throws** `SoranError` and never masquerades as "no primary". It returns `null` only for a genuine no-primary answer, an unconfigured `primaryId`, or a malformed address.
-
-<Note>
-  Setting or clearing a primary (`set_primary` / `clear_primary`) — like writing reverse records — is an address-authorized transaction built and signed by the user's wallet. The SDK only reads.
-</Note>
-
-## Cost and caching for list rendering
-
-Each `primary_of` read performs two cross-contract calls in simulation. When rendering a list of addresses (history, contacts), apply brief client-side caching — seconds, the same discipline as `resolverCacheTtlMs`. Correctness never depends on the cache: the contract re-verifies on every read, so staleness can only delay noticing a change, never produce a wrong name.
-
-## Next
-
-<CardGroup cols={2}>
-  <Card title="Assurance" href="/sdk/assurance" icon="shield-check">
-    Verify a resolution can't be changed underneath you.
-  </Card>
-  <Card title="SDK reference" href="/sdk/reference" icon="book">
-    Every method, typed.
-  </Card>
-</CardGroup>
+`primaryId: null` disables Primary. A custom Primary must match the Registry anchor, and in universal mode an explicitly supplied ID must match Lookup's configured Primary. Use the [Holder SDK](/holder/managing-your-name) for address-authorized reverse and Primary writes.

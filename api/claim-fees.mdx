@@ -1,0 +1,75 @@
+---
+title: "Namespace claim fee API"
+description: "Read the on-chain fee policy, settlement receipt and recoverable credit before signing."
+---
+
+Namespace claims pay upfront into the Allocator. The fee applies to the namespace, not names issued beneath it. Read [claim outcomes](/concepts/claiming-a-namespace) and [release status](/reference/release-status) for policy and deployment state.
+
+## Quote
+
+```http
+GET /v1/claim-fee
+```
+
+The no-store quote reads the Allocator's `claim_fee_policy` and verifies native XLM for this testnet integration. It returns:
+
+| Field | Meaning |
+| --- | --- |
+| `allocatorId`, `token` | Exact Allocator and native asset contract IDs |
+| `amount` | Integer token base units as a decimal string |
+| `recipient` | Configured fee/retained-portion destination |
+| `decimals`, `asset` | `7`, `"XLM"` |
+| `network` | Exact Stellar network passphrase |
+| `refundBps` | Awarded 0; Rejected/Stuck 10,000; Withdrawn/Expired 8,000 |
+| `rounding` | `"floor"` |
+
+One XLM equals 10,000,000 base units. A quote is not a payment request from an arbitrary server: the signing client independently rechecks the on-chain policy and exact authorization. A changed or unconfigured policy must fail.
+
+## Prepare a paid announcement
+
+The authenticated tenant claim flow uses:
+
+```http
+POST /console/register/announce/prepare
+Content-Type: application/json
+
+{
+  "label": "yourbrand",
+  "basis": "your public claim evidence",
+  "expectedFee": {
+    "allocatorId": "C...verified-allocator...",
+    "token": "C...native-XLM-contract...",
+    "amount": "50000000000",
+    "recipient": "G...verified-fee-recipient...",
+    "network": "Test SDF Network ; September 2015"
+  }
+}
+```
+
+Use the exact reviewed quote values and a valid wallet session; abbreviated addresses above illustrate fields only. The response contains `ok`, unsigned `xdr`, `claimant`, `fee` and `network`. Missing `expectedFee` returns `400 claim_fee_quote_required`; a changed quote returns `409 claim_fee_changed`.
+
+This requirement is a breaking change for older announcement clients. The signing client must independently read the on-chain policy and verify the exact Allocator, claimant, label/evidence, native-token transfer and network-fee ceiling. Accepting the HTTP server's quote alone is insufficient. The existing announce contract arguments remain unchanged; the token authorization now includes escrow collection.
+
+## Receipt
+
+```http
+GET /v1/claim-fee/{label}
+```
+
+Returns `label`, current `policy`, and nullable `receipt`. A receipt has `claimant`, `amount`, `outcome`, `refundAmount` and `treasuryAmount`. Outcomes are `Held`, `Awarded`, `Rejected`, `Withdrawn`, `Expired`, `Stuck`. Amounts are decimal strings.
+
+The current receipt can be replaced when a new claim begins for the label. Use archived fee events for earlier claim epochs. Settlement amounts are entitlements and do not prove all transfers were delivered.
+
+## Recover an undelivered payout
+
+```http
+GET /v1/claim-fee/credit/{address}
+POST /v1/claim-fee/credit/{address}/prepare
+Content-Type: application/json
+
+{ "source": "G...funded-transaction-source..." }
+```
+
+The read returns the payee, available base-unit amount and policy. The prepare route returns an unsigned transaction for `claim_fee_credit(address)`. Inspect and sign it through your wallet, preserving a network-fee ceiling. It never redirects credit to the transaction source: payout always goes to the recorded payee. A zero credit returns `409 no_credit` when preparing recovery.
+
+The contract also exposes `fee_credit`, `claim_fee_credit` and `touch_fee_credit` directly. Reserved direct Registry claims are exempt and do not create paid Allocator receipts. Objection bond credits are separate from these claim-fee credits.

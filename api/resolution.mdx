@@ -1,144 +1,79 @@
 ---
-title: "Resolution endpoints"
-description: "Resolve a name to an address, read the full name record and resolver records, and reverse-lookup an address — one GET each, no key."
+title: "Payment, records and holdings"
+description: "Current payment tuples, explicit memo errors and paginated ownership discovery."
 ---
 
-## Resolve a name
+These routes describe the fresh implementation. [Release status](/reference/release-status) distinguishes it from older live deployments.
+
+## Complete payment
+
+```http
+GET /v1/payment/{namespace}/{label}
+```
+
+Returns exactly the current payment pair:
+
+```json
+{
+  "address": "G...",
+  "memo": { "type": "id", "value": "123456" }
+}
+```
+
+The abbreviated address illustrates the shape; it is not a valid test destination. A memo-free result is `{ "type": "none" }`. Use the exact memo type/value when building the payment. This no-store read uses Universal Lookup when configured and never substitutes indexed data on failure.
+
+## Address-only convenience
 
 ```http
 GET /v1/resolve/{namespace}/{label}
 ```
 
-The "one GET, no key" endpoint: resolves `label.namespace` from the read mirror.
+`account` is the **effective memo-free destination**, not the name's holder. Required memos return `409 memo_required` rather than a destination with its memo removed. Unknown legacy payment capability and unsupported implementations also fail.
 
-```json
-{
-  "name": "alice.nova",
-  "account": "GDHNO4WK…",
-  "ownership": "permanent",
-  "storage": "live",
-  "expires_at": null,
-  "ledger": 55123001
-}
-```
+The result includes `name`, `account`, and optional indexed display fields `ownership`, `expires_at` and issuance `ledger`. These extra fields may be `null`; issuance ledger is not the observed chain head. `storage: "live"` accompanies a successful current read, not a promise of future storage availability.
 
-- `account` — the name's **holder** account. For namespaces with resolver records, the on-chain pay-to address can be set separately and may differ from the holder — use [`/v1/records`](#resolver-records) or the SDK's `resolve()` for the pay-to answer, and `verify` before paying.
-- `ownership` — the name's [ownership guarantee](/concepts/ownership-guarantees).
-- `expires_at` — expiry for time-bound names, `null` otherwise. A timed name past its expiry returns `404` with `error: "name_expired"` rather than a stale holder.
-- `ledger` — the ledger the name was issued in.
-
-An unknown name returns `404` with `{ "error": "name_not_found", "name": "…" }`.
-
-<Warning>
-  For payments, verify before you send. The mirror is fast, not authoritative — use the [SDK's `verify`](/quickstart) (a read-only contract simulation) to confirm the name still resolves to the same address at confirm time.
-</Warning>
-
-## Full name record
-
-```http
-GET /v1/names/{namespace}/{label}
-```
-
-The complete record behind a name profile page:
-
-```json
-{
-  "name": "alice.nova",
-  "namespace": "nova",
-  "holder": "GDHNO4WK…",
-  "ownership": "permanent",
-  "expiresAt": null,
-  "storage": "live",
-  "resolutions": 1042,
-  "issuedLedger": 55098773,
-  "issuedAt": "2026-08-01T12:04:55.000Z",
-  "txHash": "b1946ac9…",
-  "operator": "GBLNS4…",
-  "operatorName": "Nova Wallet"
-}
-```
-
-The `404` body distinguishes the two miss cases: `error` is `"name_not_issued"` when the namespace exists but the name doesn't, and `"namespace_not_found"` when the namespace itself is unknown.
-
-## Resolver records
+## Current records
 
 ```http
 GET /v1/records/{namespace}/{label}
 ```
 
-For namespaces that enable the on-chain Resolver, this reads the name's record set **live from the contracts** (not the mirror): the pay-to address, text records, and two reverse flags.
+Returns `name`, `node`, `holder`, `address`, complete `payment`, decimal-string `generation` when available, selected `text` fields (`avatar`, `url`), `displayName`, `primaryName` and `primaryStatus`.
 
-```json
-{
-  "name": "alice.nova",
-  "node": "9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658",
-  "address": "GDHNO4WK…",
-  "text": { "avatar": "https://…", "url": "https://…" },
-  "displayName": true,
-  "primaryName": false
-}
+`holder` is distinct from `address`. `displayName` is the checked scoped reverse comparison. A Primary read error sets `primaryName: null` and records the status instead of inventing a false election result. A successful Primary `None` retains the underlying proof limitation described in [reverse and Primary](/sdk/reverse-and-primary).
+
+Payment, metadata, text and reverse reads must succeed; separate reads are not a single atomic snapshot. Errors use `400` for bad input, `404` for recognized absent/inactive context, `409` for incompatible or memo-related conditions and `503` for unavailable/invalid dependent reads. Do not turn any error into a no-memo destination.
+
+## Indexed name record
+
+```http
+GET /v1/names/{namespace}/{label}
 ```
 
-- `node` — the name's namehash (hex), the key used across the contracts.
-- `address` — the resolver's pay-to address, or `null` if unset.
-- `displayName` — whether this name is the pay-to address's on-chain display name in this namespace's resolver (contract-verified). `null` means there's no pay-to address yet or the read failed — never a false negative.
-- `primaryName` — whether this name is the address's cross-namespace primary name. Same `null` semantics.
+This profile-oriented route returns indexed name/lifecycle fields and namespace operator metadata. It is not a current payment proof. Issuance timestamps/ledgers can be null for incomplete legacy history. New projection fields track generation, built-in address, current issuance and lifecycle source; expiry and ownership still require current chain verification for authoritative decisions.
 
-Errors: `404` (`name_not_found` / `namespace_not_found`), `409` with `error: "no_resolver"` when the namespace hasn't enabled records, and `502` with `error: "node_lookup_failed"` on a failed contract read.
-
-## Reverse lookup (untrusted hint)
+## Holder hint versus verified Primary
 
 ```http
 GET /v1/reverse/{address}
+GET /v1/primary/{address}
 ```
 
-Returns one candidate name whose holder is `address`:
+The first returns one indexed holder candidate with `source: "holder_hint"`, `verified: false` and coverage. It is not a reverse proof and is not the source of the SDK's contract-verified reverse answer.
 
-```json
-{ "name": "alice.nova" }
-```
+The second reads the current configured Primary route. Its `source` is `chain_primary`; a nonempty name has a verified current account election. A null name means no current verified election returned, and may include the underlying Primary's inability to complete a proof.
 
-`404` with `{ "error": "no_name" }` when the address holds no name.
-
-<Warning>
-  This is a **hint, not a proof**. The SDK's `reverseLookup` calls this endpoint and then re-verifies the answer on chain before returning it. If you show reverse-resolved names in a UI directly from this endpoint, an out-of-date mirror could show a stale name — resolve the returned name forward and check the holder matches before trusting it.
-</Warning>
-
-For every name an address holds across all namespaces, use the [directory](/api/directory) instead.
-
-## Names by holder (untrusted hint)
+## Holdings pages
 
 ```http
-GET /v1/names/by-holder/{address}
+GET /v1/names/by-holder/{address}?limit=100
+GET /v1/names/by-holder/{address}?cursor={opaque-cursor}&limit=100
 ```
 
-Every indexed name a wallet holds, newest first, capped at 100:
+Accepts valid G or C addresses. Names are ordered by immutable name ID ascending. Limit is 1–100, default 100. Results include `holder`, `names`, `nextCursor`, `hasMore`, `truncated` and `coverage`.
 
-```json
-{
-  "holder": "G…",
-  "names": [{ "name": "alice.nova", "namespace": "nova", "holder": "G…", "issuedAt": "…", "issuedLedger": 4273379 }],
-  "truncated": false
-}
-```
+These are indexed candidates. Verify current holder and activity through on-chain metadata or use SDK `namesOfPage`. A final page alone does not prove complete history or eliminate failed candidate checks.
 
-`400` with `{ "error": "bad_address" }` for a malformed address. Same trust rule as the reverse hint: this is **discovery, not proof** — the SDK's `namesOf` verifies every candidate on chain (`holder_of_node`) before returning it, and your integration should too.
+## Name history
 
-## Name history (indexed)
-
-```http
-GET /v1/names/{namespace}/{label}/history
-```
-
-The name's lifecycle timeline — `issued`, `transferred`, `reclaimed` — projected from chain events, newest first, capped at 100:
-
-```json
-{
-  "name": "alice.nova",
-  "issuedAt": "2026-08-22T09:08:16Z",
-  "issuedLedger": 4273379,
-  "events": [{ "action": "issued", "ledger": 4273379, "txHash": "bc1a…", "at": "…" }]
-}
-```
-
-`404` (`name_not_found`) for unknown names. **Informational, not consensus**: the chain stores no timestamps, so this is the indexer's projection — every entry carries its `ledger` and `txHash` so you can verify independently.
+`GET /v1/names/{namespace}/{label}/history?limit=100` provides a descending cursor-paginated timeline, transaction/event IDs, chain time, separate ingestion time and coverage. Continue with its scoped `cursor`. See [events and coverage](/api/events).

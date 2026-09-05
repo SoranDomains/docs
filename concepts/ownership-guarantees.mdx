@@ -1,74 +1,42 @@
 ---
 title: "Ownership guarantees"
-description: "Every Soran name declares what can happen to it — permanent, reclaimable, or timed — and the contract enforces the declaration. Here's each model, the glyph language, and how permanence is proven on chain."
+description: "Distinguish no expiry, reclaimability, permanence and mutable payment records."
 ---
 
-A name that can be taken back has different trust properties than one that can't. Soran doesn't paper over that difference — it publishes it. Every namespace's policy is set at creation, disclosed on chain, and readable by any resolving wallet. There is no way to issue names under one promise and quietly change it later.
+A namespace's on-chain policy describes reclaimability, transfers, trading and default term. Read both policy and provenance before displaying an ownership guarantee.
 
-## The three models
+| State | Meaning |
+| --- | --- |
+| Reclaimable | The namespace owner can reclaim names under the contract policy |
+| Finite-term | A name expires when ledger time is strictly greater than its nonzero `expires_at` |
+| No expiry | `expires_at == 0`; this alone does not freeze code or routing |
+| Permanent | The namespace completed the Registry-verified permanence lock with eligible Registrar and Resolver provenance |
 
-| Glyph | Model | What the contract enforces |
-| --- | --- | --- |
-| ● | **Permanent** | No one — not the issuer, not Soran — can reclaim or expire the name |
-| ◔ | **Reclaimable** | The issuer may take the name back, and says so up front, on chain |
-| ◐ | **Timed** | Ownership until a visible `expires_at`; renewable by the issuer, never a surprise |
-
-The glyphs are Soran's shorthand and appear across the console, lookup pages, and status surfaces. A fourth glyph, **◇ cold**, is not an ownership state at all — it marks a name whose *storage* entry has been archived while ownership is unaffected. See [the two clocks](/concepts/names-and-namespaces#the-two-clocks).
-
-<Note>
-  Which model a name carries is the namespace's policy, chosen by its operator. A wallet issuing free usernames typically issues permanent names; a staff directory issues reclaimable ones; a registrar-style paid namespace issues timed ones. As an integrator you don't choose — you read and display.
-</Note>
-
-## Reclaimable, honestly
-
-Reclaimable is a legitimate model — a company issuing `bola.acme` to an employee should be able to reclaim it when they leave. What Soran refuses is *undisclosed* reclaimability. The `reclaimable` flag lives in the namespace's on-chain policy, so a receiving wallet can render "reclaimable by issuer" next to the name before anyone saves it as a payment contact.
-
-Two hard rules follow:
-
-- **No downgrade after issuance.** A namespace cannot issue names as permanent and later flip to reclaimable. Policy is fixed at construction; the only post-hoc change is the one-way door below.
-- **Platform revocation does not exist.** Only the issuer, only if policy says so. Soran has no code path to revoke any name or namespace — see the [trust model](/concepts/trust-model).
-
-## Timed names
-
-Under a timed policy every name carries `expires_at`, visible to anyone who resolves it. The issuer renews to extend it — renewal is a namespace-owner action on chain, typically triggered by the holder's payment through the issuer's flow. Availability is derived solely from `expires_at`, so an expired name becomes reissuable exactly when the timestamp says and not before. A sale or transfer of a timed name conveys "until the date shown" — nothing more.
+These properties are not always mutually exclusive before permanence: for example, a reclaimable namespace can issue names without an expiry date. Do not turn `expires_at == 0` into a permanent badge.
 
 ## `make_permanent`: the one-way door
 
-A namespace operator can upgrade their guarantee — once, irreversibly:
+An eligible namespace owner can irreversibly make the namespace permanent. The contract transition disables reclaimability, freezes the relevant Registrar/Resolver implementation paths and locks the Registry's Resolver pointer atomically. A failed eligibility check leaves the state unchanged.
 
-```
-make_permanent()
-  → reclaimable is forced off, forever
-  → the Registrar's code can never be upgraded again
-  → the Registry locks the namespace's resolver pointer, permanently
-```
+Eligibility depends on the Registry's originally pinned code and deployment attestations, neither contract having been tainted by an upgrade, correct current wiring, and a zero default term. A finite-term policy is not made permanent by hiding its expiry. Restoring an original Wasm after an upgrade does not erase taint.
 
-There is no path back and no support process that can undo it. And it's guarded so the promise can't be counterfeit:
+Before the lock, eligible owner-governed contracts can still be upgraded. A policy advertised by changeable code is not the same guarantee as a completed permanent lock.
 
-1. **Only always-permanent policies qualify.** A namespace whose policy ever issued finite terms is refused — its existing names would still lapse and become reissuable, so calling it "permanent" would be a lie the contract declines to tell.
-2. **Only clean, audited code qualifies.** The immutable Registry pins the audited Registrar and Resolver Wasm hashes at construction. It attests which Registrar it deployed for the namespace and records — irreversibly — whether that code was ever upgraded. An upgraded contract can't regain eligibility by restoring the original code: the taint records history, not current state.
-3. **The lock is atomic.** `make_permanent` and the Registry's resolver lock happen in one transaction; if any check fails, nothing changes.
-
-After the door closes, the namespace's Registrar code, Resolver code, and resolver pointer are all frozen — the same way the Registry itself is frozen.
-
-## Verifying permanence yourself
-
-Permanence is a claim anyone can check, without trusting Soran's servers. The SDK bundles the reads:
+## Verify the full namespace state
 
 ```ts
-const a = await soran.assurance("alice.nova");
-// {
-//   resolverAttested: true,   // live resolver === the Registry-attested one
-//   resolverTainted:  false,  // attested resolver never upgraded
-//   resolverLocked:   true,   // pointer permanently locked (make_permanent ran)
-//   trustworthy:      true,   // locked ∧ attested ∧ untainted
-// }
+const namespace = await soran.namespaceMetadata("nova");
+if (namespace?.permanent) {
+  // The Lookup checked current lock, attestation, authority, taints and policy.
+}
+const name = await soran.nameMetadata("alice.nova");
+// Inspect name?.active, name?.noExpiry and name?.namespacePermanent separately.
 ```
 
-`trustworthy: true` means the namespace's resolution path is immutable: audited code, clean provenance, locked pointer. For high-value flows — large payments, purchases on the [marketplace](/platform/marketplace) — check it before trusting a resolution. Underneath, these are four plain Registry reads (`resolver_locked`, `resolver_tainted`, `resolver_of`, `attested_resolver_of`) you can reproduce against any RPC.
+The narrower [`assurance()`](/sdk/assurance) result concerns Resolver provenance. It does not certify every part of ownership or the Universal Lookup implementation itself.
 
-## Display guidance
+## What permanence does not freeze
 
-- Show the glyph and model wherever a name gates a decision: send confirmations, contact lists, purchase screens.
-- Treat ◔ reclaimable as "the issuer controls this identity" — fine for a username, wrong for a long-lived payment contact.
-- For ◐ timed names, show the date. "Until 2027-03-01" is honest; a bare checkmark isn't.
+Holders can still update their own addresses, memos and profile records. Permitted holder transfers remain possible. A permanent Resolver's code and pointer being fixed does not make its answers immutable.
+
+Storage TTL still requires upkeep or restoration. Universal Lookup remains governed independently and can be upgraded without a mandatory delay. Integrators must assess that [governance boundary](/concepts/governance), the current code and the RPC they use.
