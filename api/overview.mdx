@@ -5,14 +5,14 @@ description: "Distinguish strict chain-backed payment reads from indexed discove
 
 The HTTP API combines strict current contract reads with indexed discovery, history and hosted services. The source of truth remains the chain; an HTTP response still requires trusting the serving API and its RPC.
 
-The public testnet API is `https://api.soran.domains`; `https://resolve.soran.domains` is a resolution alias. It serves the replacement contracts in [release status](/reference/release-status), verified on 5 September 2026. Match the API to the contracts and network you integrate.
+The public testnet API is `https://api.soran.domains`; `https://resolve.soran.domains` is a resolution alias. Its deployment cutover is verified separately in [release status](/reference/release-status). Match the API to the contracts and network you integrate.
 
 ## Choose the right source
 
 | Need | Endpoint or method |
 | --- | --- |
-| Complete address and optional memo | `/v1/payment/{namespace}/{label}` or on-chain `resolve_payment` |
-| Memo-free address convenience | `/v1/resolve/{namespace}/{label}`; required memo returns an error |
+| Complete destination, including muxed ID or optional memo | `/v1/payment/{namespace}/{label}` or on-chain `resolve_destination` |
+| Memo-free G/C address convenience | `/v1/resolve/{namespace}/{label}`; required memo or M destination returns an error |
 | Current payment plus selected records | `/v1/records/{namespace}/{label}` |
 | Contract source of truth without Soran HTTP | [Universal Lookup ABI](/api/onchain-resolution) |
 | Indexed ownership candidates | `/v1/names/by-holder/{address}` |

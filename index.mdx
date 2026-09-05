@@ -6,7 +6,7 @@ description: "On-chain namespaces, names and payment instructions on Stellar."
 Soran is the **Soroban Registry for Assigned Names**. A business owns a namespace such as `yourbrand` and issues names such as `alice.yourbrand`. A name can carry a Stellar destination, an optional payment memo and holder-authored profile records.
 
 <Note>
-These docs describe the September 2026 implementation and the replacement testnet contracts verified at 17:15 UTC on 5 September. The public app, API and hosted MCP serve this setup. SDK package versions and service verification are recorded in [release status](/reference/release-status). Use its verified addresses together.
+These docs describe native muxed destinations and the testnet contracts verified at 18:10 UTC on 5 September 2026. The public app, API and hosted MCP are live on this deployment. New npm package publication is pending; SDK examples identify their required versions. See [release status](/reference/release-status) and use its verified addresses together.
 </Note>
 
 ## One on-chain read entry point
@@ -24,7 +24,7 @@ Wallets, explorers and other contracts read **Universal Lookup**. It follows the
 
 Namespace ownership, a name's holder and its payment recipient are separate roles. An exchange deposit name can resolve to the exchange's account plus a customer memo without making that account the name holder.
 
-Payment destinations support classic G accounts, G accounts with ID/text/hash memos, and C contract addresses without a memo. Direct muxed M addresses are not currently supported. See [address types and examples](/concepts/payment-destinations).
+Payment destinations support classic G accounts, G accounts with ID/text/hash memos, muxed M addresses, and C contract addresses. M and C destinations use no separate memo; an M address preserves its embedded ID. See [address types and examples](/concepts/payment-destinations).
 
 ## Claim once, then issue names
 

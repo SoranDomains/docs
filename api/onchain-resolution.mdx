@@ -8,17 +8,17 @@ description: "A shared on-chain ABI for wallets, explorers and other contracts a
 Read **Universal Lookup** for the authoritative contract result. It follows current Registry routing and invokes each namespace's supported contracts. You do not need a Soran SDK or Soran HTTP API to use it.
 
 <Note>
-The addresses below are the replacement **5 September 2026 testnet deployment, verified at 17:15 UTC**. Its Registry adds namespace-and-role-bound deployment salts. Use the IDs together; the earlier deployments remain separate. The examples target Stellar SDK 17 and Lookup ABI version 1.
+The addresses below are the native-muxed **5 September 2026 testnet deployment, verified at 18:10 UTC**. Its Resolver and Lookup use ABI 2; Registry retains namespace-and-role-bound salt version 1. Use the IDs together; the earlier deployments remain separate. The examples target Stellar SDK 17 and Lookup ABI version 2.
 </Note>
 
 ## Shared testnet contracts
 
 | Contract | Address | Integration role |
 | --- | --- | --- |
-| **Universal Lookup** | `CDSORANO7K4FSBR2MLV4PNELJ6UXCDNG4MJZSH6HCVZZZQN5B5GMOP64` | Shared read entry point for every namespace |
-| Registry | `CDSORANCV3IFF3MKHJ7KI4MKEJOJZFMTDVAZCD5XFOR4WTGNXJJNOKQE` | Namespace ownership and routing; verify this Lookup anchor |
-| Primary | `CCSORANOADXKLSW5CUANBW5WZFVCNZ5KZ4KNMIUWOZOES3LXYRUYZ56X` | Account-level Primary selection; read through Lookup |
-| Allocator | `CASORANSKKNXDJYXPZK7OJFIJQL5EMVO7VLYJJSWTCZLT26WWATBI4HY` | Namespace claims and fee escrow |
+| **Universal Lookup** | `CDSORANKG77YZITKWCLWGPKLB2R3HPTP4D6KKZZ7X3R5HLXLMNOTGCDD` | Shared read entry point for every namespace |
+| Registry | `CASORANI5CN2NJFEO2MGTRDA35AOEF3D3OCVBWN3FS6B6FXNQ74RTJ7H` | Namespace ownership and routing; verify this Lookup anchor |
+| Primary | `CCSORANJZOR5ZYTI4KAW34ESAQFMJAO4NKMTIVOVJOI2VDKCDK3RICXZ` | Account-level Primary selection; read through Lookup |
+| Allocator | `CDSORANPTRS2EYHN57OZEXTW23P2HPDM3WEAC754B7GNHRB5V6FTJ2EE` | Namespace claims and fee escrow |
 
 Connect to `https://soroban-testnet.stellar.org` with passphrase `Test SDF Network ; September 2015`. Mainnet is not deployed. [Release status](/reference/release-status) includes deployment transactions, exact code hashes, fees and package availability.
 
@@ -28,30 +28,41 @@ The constructor is `(registry: Address, governance: Address, legacy: Option<Lega
 
 ## Forward result
 
-`resolve(name:String) -> Resolution` takes a canonical lowercase name and returns:
+`resolve_v2(name:String) -> ResolutionV2` takes a canonical lowercase name and returns:
 
 ```text
-Resolution {
+ResolutionV2 {
   name: String,
   registrar: Address,
   resolver: Option<Address>,
   generation: u64,
-  result: NativePayment(Payment) | LegacyAddress(Address)
+  result: NativePayment(PaymentDestination) | LegacyAddress(Address)
 }
+PaymentDestination = Direct(Payment) | Muxed(MuxedPayment)
 Payment { address: Address, memo: PaymentMemo }
 PaymentMemo = None | Id(u64) | Text(String) | Hash(BytesN<32>)
+MuxedPayment { account: Address, id: u64 }
 ```
 
-`NativePayment` is a complete instruction. `LegacyAddress` explicitly leaves memo capability unknown. Strict `resolve_payment(name) -> Payment` rejects legacy results; `resolve_address(name) -> Address` additionally rejects a native required memo.
+`Direct` contains a G account with an optional transaction memo, or a C contract with `None`. `Muxed` contains a G account and its exact unsigned 64-bit muxed ID. These two fields completely define the standard M address; an integrator can encode it without a Soran SDK or database. A muxed ID is not a transaction memo.
 
-Canonical names contain exactly two 1–63-byte labels of lowercase ASCII letters/digits/interior hyphens. Classic G destinations permit None, unsigned 64-bit ID, 1–28 UTF-8 byte text or 32-byte hash. Contract C destinations support None only. Muxed M addresses are not accepted by this payment ABI and are not silently converted to G plus memo. See [address types and complete examples](/concepts/payment-destinations).
+`NativePayment` is a complete instruction. `LegacyAddress` explicitly leaves memo capability unknown. Strict `resolve_destination(name) -> PaymentDestination` rejects legacy results.
+
+The original `resolve(name) -> Resolution` and `resolve_payment(name) -> Payment` retain their V1 shapes for direct G/C instructions but reject muxed records with `MuxedDestination`. `resolve_address(name) -> Address` also rejects required memos. Never use a rejected old read as permission to substitute the base G address.
+
+Canonical names contain exactly two 1–63-byte labels of lowercase ASCII letters/digits/interior hyphens. Classic G destinations permit None, unsigned 64-bit ID, 1–28 UTF-8 byte text or 32-byte hash. Contract C destinations support None only. Muxed destinations require a G base and a u64 ID, with no separate memo in this ABI. See [address types and complete examples](/concepts/payment-destinations).
+
+The native Resolver exposes `payment_version() == 2`, `destination_version() == 2`, `resolve_destination(name)` and holder-authorized `set_muxed(name,holder,account,id)`. Its existing `set_payment` method remains the atomic G/C-and-memo writer. The muxed base, ID, address record and configuration marker are updated in one transaction and bound to the current ownership generation.
+
+Lookup supports a successful native Resolver version `1` using its V1 payment method, and version `2` using its V2 method after checking `destination_version() == 2`. Unknown versions, failed capability reads and failed V2 results are errors; they never trigger a V1 fallback.
 
 ## Other read methods
 
 | Method | Result |
 | --- | --- |
 | `registry()` | Configured Registry Address |
-| `version()` | Numeric ABI version `1` |
+| `version()` | Numeric ABI version `2` |
+| `destination_version()` | Native destination ABI version `2` |
 | `primary()` | Optional configured Primary Address |
 | `namespace_metadata(namespace:String)` | Optional NamespaceMetadata |
 | `name_metadata(name:String)` | Optional NameMetadata |
@@ -83,7 +94,7 @@ Metadata is not a payment fallback. `builtin_address` can differ from effective 
 
 `text` accepts a nonempty Symbol of at most 32 bytes and returns at most 4,096 UTF-8 bytes; larger historical values return `ReadTooLarge`. The raw `payment` text key is not a replacement for typed payment reads.
 
-Reverse and Primary results receive a current forward check, including required memos as valid account routes. Their underlying contracts may collapse absent/stale/failed proof into None; a returned None does not diagnose every downstream failure. See [identity limits](/sdk/reverse-and-primary).
+Reverse and Primary results receive a current forward check, including required memos as valid account routes. Muxed payment destinations do not become base-account identity proofs; a muxed forward answer is rejected. Their underlying contracts may collapse absent/stale/failed proof into None; a returned None does not diagnose every downstream failure. See [identity limits](/sdk/reverse-and-primary).
 
 ## Read through Soroban RPC
 
@@ -95,8 +106,8 @@ import {
 } from "@stellar/stellar-sdk";
 
 const deployment = {
-  lookupId: "CDSORANO7K4FSBR2MLV4PNELJ6UXCDNG4MJZSH6HCVZZZQN5B5GMOP64",
-  registryId: "CDSORANCV3IFF3MKHJ7KI4MKEJOJZFMTDVAZCD5XFOR4WTGNXJJNOKQE",
+  lookupId: "CDSORANKG77YZITKWCLWGPKLB2R3HPTP4D6KKZZ7X3R5HLXLMNOTGCDD",
+  registryId: "CASORANI5CN2NJFEO2MGTRDA35AOEF3D3OCVBWN3FS6B6FXNQ74RTJ7H",
   rpcUrl: "https://soroban-testnet.stellar.org",
   passphrase: "Test SDF Network ; September 2015",
 };
@@ -116,16 +127,18 @@ async function view(contractId: string, fn: string, args: ReturnType<typeof nati
 if (await view(deployment.lookupId, "registry") !== deployment.registryId) {
   throw new Error("Wrong Registry anchor");
 }
-if (await view(deployment.lookupId, "version") !== 1) throw new Error("Unsupported ABI");
-const raw = await view(deployment.lookupId, "resolve_payment", [
+if (await view(deployment.lookupId, "version") !== 2) throw new Error("Unsupported ABI");
+if (await view(deployment.lookupId, "destination_version") !== 2) throw new Error("Unsupported destination ABI");
+const raw = await view(deployment.lookupId, "resolve_destination", [
   nativeToScVal("alice.nova", { type: "string" }),
 ]);
-// Strictly decode raw against Payment before use; never drop or coerce its memo.
+// Strictly decode Direct(Payment) or Muxed({ account, id }) before use.
+// Preserve the memo or muxed ID exactly; never collapse Muxed to an account-only answer.
 ```
 
-Restore detection must precede the success check. Anchor/version reads are compatibility checks, not a code hash pin. Each `view` call can run at a different ledger; one `resolve_payment` invocation obtains its dependent answer within one simulation snapshot.
+Restore detection must precede the success check. Anchor/version reads are compatibility checks, not a code hash pin. Each `view` call can run at a different ledger; one `resolve_destination` invocation obtains its dependent answer within one simulation snapshot.
 
-Soroban `contracttype` structs encode as field-symbol maps. Enum variants encode as vectors such as `[None]`, `[Id, u64]` or `[NativePayment, Payment]`; symbols are not strings in XDR. Preserve u64 precision as bigint or decimal strings. Validate shape, variant arity, addresses and memo bounds after decoding. The [SDK](/sdk/reference) supplies strict decoders if you choose to use it.
+Soroban `contracttype` structs encode as field-symbol maps. Enum variants encode as vectors such as `[None]`, `[Id, u64]` or `[Direct, Payment]`, `[Muxed, { account, id }]` or `[NativePayment, PaymentDestination]`; symbols are not strings in XDR. Preserve u64 precision as bigint or decimal strings. Validate shape, variant arity, addresses and memo bounds after decoding. The [SDK](/sdk/reference) supplies strict decoders if you choose to use it.
 
 ## Numeric errors
 
@@ -141,7 +154,7 @@ Soroban `contracttype` structs encode as field-symbol maps. Enum variants encode
 | 8 | ContextMismatch | 19 | PrimaryNotConfigured |
 | 9 | UnsupportedImplementation | 20 | InvalidPrimary |
 | 10 | DependencyUnavailable | 21 | ReadTooLarge |
-| 11 | InvalidPayment | | |
+| 11 | InvalidPayment | 22 | MuxedDestination |
 
 Dependency failure never means a memo-free result. Unsupported methods on an older Lookup must not trigger a silent direct-read fallback.
 

@@ -1,11 +1,15 @@
 ---
 title: "Supported addresses and memos"
-description: "Classic G accounts, G accounts with memos, contract C addresses and the current muxed M limitation, with examples."
+description: "Classic G accounts, optional memos, muxed M destinations and contract C addresses, with examples."
 ---
 
-Soran's deployed payment interface returns a **destination address and an optional memo together**. It supports classic Stellar `G...` accounts and Soroban `C...` contract addresses. Direct `M...` muxed input is not supported by the current Resolver, SDKs, API or console.
+Soran's deployed payment interface returns a **destination address and an optional memo together**. It supports classic Stellar `G...` accounts, muxed `M...` destinations and Soroban `C...` contract addresses. The Resolver stores muxed destinations as an explicit base G account and unsigned 64-bit ID; the SDK and HTTP result encode that pair as the complete M address.
 
-These are payment-destination capabilities, not a promise that every wallet can sign for every account type. This page describes the deployed Resolver and Lookup ABI 1, Lookup SDK 0.5.2 and Holder SDK 0.3.1 in [release status](/reference/release-status).
+These are payment-destination capabilities, not a promise that every wallet can sign for every account type. This page describes the deployed Resolver payment ABI 2, Lookup ABI 2, Lookup SDK 0.6.0 and Holder SDK 0.4.0 in [release status](/reference/release-status).
+
+<Note>
+The contracts, HTTP API and app support these destinations now. Lookup 0.6.0 and Holder 0.4.0 npm publication is pending, so the Soran SDK examples below require those releases once available. Use the live [contract methods](/api/onchain-resolution) or [HTTP payment endpoint](/api/resolution) for current integrations; older SDKs cannot preserve M destinations.
+</Note>
 
 ## Support at a glance
 
@@ -16,7 +20,7 @@ These are payment-destination capabilities, not a promise that every wallet can 
 | Classic `G...` with a text memo | Yes | For a classic payment, include the exact 1–28 UTF-8 bytes as a transaction memo |
 | Classic `G...` with a hash memo | Yes | For a classic payment, include the exact 32 bytes as a transaction hash memo |
 | Soroban contract `C...` | Yes, with `none` only | Use the supported Soroban asset/token transfer flow, not a classic Payment operation |
-| Muxed `M...` | Not as direct input or output | Obtain an explicitly supported G-address-and-memo route from the recipient; do not strip or silently convert the muxed ID |
+| Muxed `M...` | Yes, with `none` only | Use the full M address as a supported payment destination; preserve its embedded ID |
 
 No memo is required for an ordinary memo-free record. A recipient account's own memo-required policy still applies. Other memo variants, including return-hash, and arbitrary contract routing arguments are outside this Soran ABI.
 
@@ -102,7 +106,18 @@ Muxed ID:  420
 
 Stellar supports muxed destinations on selected operations, including classic payments. The muxed ID belongs to the operation's destination; a classic memo belongs to the transaction. They are different representations, even when their numbers match. See [Stellar's muxed-account guide](https://developers.stellar.org/docs/build/guides/transactions/pooled-accounts-muxed-accounts-memos).
 
-Current Soran payment methods reject that M address. They do not automatically turn it into G plus Memo ID 420. If the recipient explicitly supports the G-plus-memo route, publish the recipient's confirmed G address and memo using the ID example above. Otherwise, do not substitute a route.
+Soran accepts the full M address and keeps its ID distinct from a transaction memo. For example, `customer420.nova` can resolve to:
+
+```json
+{
+  "address": "MA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUAAAAAAAAAABUTGI4",
+  "memo": { "type": "none" }
+}
+```
+
+Here `none` means no separate transaction memo. The embedded muxed ID **420 is still required** and remains part of the M address. Send to that complete address using a compatible payment flow. Do not substitute the base G address or Memo ID 420.
+
+M addresses with a separate ID, text or hash memo are rejected by this Soran interface. Invalid M encodings and out-of-range IDs are rejected. Muxed IDs range from `0` to `18446744073709551615`; preserve them as exact decimal strings or bigint values when inspecting them.
 
 You can inspect an M address with Stellar SDK 17 without submitting a transaction:
 
@@ -115,10 +130,10 @@ const muxed = MuxedAccount.fromAddress(
 );
 const baseAddress = muxed.baseAccount().accountId();
 const muxedId = muxed.id(); // "420", kept as a decimal string
-// Inspection only: this does not establish a recipient-approved memo route.
+// Keep the full M address for payment; the base address is for account inspection.
 ```
 
-Reverse and Primary names identify the base account, not a muxed customer or a memo customer. Current account-input methods accept G or C addresses, not M addresses.
+Reverse and Primary names identify a G/C account, not a muxed customer or a memo customer. They do not strip a muxed ID to establish a base-account proof. Current account-input methods accept G or C addresses, not M addresses. Changing a payment destination to M can invalidate an earlier reverse/Primary forward proof; direct M payment support does not create a customer-specific account identity.
 
 ## Publish and read the whole instruction
 
@@ -131,8 +146,17 @@ await me.setPayment("customer420.nova", {
 });
 ```
 
-Address and memo are stored atomically in the namespace's Resolver on chain. Universal Lookup obtains the current instruction from that Resolver; no Soran database is the source of the memo.
+For a muxed destination, use the same Holder method with the full M address:
 
-Wallets call on-chain `resolve_payment`, SDK `resolvePayment`, or HTTP `/v1/payment/{namespace}/{label}`. Display and preserve the whole pair. A required memo makes address-only lookup fail. Read failures and unknown legacy memo capability must never become memo-free results.
+```ts
+await me.setPayment("customer420.nova", {
+  address: "MA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUAAAAAAAAAABUTGI4",
+  memo: { type: "none" },
+});
+```
+
+The Holder SDK validates the M address and submits the base G account and exact ID to on-chain `set_muxed`. Address and routing information are stored atomically in the namespace's Resolver. Universal Lookup obtains the current instruction from that Resolver; no Soran database is the source of the memo or muxed ID.
+
+Wallets call on-chain `resolve_destination`, SDK `resolvePayment`, or HTTP `/v1/payment/{namespace}/{label}`. The older on-chain `resolve_payment` and address-only contract methods, plus HTTP `/v1/resolve`, reject muxed records rather than return an incomplete G address. The updated SDK's `resolve`/`record`/`verify` conveniences can preserve the full M address, but `resolvePayment` remains the general payment API. Display and preserve the whole pair. A required separate memo makes address-only lookup fail. Read failures and unknown legacy memo capability must never become memo-free results.
 
 A classic transaction has one memo, so payments requiring different memos need separate transactions. Recheck the full instruction before confirmation, honor recipient memo requirements, and use the correct payment flow for the address type. See [payment integration](/sdk/resolving-names) and the [contract ABI](/api/onchain-resolution).

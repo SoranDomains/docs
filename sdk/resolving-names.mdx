@@ -5,6 +5,10 @@ description: "Preserve optional memos, reject unknown legacy instructions and re
 
 Use `resolvePayment(name)` for payments. It returns one atomic instruction from the current on-chain namespace Resolver through Universal Lookup.
 
+<Note>
+These examples require Lookup **0.6.0**, pending npm publication. Its M-address behavior is unavailable in older packages. Use the live [contract ABI](/api/onchain-resolution) or [HTTP payment endpoint](/api/resolution) while waiting; [release status](/reference/release-status) tracks availability.
+</Note>
+
 ```ts
 const payment = await soran.resolvePayment("Alice.Nova");
 // { address, memo }
@@ -23,7 +27,7 @@ if (!unchanged) throw new Error("Review the new instructions before sending");
 
 Ordinary native records without a current-generation payment configuration return their ordinary address with `none`. Holders do not have to create a memo to use Soran. Once a record has been configured, a persistent marker prevents lost instructions from being mistaken for that ordinary default. Removing a memo requires an explicit complete `setPayment` with `none`.
 
-The four memo variants above are supported for `G...` addresses. `C...` destinations support `none` only. Direct muxed `M...` input, return-hash memos and contract-specific routing arguments are outside this ABI. The SDK does not normalize M addresses into G plus memo. See [supported address types and complete examples](/concepts/payment-destinations), including how a muxed ID differs from a transaction memo. Unknown memo types must be refused.
+The four memo variants above are supported for `G...` addresses. `M...` and `C...` destinations support `none` only. An M address preserves its embedded muxed ID; `none` does not remove that ID. Return-hash memos and contract-specific routing arguments are outside this ABI. The SDK never substitutes G plus memo for M. See [supported address types and complete examples](/concepts/payment-destinations), including how a muxed ID differs from a transaction memo. Unknown memo types must be refused.
 
 ## Native and legacy results
 
@@ -43,7 +47,7 @@ Both variants contain the canonical name, Registrar, optional Resolver and exact
 
 ## Address-only convenience methods
 
-`resolve(name)`, `record(name)` and `verify(name,address)` are restricted to native memo-free instructions. They reject a required memo with `PAYMENT_REQUIRED` and an unknown legacy memo with `LEGACY_MEMO_UNKNOWN`. They are unsuitable as a general payment integration.
+`resolve(name)`, `record(name)` and `verify(name,address)` are restricted to native memo-free instructions. They reject a required memo with `PAYMENT_REQUIRED` and an unknown legacy memo with `LEGACY_MEMO_UNKNOWN`. For a muxed record, these updated SDK methods return or compare the complete M address. The older on-chain address methods cannot represent M and reject it. Prefer `resolvePayment` for general payment integration.
 
 ```ts
 const address = await soran.resolve("alice.nova");
@@ -52,7 +56,7 @@ const address = await soran.resolve("alice.nova");
 
 ## Building a payment
 
-Display and preserve the whole returned tuple. A `G...` recipient can receive a classic Stellar Payment; a `C...` recipient needs a supported Soroban asset/token transfer flow. A classic transaction contains one memo, so multiple incompatible memos require separate transactions.
+Display and preserve the whole returned tuple. A `G...` or `M...` recipient can receive a compatible classic Stellar Payment; preserve the full M destination. A `C...` recipient needs a supported Soroban asset/token transfer flow. A classic transaction contains one memo, so multiple incompatible memos require separate transactions.
 
 Honor recipient account memo-required settings such as [SEP-29](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0029.md). A Soran `none` instruction does not override that requirement.
 

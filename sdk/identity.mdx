@@ -43,6 +43,8 @@ Values are current-generation holder-authored text, not verified real-world clai
 
 `identity(name)` combines details, profile and optional display-name enrichments. Details and profile fail closed; the holder/recipient/namespace-owner display-name enrichments can degrade to `null`. `walletProfile(address)` combines Primary, scoped reverse candidates, a holdings page and profile.
 
+An M payment destination remains complete in payment fields. It is not converted into a base-G recipient identity; holder and owner identity still use their G/C accounts.
+
 These aggregates perform several reads. They are not one atomic ledger snapshot. `details` checks for inconsistent generation/routing across its reads, but application code must still treat results as point-in-time data.
 
 `history(name)` is a bounded indexed timeline with transaction and ledger references. Contract state has expiry timestamps, but it does not store a complete registration history. Chain-event timestamps are distinct from indexer ingestion time, and legacy issuance metadata can be unknown. Use the HTTP [history and events cursors](/api/events) for durable pagination rather than assuming a bounded SDK history result is exhaustive.

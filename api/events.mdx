@@ -16,13 +16,14 @@ Topics are in the exact order shown. Data structs use Soroban contracttype map e
 | Registrar | `xfer_v1`, name node, generation | `TransferChange { label:Bytes, action:Symbol, holder:Address, to:Option<Address>, proposal_expires:Option<u64>, expires_at:u64 }` |
 | Resolver | `addr_v1`, name node, generation | `Address` |
 | Resolver | `text_v1`, name node, generation | Text key `Symbol` only |
-| Resolver | `pay_v1`, name node, generation | Complete `Payment { address, memo }` |
+| Resolver | `pay_v1`, name node, generation | Complete direct `Payment { address, memo }` |
+| Resolver | `pay_v2`, name node, generation | `PaymentDestination::Muxed(MuxedPayment { account, id })` |
 
 Nodes are `BytesN<32>` and generations are `u64`.
 
 `ns_v1.method` is `allocate` or `reserved`; its plaintext label allows new namespace discovery. `name_v1.action` is `issue`, `reclaim`, `transfer`, `renew` or `address`. `xfer_v1.action` is `propose` or `cancel`; cancellation carries `to=None` and `proposal_expires=None` and can be idempotent.
 
-`text_v1` is **invalidation only**. It does not contain the historic value. Re-read current text through Lookup if you need it; historic reconstruction needs historic state access. Complete payment writes emit `pay_v1`, without duplicate address/text companion events. A configured memo-free `set_addr` emits the updated complete payment; an ordinary unconfigured address-only write emits `addr_v1`.
+`text_v1` is **invalidation only**. It does not contain the historic value. Re-read current text through Lookup if you need it; historic reconstruction needs historic state access. Direct G/C payment writes emit `pay_v1`; muxed writes emit `pay_v2`. Neither duplicates address/text companion events. The muxed event preserves the exact u64 ID separately from its G account. A configured memo-free `set_addr` emits the updated complete payment; an ordinary unconfigured address-only write emits `addr_v1`.
 
 When an older event has a new companion, the older event immediately precedes it in the same invocation. Archive both raw events; avoid applying the same state change twice in a projection. Do not deduplicate merely by transaction, action and subject: one transaction can contain multiple legitimate events.
 
@@ -71,4 +72,4 @@ Coverage is an indexer's report, not an independent proof against omission. Insp
 
 `/v1/names/{namespace}/{label}/history` is a cursor-paginated informational projection. Event `at` is chain time and `ingestedAt` is processing time; older rows can have unknown chain/issuance metadata. A bounded SDK `history()` response does not replace paginating the archive.
 
-Hosted webhooks have their own [supported event list](/platform/webhooks). The addition of raw `pay_v1`, fee, text and renewal events does not automatically add those events to webhook subscriptions.
+Hosted webhooks have their own [supported event list](/platform/webhooks). The addition of raw `pay_v1`/`pay_v2`, fee, text and renewal events does not automatically add those events to webhook subscriptions.

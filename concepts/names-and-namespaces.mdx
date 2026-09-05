@@ -66,7 +66,7 @@ Use the raw bytes for contract `BytesN<32>` arguments. Use the explicit hex rend
 
 ## Generations
 
-Issuance, reissue, reclaim and accepted transfer advance a name's ownership generation. Resolver records from a previous generation cannot become the new holder's records. Read current generation and lifecycle metadata through `name_metadata`; use `resolve_payment` for the complete effective destination.
+Issuance, reissue, reclaim and accepted transfer advance a name's ownership generation. Resolver records from a previous generation cannot become the new holder's records. Read current generation and lifecycle metadata through `name_metadata`; use `resolve_destination` for the complete effective destination, including muxed routing.
 
 ## The two clocks
 
