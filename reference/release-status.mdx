@@ -5,15 +5,17 @@ description: "Verified native-claim testnet contracts, namespace fees and indepe
 
 The native-claim contracts were deployed on **6 September 2026**. Their Wasm hashes, routing and configuration were verified at testnet ledger **4,534,629** (`2026-09-06T12:12:11.925Z`). The new Registrar provides native username claims and the Resolver provides atomic destination initialization. Lookup and Resolver payment ABI 2 continue to support G addresses, optional memos, muxed M destinations and C contract destinations.
 
-This is a dated deployment record. Recheck upgradeable code and configuration before relying on them.
+The contract addresses and initial configuration below are a dated deployment record. Package and hosted-service updates are tracked separately. Recheck upgradeable code and configuration before relying on them.
 
 | Item | Status |
 | --- | --- |
 | Registry, Allocator, nova Registrar/Resolver, Primary and Universal Lookup | Deployed and verified |
 | Native username claim ABI / Resolver initializer ABI | `1` / `1`, verified |
 | Public namespace application fee | **5,000 testnet XLM** paid upfront into Allocator escrow |
-| Nova automatic registration | Public/Open configuration, **disabled**, username price **0 XLM**, treasury is the namespace owner; verified at 12:19 UTC |
-| SDK npm release | Lookup 0.7.0, Holder 0.5.0, Owner 0.7.0 and MCP 0.7.0 published and verified |
+| Nova bootstrap registration (12:19 UTC) | Public/Open configuration, **disabled at bootstrap**, username price **0 XLM**, treasury is the namespace owner; this is the initial configuration, not a current policy reading |
+| Current published SDKs | Lookup 0.7.0, Holder 0.5.1, Owner 0.7.0 and MCP 0.7.1 |
+| Native receipt patch | Holder 0.5.1 published; Nova claiming app and Studio updates verified live |
+| Later contract source fixes | Merged but not deployed; contract addresses and deployed Wasm are unchanged |
 | Public app / API | Current deployment verified: API at 12:45 UTC and public web assets at 12:47 UTC |
 | Hosted MCP | 0.7.0 verified against the current contracts at 12:48 UTC; 15 read-only tools |
 | Mainnet | No deployment or supported preset announced |
@@ -59,14 +61,18 @@ A **username** fee is separate. A namespace owner can configure free claims or a
 
 ## SDK versions
 
-| Package | Native-claim version | Status |
+| Package | Current published version | Status |
 | --- | --- | --- |
 | [Lookup](https://www.npmjs.com/package/@sorandomains/lookup) | **0.7.0** | Published; downloaded bytes match the verified release |
-| [Holder](https://www.npmjs.com/package/@sorandomains/holder) | **0.5.0** | Published; downloaded bytes match the verified release |
+| [Holder](https://www.npmjs.com/package/@sorandomains/holder) | **0.5.1** | Published; installed package matches the reviewed receipt-verification patch |
 | [Owner](https://www.npmjs.com/package/@sorandomains/owner) | **0.7.0** | Published; downloaded bytes match the verified release |
-| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.7.0** | Published; downloaded bytes match the verified release |
+| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.7.1** | Published; selects Holder 0.5.1 for local tools |
 
-All four public npm tarballs were downloaded and matched the tested release bytes by **12:35:18 UTC** on 6 September. These versions use Stellar SDK 17. The previous published release was Lookup 0.6.0, Holder 0.4.0, Owner 0.6.0 and MCP 0.6.0. That release already supports muxed payments; it does not provide the new native username claim interface or the new default deployment.
+The initial native-claim packages—Lookup 0.7.0, Holder 0.5.0, Owner 0.7.0 and MCP 0.7.0—were downloaded and matched the tested release bytes by **12:35:18 UTC** on 6 September. Holder **0.5.1** was subsequently verified from npm at **18:13 UTC**, with its installed code matching the reviewed patch. Use 0.5.1 for current Holder integrations. These versions use Stellar SDK 17. The previous published release was Lookup 0.6.0, Holder 0.4.0, Owner 0.6.0 and MCP 0.6.0. That release already supports muxed payments; it does not provide the new native username claim interface or the new default deployment.
+
+Holder 0.5.1 verifies Registrar attestation and executable with RPC ledger context at least as recent as each receipt read or transaction confirmation, including reads that find no receipt. Unavailable or older context stops recovery; preserve the original request and transaction hash. A verified receipt remains historical success, not proof of current ownership. See [receipt recovery](/owner/automatic-claiming#recover-before-replacing-a-request).
+
+MCP **0.7.1** is published with an exact Holder 0.5.1 dependency for local tools. Hosted MCP remains the separately verified **0.7.0** read-only service. None of these client updates changes the contract addresses or deploys later contract source fixes.
 
 The [quickstart](/quickstart) pins Registry, Lookup and Primary explicitly. Missing Lookup configuration throws `CONFIG`; resolution never silently falls back to direct reads. A successfully read supported version selects the matching ABI. Unknown versions and failed reads do not trigger a downgrade.
 
@@ -77,6 +83,8 @@ The [quickstart](/quickstart) pins Registry, Lookup and Primary explicitly. Miss
 - Hosted MCP: `https://mcp.soran.domains/mcp`, with read tools only.
 
 The primary API at `api.soran.domains` was verified against the current contracts at **12:45:56 UTC**, including fee configuration, routing, preserved receiving instructions and indexed coverage. Public app routes and served assets were verified with the new pins at **12:47:15 UTC** on 6 September. Hosted MCP **0.7.0** was verified at **12:48:47 UTC**, including its 15 read-only tools, current Registrar metadata, C payment resolution and namespace fee quote. Native claim helpers remain [local-only](/agents/access#native-usernames-in-local-mode). Contract deployment and npm publication do not independently prove a hosted service has switched its configuration.
+
+The Nova claiming app and Studio receipt-handling updates are also live. Their served assets match the reviewed builds using published Holder 0.5.1. This verification covers the deployed client code; it does not imply a contract upgrade or new wallet-provider test.
 
 Check [service status](/api/status), coverage and network settings when integrating. Indexed coverage is a bounded report, not proof against omission. Billing and marketplace features are disabled on this setup. The console's [branded-address preparation](/platform/issuing-names#automatic-branded-contract-addresses) remains namespace- and role-bound.
 

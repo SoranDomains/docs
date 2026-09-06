@@ -5,10 +5,10 @@ description: "Classic G accounts, optional memos, muxed M destinations and contr
 
 Soran's deployed payment interface returns a **destination address and an optional memo together**. It supports classic Stellar `G...` accounts, muxed `M...` destinations and Soroban `C...` contract addresses. The Resolver stores muxed destinations as an explicit base G account and unsigned 64-bit ID; the SDK and HTTP result encode that pair as the complete M address.
 
-These are payment-destination capabilities, not a promise that every wallet can sign for every account type. This page describes the deployed Resolver payment ABI 2, Lookup ABI 2, Lookup SDK 0.7.0 and Holder SDK 0.5.0 in [release status](/reference/release-status).
+These are payment-destination capabilities, not a promise that every wallet can sign for every account type. This page describes the deployed Resolver payment ABI 2, Lookup ABI 2, Lookup SDK 0.7.0 and Holder SDK 0.5.1 in [release status](/reference/release-status).
 
 <Note>
-The SDK examples target Lookup **0.7.0** and Holder **0.5.0**. Check [release status](/reference/release-status) for their publication status. M-address support was introduced in Lookup 0.6.0 and Holder 0.4.0 and is preserved by this release. The same instructions are available through the [contract methods](/api/onchain-resolution), [HTTP payment endpoint](/api/resolution) and app.
+The SDK examples target Lookup **0.7.0** and Holder **0.5.1**. Check [release status](/reference/release-status) for their publication status. M-address support was introduced in Lookup 0.6.0 and Holder 0.4.0 and is preserved by this release. The same instructions are available through the [contract methods](/api/onchain-resolution), [HTTP payment endpoint](/api/resolution) and app.
 </Note>
 
 ## Support at a glance

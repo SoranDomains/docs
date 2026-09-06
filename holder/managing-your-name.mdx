@@ -3,10 +3,10 @@ title: "Managing your name"
 description: "Publish an atomic on-chain address and optional memo, profile records and account display names."
 ---
 
-The Holder SDK writes to the current namespace contracts. Lookup remains the shared read entry point. These examples target Holder 0.5.0 with Stellar SDK 17. See [release status](/reference/release-status) for the matching testnet contracts.
+The Holder SDK writes to the current namespace contracts. Lookup remains the shared read entry point. These examples target Holder 0.5.1 with Stellar SDK 17. See [release status](/reference/release-status) for the matching testnet contracts.
 
 <Note>
-Holder **0.5.0** adds native username claims, atomic acceptance with a destination and independent bounded renewal. It retains M-address writes introduced in 0.4.0. Check [release status](/reference/release-status) for publication and the current contract pins.
+Use published Holder **0.5.1** for native claims and receipt recovery. It verifies Registrar attestation and deployed code against sufficiently recent RPC ledger context before accepting receipt results. It retains the native claims, atomic transfer acceptance and bounded renewal introduced in 0.5.0, and M-address writes introduced in 0.4.0. Contract pins are unchanged; see [release status](/reference/release-status).
 </Note>
 
 ```ts
