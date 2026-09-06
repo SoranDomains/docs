@@ -1,0 +1,423 @@
+---
+title: "Contract storage reference"
+description: "Raw ledger keys, stored types, payment encodings and storage lifetimes for the six native-muxed testnet contracts."
+---
+
+This reference describes the native-muxed deployment verified on **5 September 2026 at ledger 4,521,644**. Match the contract's current Wasm hash to the [public deployment manifest](/reference/deployments/testnet.json) before decoding storage with this schema. An upgrade can change an upgradeable contract's implementation while keeping its address.
+
+Use [Universal Lookup](/api/onchain-resolution#on-chain-resolution) for authoritative name and payment answers. Raw ledger entries are useful for explorers, storage tools and independent inspection. They are not a substitute for the contracts' ownership, generation, routing and payment checks.
+
+## Deployment scope
+
+| Contract | Address | Storage / interface version |
+| --- | --- | --- |
+| Registry | `CASORANI5CN2NJFEO2MGTRDA35AOEF3D3OCVBWN3FS6B6FXNQ74RTJ7H` | Immutable; namespace deployment salt version `1` |
+| Allocator | `CDSORANPTRS2EYHN57OZEXTW23P2HPDM3WEAC754B7GNHRB5V6FTJ2EE` | Stored `SchemaVersion = 4` |
+| Nova Registrar | `CDSORANZHOVD6EO345UWC23BNEXSPNFWCYJD4X35HXFC2S3GWQ3S64YX` | Layout below; no stored schema-version key |
+| Nova Resolver | `CDSORANIUM3QAYBNNVJZOCGV6ZKU4ZLLHDWD25OULB6N6FKMANK6HUFZ` | `payment_version() = 2`; `destination_version() = 2` |
+| Primary | `CCSORANJZOR5ZYTI4KAW34ESAQFMJAO4NKMTIVOVJOI2VDKCDK3RICXZ` | Immutable; no stored schema-version key |
+| Lookup | `CDSORANKG77YZITKWCLWGPKLB2R3HPTP4D6KKZZ7X3R5HLXLMNOTGCDD` | `version() = 2`; `destination_version() = 2` |
+
+Registrar and Resolver are namespace-specific. The other four contracts are shared. For another namespace, discover its current Registrar and Resolver through Lookup/Registry; do not use nova's pair. See [release status](/reference/release-status) for the verification timestamp, deployment transactions and historical deployments.
+
+## Ledger and XDR conventions
+
+The tables use Rust-style types to describe the stored schema. These names are not extra wrappers in XDR.
+
+| Type / notation | Soroban encoding |
+| --- | --- |
+| `Address` | `SCV_ADDRESS`, containing an account or contract `SCAddress`; G/C strings are a display encoding |
+| `Bytes`, `BytesN<32>` | `SCV_BYTES`; the latter must contain exactly 32 bytes |
+| `String` | `SCV_STRING` containing UTF-8 |
+| `Symbol` | `SCV_SYMBOL`; distinct from a string, even with the same text |
+| `bool`, `u32`, `u64`, `i128` | `SCV_BOOL`, `SCV_U32`, `SCV_U64`, `SCV_I128`; preserve 64/128-bit precision |
+| `Vec<T>`, `(A, B)` | `SCV_VEC` with ordered element values; a tuple has its exact arity |
+| `Option<T>` | `None` is `SCV_VOID`; `Some(value)` is the value's encoding, without a `Some` wrapper |
+| Named struct | `SCV_MAP` from field-name **symbols** to values; fields are sorted by the canonical map-key order |
+| `DataKey::Addr(node)` | `SCV_VEC [Symbol("Addr"), Bytes(node)]` |
+| Unit key `DataKey::Config` | `SCV_VEC [Symbol("Config")]`, not a bare symbol |
+| Enum `ClaimState::Announced` | `SCV_VEC [Symbol("Announced")]`, not an integer ordinal |
+| Enum `PaymentMemo::Id(420)` | `SCV_VEC [Symbol("Id"), U64(420)]` |
+
+All application storage in these six contracts is **instance** or **persistent** storage. None uses temporary storage. Persistent application entries use a `LedgerKey::ContractData` containing the contract address, encoded `DataKey`, and persistent durability. Instance keys live inside the `storage` map of the contract's single `SCContractInstance`; they are not separate persistent entries named `Config`. The instance ledger key uses `SCV_LEDGER_KEY_CONTRACT_INSTANCE`. Contract Wasm is a separate contract-code ledger entry. [Stellar storage reference](https://docs.rs/soroban-sdk/26.1.0/soroban_sdk/storage/struct.Storage.html)
+
+Names use canonical lowercase ASCII labels: 1–63 bytes from `a-z`, `0-9`, and an internal `-`. Let `H` mean SHA-256 and `zero32` mean 32 zero bytes:
+
+```text
+label_hash = H(label_bytes)                         // Allocator keys
+ns_node    = H(zero32 || H(namespace_bytes))         // Registry namespace
+name_node  = H(ns_node || H(name_label_bytes))       // Registrar / Resolver name
+```
+
+`label_hash` and `ns_node` are different values. A printable hex hash is not the stored `BytesN<32>` value: decode its hex into 32 bytes first. Addresses, labels, memo values and profile data are public chain data; removal or retraction does not erase transaction history.
+
+## Registry
+
+| Key | Storage | Value | Meaning |
+| --- | --- | --- | --- |
+| `DataKey::Config` | Instance | `Config` | Immutable Allocator, reservation-root and approved template anchors |
+| `DataKey::Node(ns_node)` | Persistent | `Record` | Namespace owner, current resolver pointer and provenance statuses |
+| `DataKey::Pending(ns_node)` | Persistent | `Pending` | Proposed namespace owner and acceptance deadline |
+| `DataKey::ResolverLock(ns_node)` | Persistent | `bool` (`true`) | Irreversible resolver lock; current reads test presence |
+| `DataKey::Registrar(ns_node)` | Persistent | `Address` | Registry-attested Registrar |
+| `DataKey::Resolver(ns_node)` | Persistent | `Address` | Registry-attested Resolver; separate from `Record.resolver` |
+
+```rust
+struct Config {
+    allocator: Address,
+    reserved_root: BytesN<32>,
+    registrar_wasm_hash: BytesN<32>,
+    resolver_wasm_hash: BytesN<32>,
+}
+struct Record {
+    owner: Address,
+    resolver: Option<Address>,
+    registrar_status: RegistrarStatus,
+    resolver_status: ResolverStatus,
+}
+enum RegistrarStatus { Clean, Tainted }
+enum ResolverStatus { Clean, Tainted }
+struct Pending { to: Address, expires: u64 }
+```
+
+`Clean` and `Tainted` are single-symbol vectors. There are no current `RegistrarTainted` or `ResolverTainted` storage keys: both statuses are fields of `Record`. Ordinary owner/pointer updates preserve them. `Tainted` marks provenance ineligible for permanence, including an upgrade or post-hoc Registrar attestation; restoring an earlier Wasm hash does not clear it. A fresh `Clean` field does not prove a contract has been attested. Resolver attestation and the current resolver pointer must be distinguished.
+
+The reservation Merkle root is stored, but the complete label list and allocation witnesses are not. Namespace deployment salts and vanity-search candidates are not stored application records. Salt version `1` is a code-defined namespace-and-role binding rule, not a `DataKey` or storage-schema version.
+
+Namespace transfer proposals expire after `604800` seconds. A keeper can call `touch_node(ns_node)` to extend the namespace record and existing Registrar, Resolver and ResolverLock entries. It does not extend `Pending` or the Registry instance; `keep_alive()` covers the instance and code. A raw missing owner entry does not authorize reallocation: the contract also checks related state.
+
+## Allocator
+
+Use `label_hash = H(label_bytes)` in this section. Objections and upfront claim fees use separate accounting, even when their configured token happens to be the same asset.
+
+| Key | Storage | Value | Meaning |
+| --- | --- | --- | --- |
+| `DataKey::Config` | Instance | `Config` | Registry, governance, claim-window, bond and age settings |
+| `DataKey::Claim(label_hash)` | Persistent | `Claim` | Current/latest claim for the label; not an append-only claim history |
+| `DataKey::Objection(label_hash)` | Legacy, unused | No current value schema | Declared for compatibility; this implementation neither reads nor writes it |
+| `DataKey::PendingUpgrade` | Instance | `PendingUpgrade` | Proposed Wasm and earliest execution timestamp |
+| `DataKey::ReopenEta(label_hash)` | Persistent | `(u64, u64)` | `(eta, rejected_at)` for the current rejected claim |
+| `DataKey::Credit(address)` | Persistent | `i128`, absent means `0` | Undelivered objection-bond settlement credit in `Config.token` |
+| `DataKey::Owed` | Instance | `i128`, absent means `0` | Aggregate outstanding bond-settlement credits |
+| `DataKey::LockedBonds` | Instance | `i128`, absent means `0` | Live objection bonds plus any slashed bond amount that could not be burned |
+| `DataKey::SchemaVersion` | Instance | `u32` (`4`) | Explicit storage compatibility gate |
+| `DataKey::ParkedAge(label_hash, claimant)` | Persistent | `u64`, absent means `0` | Banked announced-time budget across prior claims by this claimant |
+| `DataKey::RejectedLock(label_hash, claimant)` | Persistent | `u64` | Rejection timestamp/epoch for that claimant; survives a replacement claim |
+| `DataKey::ObjCount(label_hash)` | Persistent | `u32`, absent means `0` | Dismissed/timed-out objection cycles in the current claim epoch |
+| `DataKey::ClaimantReopenEta(label_hash, claimant)` | Persistent | `(u64, u64)` | `(eta, rejected_at)` for one claimant's historical rejection |
+| `DataKey::FeePolicy` | Instance | `ClaimFeePolicy` | One-time configured upfront fee policy |
+| `DataKey::FeeReceipt(label_hash)` | Persistent | `ClaimFeeReceipt` | Latest claim's fee escrow/settlement snapshot |
+| `DataKey::LockedFees` | Instance | `i128`, absent means `0` | Unsettled upfront claim fees |
+| `DataKey::FeeCredit(address)` | Persistent | `i128`, absent means `0` | Undelivered claim-fee settlement credit in `FeePolicy.token` |
+| `DataKey::FeeOwed` | Instance | `i128`, absent means `0` | Aggregate outstanding claim-fee credits |
+
+```rust
+struct Config {
+    registry: Address,
+    governance: Address,
+    window: u64,
+    bond: i128,
+    token: Address,
+    max_claim_age: u64,
+    reserved_root: BytesN<32>,
+}
+struct Claim {
+    label: Bytes,
+    claimant: Address,
+    basis: Vec<Bytes>,
+    announced_at: u64,
+    state: ClaimState,
+    obj_objector: Option<Address>,
+    obj_basis: Option<Bytes>,
+    obj_bond: i128,
+    obj_frozen_at: u64,
+    rejected_at: u64,
+}
+enum ClaimState { Announced, Objected, Awarded, Withdrawn, Rejected }
+struct PendingUpgrade { wasm_hash: BytesN<32>, eta: u64 }
+struct ClaimFeePolicy { token: Address, amount: i128, recipient: Address }
+struct ClaimFeeReceipt {
+    claimant: Address,
+    amount: i128,
+    outcome: FeeOutcome,
+    refund_amount: i128,
+    treasury_amount: i128,
+}
+enum FeeOutcome { Held, Awarded, Rejected, Withdrawn, Expired, Stuck }
+```
+
+`ClaimState` and `FeeOutcome` use their **named** variants, not `0`, `1`, or other numeric state IDs. Objection fields are meaningful while `state = Objected`; do not interpret leftover numeric `obj_*` fields as an active objection after settlement. `announced_at` can be adjusted when a frozen window resumes, so it is not always the original submission timestamp. `rejected_at = 0` means no recorded rejection timestamp in that field.
+
+There are no `Expired` or `Stuck` ClaimState variants: those exits store `Withdrawn` in the claim while recording `Expired` or `Stuck` in the fee receipt. Missing Config, SchemaVersion or required FeePolicy is an error, unlike an intentionally absent optional claim. `time_remaining = 0` alone does not prove that a claim can execute.
+
+Fee amounts and credits are signed 128-bit integers in the configured token's smallest units, with nonnegative accounting invariants. Decimals are token metadata, not part of these records. The current fee is `50000000000` stroops, or **5,000 testnet XLM**. Receipt outcomes have these refund entitlements:
+
+| Fee outcome | Claimant refund | Fee recipient |
+| --- | --- | --- |
+| `Held` | Not settled | Not settled |
+| `Awarded` | `0` | Full amount |
+| `Rejected`, `Stuck` | Full amount | `0` |
+| `Withdrawn`, `Expired` | `floor(amount × 4 / 5)` | Remainder |
+
+The equivalent refund basis points are `0`, `10000`, and `8000`; those numbers describe policy arithmetic, not the stored enum encoding. `refund_amount` and `treasury_amount` describe entitlements, including any undelivered pull-credit. A settled receipt does not by itself prove that every transfer was delivered. A later claim can overwrite the label's old Claim/FeeReceipt; use confirmed events for history.
+
+`ObjCount` is capped at `3` objection cycles per claim epoch. The configured live-time budget and per-claimant `ParkedAge` survive different transitions from the per-label cycle counter. Rejection locks and claimant-specific reopen proposals are separate from the label's latest claim. Reopen tuples bind a proposal to its precise rejection timestamp; a historical reopen does not necessarily free the label.
+
+`Config.window` is bounded to `86400`–`3153600000` seconds. `max_claim_age` is at most `3153600000` and must exceed the window by at least `3600` seconds. Rejection cooldown, objection timeout and the minimum banked concession budget each use `2592000` seconds. Those are timing/budget rules, not TTLs or automatic deletion deadlines. Claim basis accounting requires `sum(entry.len() + 8) <= 4096`, including the per-element overhead; an objection basis is at most `4096` raw bytes.
+
+`touch_claim(label)` extends the existing Claim, legacy ReopenEta, FeeReceipt and ObjCount plus the instance/code. It does not enumerate claimant-keyed history or all payee credits. `touch_reopen_for(label, claimant)` maintains that claimant's proposal and matching rejection lock plus the instance/code; `touch_fee_credit(address)` maintains that fee credit plus the instance/code. There is no general enumeration of every persistent key. Known keys can also be maintained through Stellar's ledger-entry TTL operations.
+
+Schema `4` requires fee receipts for claims. Schema `3` had no claim-fee receipt requirement; schema `2` used a single `u64` ReopenEta value rather than the two-element tuple; legacy schema `1` had no SchemaVersion entry and different Claim/Config layouts. The current deployment was created fresh. There is no general raw-storage migration method: an upgrade must preserve the existing schema or implement a separately reviewed migration. Changing a version getter or stored version number does not convert old values. Allocator upgrade proposals retain their own configured claim-window delay; Lookup's zero delay does not change this rule.
+
+## Registrar
+
+| Key | Storage | Value | Meaning |
+| --- | --- | --- | --- |
+| `DataKey::Config` | Instance | `Config` | Namespace anchors, issuance policy and permanence |
+| `DataKey::Name(name_node)` | Persistent | `Name` | Holder, built-in address, ownership expiry and generation |
+| `DataKey::PendingTransfer(name_node)` | Persistent | `PendingTransfer` | Offer bound to the current holder and generation |
+
+```rust
+struct Policy {
+    reclaimable: bool,
+    transferable: bool,
+    tradeable: bool,
+    default_term_secs: u64,
+    trade_fee_bps: u32,
+}
+struct Config {
+    registry: Address,
+    namespace_node: BytesN<32>,
+    owner: Address,
+    treasury: Address,
+    treasury_set_by: Address,
+    policy: Policy,
+    permanent: bool,
+}
+struct Name {
+    holder: Address,
+    address: Address,
+    expires_at: u64,
+    generation: u64,
+}
+struct PendingTransfer {
+    from: Address,
+    to: Address,
+    generation: u64,
+    expires: u64,
+}
+```
+
+`Config.owner` is the constructor-time owner; current namespace authority follows `Registry.owner_of(namespace_node)`. `treasury_set_by` identifies who configured the treasury. After namespace ownership changes, a treasury set by a previous owner is not the current owner's authorized reclaim destination.
+
+`Name.address` is a built-in G/C destination, not a complete native payment instruction. The namespace Resolver may supply an explicit destination and memo. `expires_at = 0` means no ownership expiry; it does not make a reclaimable namespace permanent. With a finite expiry, the name expires when ledger time is **greater than** `expires_at`. Storage TTL is independent.
+
+Generation starts at `0` for first issuance and increases on reissue, accepted transfer and reclaim. A holder address update or renewal does not change it. Resolver entries from another generation stop being current even if still present in the ledger. A transfer proposal carries both `from` and `generation`; its acceptance deadline is `604800` seconds after proposal. Acceptance changes holder and built-in address to the recipient and increments generation.
+
+Policy terms are either `0` or `86400`–`3153600000` seconds. `trade_fee_bps` is `0`–`10000`; it is a basis-point field, not proof that a marketplace feature is enabled. Making a namespace permanent is one-way, requires no-expiry terms, disables reclaim and freezes Registrar upgrades.
+
+Name writes extend the name entry and instance/code. Transfer proposal writes extend the proposal entry. `touch(label)` extends the Name entry only; `keep_alive()` maintains instance/code. Neither is a blanket renewal of every PendingTransfer. Renewal changes the ownership clock; a TTL extension does not.
+
+## Resolver
+
+| Key | Storage | Value | Meaning |
+| --- | --- | --- | --- |
+| `DataKey::Config` | Instance | `Config` | Registrar authority and Registry anchor |
+| `DataKey::Addr(name_node)` | Persistent | `AddrRec` | Explicit forward address with generation |
+| `DataKey::Text(name_node, key)` | Persistent | `TextRec` | Profile text or the reserved `payment` record |
+| `DataKey::Reverse(address)` | Persistent | `RevRec` | Address-authorized display-name declaration |
+| `DataKey::Provenance` | Instance | `Provenance` | One-time Registry/namespace deployment binding, when bound |
+| `DataKey::PaymentConfigured(name_node, generation)` | Persistent | `bool` (`true`) | Marker that this ownership generation requires complete payment metadata |
+
+```rust
+struct Config { authority: Address, admin: Address, registry: Address }
+struct AddrRec { addr: Address, generation: u64 }
+struct TextRec { value: String, generation: u64 }
+struct RevRec { node: BytesN<32>, name: String, generation: u64 }
+struct Provenance { registry: Address, node: BytesN<32> }
+```
+
+`Config.authority` is the Registrar. `admin` remains in the layout but is not the current upgrade-authority source; current authority follows the Registrar's live owner lookup. `Provenance` is instance data and cannot expire independently of Config.
+
+### Payment storage
+
+There is **no `DataKey::Payment` entry**. `set_payment` and `set_muxed` atomically write these three entries for the same name and generation:
+
+1. `Addr(name_node)` → `AddrRec` with the destination G/C address; for muxed payments this is the **base G account**.
+2. `Text(name_node, Symbol("payment"))` → `TextRec` with one complete versioned string below.
+3. `PaymentConfigured(name_node, generation)` → `true`.
+
+| Destination | Exact `TextRec.value` format |
+| --- | --- |
+| G or C, no memo | `1\|ADDRESS\|none\|` |
+| G plus ID memo | `1\|G_ACCOUNT\|id\|DECIMAL_U64` |
+| G plus text memo | `1\|G_ACCOUNT\|text\|UTF8_TEXT` |
+| G plus hash memo | `1\|G_ACCOUNT\|hash\|LOWERCASE_HEX_32_BYTES` |
+| Muxed destination | `2\|G_ACCOUNT\|muxed\|DECIMAL_U64` |
+
+The backslashes above only escape Markdown table separators; they are **not stored**. For example, an actual ID record is `1|GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ|id|420`.
+
+Only the first three `|` characters delimit fields; text memo content may itself contain `|`. Direct records use a 56-character G/C StrKey. IDs use canonical decimal digits from `0` through `18446744073709551615`, without leading zeros. Text memos contain 1–28 UTF-8 bytes. Hash memos contain exactly 64 lowercase hex characters. The decoder bounds the entire record to 128 bytes.
+
+A muxed record stores the base account and the exact `u64` routing ID on chain; it does not store an M string as a Soroban `Address`. The SDK reconstructs the full checksummed M StrKey and returns `{address: "M…", memo: {type: "none"}}`. This operation-level ID is not a transaction memo. Reading only `Addr` would lose it. The [published payment encoder/decoder](https://github.com/SoranDomains/sdk/blob/1724038f86816ede8234faa62c379bc9d5df6231/packages/lookup/src/payment.ts) implements the public SDK representation.
+
+```rust
+// Return/event types, NOT additional stored structs under a Payment key:
+enum PaymentMemo { None, Id(u64), Text(String), Hash(BytesN<32>) }
+struct Payment { address: Address, memo: PaymentMemo }
+struct MuxedPayment { account: Address, id: u64 }
+enum PaymentDestination { Direct(Payment), Muxed(MuxedPayment) }
+```
+
+For example, `resolve_destination` returns `[Symbol("Muxed"), {account: Address(G), id: U64(420)}]`. `resolve_v2` wraps that result in its resolution metadata. Neither return value is the raw `TextRec` stored on the Resolver.
+
+An untouched generation can resolve its current effective address with no memo. Once configured, missing, empty, malformed or mismatched payment metadata must not be treated as a memo-free destination. Presence of the marker is significant; the implementation never removes these generation-specific markers. Older generations do not configure a new holder's generation. Generic `set_text` cannot edit the reserved `payment` key; use an atomic payment write.
+
+### Profiles, reverse names and maintenance
+
+Profile keys are symbols of 1–32 letters, digits or underscores. Values are public strings. Retraction writes an empty string; it does not delete the ledger entry or erase history. Standard profile readers treat empty values as unset. `AddrRec` and `TextRec` are current only when their generation matches the Registrar's current active name.
+
+Reverse records contain plaintext `label.namespace`, its node and generation. A raw reverse entry is only a declaration: verified reads also check the current generation and forward match. Legacy reverse records without the `name` string, or with a differently typed `name`, are not current `RevRec` values; holders must set a valid declaration again. The older two-field Resolver Config is likewise not the current three-field layout. This deployment was created fresh; do not assume an older Resolver can adopt it through a Wasm swap alone.
+
+`put` extends the modified persistent record and instance/code. `keep_alive()` maintains instance/code. `touch_node(node)`, `touch_text(node, key)` and `touch_reverse(address)` extend their existing entry plus instance/code. `touch_payment(name)` covers the current-generation marker, address, payment text and instance/code together; maintaining the address alone does not maintain its payment metadata. None of these changes ownership or payment content.
+
+## Primary
+
+| Key | Storage | Value | Meaning |
+| --- | --- | --- | --- |
+| `DataKey::Config` | Instance | `Config` | Immutable Registry anchor |
+| `DataKey::Primary(address)` | Persistent | `PrimaryRec` | Address's elected cross-namespace display name |
+
+```rust
+struct Config { registry: Address }
+struct PrimaryRec { name: String, ns_node: BytesN<32>, node: BytesN<32> }
+```
+
+All PrimaryRec fields are an election-time snapshot. `primary_of` checks the Registry's **current** resolver pointer and that Resolver's verified display name. The cached `node` is informational, not an independent proof. A stored declaration can remain present while the verified answer is absent after a transfer, destination change, reverse clear or resolver change. An unavailable dependent display-name read can also yield no verified primary; that does not prove no raw declaration exists.
+
+Universal Lookup's `primary_name` independently rechecks the returned name against current forward resolution. Its `reverse` path also verifies the complete native destination and refuses a muxed destination as an account-identity proof. Do not replace these checks with a raw PrimaryRec or an isolated Resolver address record that exposes only a muxed destination's base G account.
+
+`set_primary` extends the record and instance/code. `clear_primary` removes the current entry, not its historical transactions. `touch_primary(address)` extends the entry if present and maintains instance/code. Primary has no Wasm-upgrade entry point or general storage migration method.
+
+## Lookup
+
+| Key | Storage | Value | Meaning |
+| --- | --- | --- | --- |
+| `DataKey::Config` | Instance | `Config` | Registry and governance anchors |
+| `DataKey::LegacyCodeHashes` | Instance, optional | `LegacyCodeHashes` | Allowed legacy Registrar/Resolver implementation pair |
+| `DataKey::PendingUpgrade` | Instance, optional | `PendingUpgrade` | Exact governance-proposed replacement code hash |
+| `DataKey::PrimaryAnchor` | Instance, optional | `Address` | Primary contract used for account identity reads |
+
+```rust
+struct Config { registry: Address, governance: Address }
+struct LegacyCodeHashes { registrar: BytesN<32>, resolver: BytesN<32> }
+struct PendingUpgrade { wasm_hash: BytesN<32>, execute_after: u64 }
+```
+
+Lookup stores **no per-name answers, payment records, reverse records or cached namespace data**. It queries the Registry and the current namespace contracts. Resolution structs, namespace/name metadata and the internal Provenance mirror are ABI data, not additional Lookup storage entries. An absent optional anchor is not a failed read; decoding or RPC failures must be handled separately.
+
+`version()` and `destination_version()` are code-defined getters; neither has a stored DataKey. ABI 2 selects complete `Direct`/`Muxed` destinations. A successful native Resolver payment-version `1` response uses its direct-payment interface; version `2` requires destination-version `2`. Failed or unknown capability responses do not justify a legacy fallback. The old Address-returning methods cannot represent a muxed ID and refuse that result.
+
+All Lookup configuration and pending-upgrade data share the instance lifetime. `keep_alive()` extends instance/code. The current upgrade delay is `0`: governance still proposes an exact Wasm hash, and execution checks that proposal. Code replacement does not automatically convert the stored Config or other instance values.
+
+## TTL and restoration
+
+Ownership expiry uses Unix **seconds** in stored values. Storage TTL uses **ledger numbers** in Stellar's TTL entries and RPC `liveUntilLedgerSeq`. An ownership term of zero is not an infinite storage TTL. Ordinary reads do not provide a persistent keeper service, and read simulations do not commit storage changes.
+
+Registry, Allocator, Registrar, Resolver and Primary use these dynamic extension parameters:
+
+```text
+extend_to = min(3_000_000, storage.max_ttl())
+threshold = min(2_500_000, saturating_sub(extend_to, 1))
+```
+
+Lookup uses `threshold = min(2_500_000, max_ttl)` and `extend_to = min(3_000_000, max_ttl)`. These are ledger targets, not a promised number of days. A bump only extends an entry below its threshold; it can be a no-op for an already-long TTL. Instance extension checks the instance and Wasm-code TTLs separately. [Instance TTL semantics](https://docs.rs/soroban-sdk/26.1.0/soroban_sdk/storage/struct.Instance.html#method.extend_ttl)
+
+Persistent entries and contract instances can archive and later be restored. Archival does not establish that a namespace is unowned, a name has expired, a rejection/credit never existed, or a payment needs no memo. A raw `getLedgerEntries` result that omits a key is not a sufficient payment or ownership decision. A transaction accessing archived persistent data must include the required restoration work or fail; RPC simulation can identify what is needed. Restoration costs and subsequent TTL extension are distinct from name-renewal or claim fees. [Stellar state archival](https://developers.stellar.org/docs/learn/fundamentals/contract-development/storage/state-archival)
+
+Use the relevant contract read after restoration to recheck current meaning. Restoring an old-generation payment or a stale primary declaration does not make it current. Do not translate an RPC failure, archived entry or malformed ScVal into `None`, `false`, zero credit, or a memo-free G address.
+
+## Read raw keys with Stellar RPC
+
+This read-only Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.6.0`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It does not sign, submit, restore, or construct a payment. Replace the example name with an actually issued name.
+
+```typescript
+import { Address, nativeToScVal, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";
+import { Soran, DEPLOYMENTS, parseName } from "@sorandomains/lookup";
+
+const deployment = DEPLOYMENTS.testnet;
+const client = new Soran({
+  network: "testnet", resolutionMode: "universal",
+  resolverCacheTtlMs: 0, timeoutMs: 15000,
+});
+const server = new rpc.Server(deployment.rpcUrl, { timeout: 20 });
+const name = "alice.nova"; // Replace with an issued name.
+const { namespace } = parseName(name);
+const [metadata, context, nsNode, nameNode] = await Promise.all([
+  client.nameMetadata(name), client.namespaceMetadata(namespace),
+  client.namehash(namespace), client.node(name),
+]);
+if (!metadata?.active || !context?.resolver) {
+  throw new Error("An active name and current Resolver are required.");
+}
+
+const symbol = (value: string) => nativeToScVal(value, { type: "symbol" });
+const bytes = (value: Uint8Array) => nativeToScVal(value, { type: "bytes" });
+const key = (variant: string, ...args: xdr.ScVal[]) =>
+  xdr.ScVal.scvVec([symbol(variant), ...args]);
+const persistent = (contract: string, value: xdr.ScVal) =>
+  xdr.LedgerKey.contractData(new xdr.LedgerKeyContractData({
+    contract: new Address(contract).toScAddress(),
+    key: value,
+    durability: xdr.ContractDataDurability.persistent,
+  }));
+
+const keys = {
+  namespace: persistent(deployment.registryId, key("Node", bytes(nsNode))),
+  address: persistent(context.resolver, key("Addr", bytes(nameNode))),
+  paymentText: persistent(context.resolver, key("Text", bytes(nameNode), symbol("payment"))),
+  configured: persistent(context.resolver, key("PaymentConfigured", bytes(nameNode),
+    nativeToScVal(metadata.generation, { type: "u64" }))),
+};
+const result = await server.getLedgerEntries(...Object.values(keys));
+const entries = new Map(result.entries.map(entry => [entry.key.toXDR("base64"), entry]));
+for (const [label, ledgerKey] of Object.entries(keys)) {
+  const entry = entries.get(ledgerKey.toXDR("base64"));
+  if (!entry) {
+    console.log(label, { status: "Not returned; do not infer ownership or memo safety." });
+    continue;
+  }
+  const data = entry.val;
+  if (data.type !== "contractData") {
+    throw new Error("Unexpected ledger entry type.");
+  }
+  console.log(label, {
+    rawValue: scValToNative(data.contractData.val),
+    liveUntilLedger: entry.liveUntilLedgerSeq,
+    lastModifiedLedger: entry.lastModifiedLedgerSeq,
+  });
+}
+```
+
+The helper `key("Text", …, symbol("payment"))` uses a symbol for the reserved key. Replacing it with a string, using the namespace hash instead of the name node, or querying the marker with a previous generation addresses a different ledger key. `scValToNative` is a decoder, not a schema validator or payment verifier. Keep the `TextRec.value` and matching `AddrRec`/generation together when inspecting them, and use `resolvePayment` for the validated payment answer.
+
+To inspect instance data instead, fetch its special footprint and decode each internal key/value pair:
+
+```typescript
+import { Contract } from "@stellar/stellar-sdk";
+
+const instanceResult = await server.getLedgerEntries(
+  new Contract(deployment.registryId).getFootprint(),
+);
+const instanceEntry = instanceResult.entries[0];
+if (!instanceEntry || instanceEntry.val.type !== "contractData" ||
+    instanceEntry.val.contractData.val.type !== "scvContractInstance") {
+  throw new Error("Registry instance was not returned.");
+}
+const instance = instanceEntry.val.contractData.val.instance;
+for (const entry of instance.storage ?? []) {
+  console.log(scValToNative(entry.key), scValToNative(entry.val));
+}
+```
+
+The second snippet continues the first snippet's `server` and `deployment` variables. It reads Config **inside** instance storage; querying `persistent(registry, key("Config"))` would look for a different, unused application entry. RPC returns current ledger data and TTL metadata, not a complete historical archive. [getLedgerEntries reference](https://developers.stellar.org/docs/data/apis/rpc/api-reference/methods/getLedgerEntries)

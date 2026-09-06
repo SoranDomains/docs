@@ -105,6 +105,12 @@
           "platform/billing",
           "platform/marketplace"
         ]
+      },
+      {
+        "group": "Contract reference",
+        "pages": [
+          "reference/contract-storage"
+        ]
       }
     ]
   },
