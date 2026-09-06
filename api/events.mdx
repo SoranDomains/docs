@@ -18,6 +18,9 @@ Topics are in the exact order shown. Data structs use Soroban contracttype map e
 | Resolver | `text_v1`, name node, generation | Text key `Symbol` only |
 | Resolver | `pay_v1`, name node, generation | Complete direct `Payment { address, memo }` |
 | Resolver | `pay_v2`, name node, generation | `PaymentDestination::Muxed(MuxedPayment { account, id })` |
+| Registrar | `claimcfg` | Complete `ClaimConfig` |
+| Registrar | `reserved`, name node | `(label:Bytes, reserved:bool, policy_version:u64)` |
+| Registrar | `claim_v1`, namespace node, holder | `(request_id:BytesN<32>, ClaimReceipt)` |
 
 Nodes are `BytesN<32>` and generations are `u64`.
 
@@ -26,6 +29,8 @@ Nodes are `BytesN<32>` and generations are `u64`.
 `text_v1` is **invalidation only**. It does not contain the historic value. Re-read current text through Lookup if you need it; historic reconstruction needs historic state access. Direct G/C payment writes emit `pay_v1`; muxed writes emit `pay_v2`. Neither duplicates address/text companion events. The muxed event preserves the exact u64 ID separately from its G account. A configured memo-free `set_addr` emits the updated complete payment; an ordinary unconfigured address-only write emits `addr_v1`.
 
 When an older event has a new companion, the older event immediately precedes it in the same invocation. Archive both raw events; avoid applying the same state change twice in a projection. Do not deduplicate merely by transaction, action and subject: one transaction can contain multiple legitimate events.
+
+Native claim receipts are historical operation results; current holder and payment instructions still require current contract reads. Receipt replay emits no new claim event. Configuration and reservation changes are distinct from issuance. See [native stored types and event semantics](/reference/successor-claim-storage#ttl-restoration-and-events).
 
 ## Routing and governance events
 

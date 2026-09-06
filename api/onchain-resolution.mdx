@@ -8,23 +8,23 @@ description: "A shared on-chain ABI for wallets, explorers and other contracts a
 Read **Universal Lookup** for the authoritative contract result. It follows current Registry routing and invokes each namespace's supported contracts. You do not need a Soran SDK or Soran HTTP API to use it.
 
 <Note>
-The addresses below are the native-muxed **5 September 2026 testnet deployment, verified at 18:10 UTC**. Its Resolver and Lookup use ABI 2; Registry retains namespace-and-role-bound salt version 1. Use the IDs together; the earlier deployments remain separate. The examples target Stellar SDK 17 and Lookup ABI version 2.
+The addresses below are the native-claim **6 September 2026 testnet deployment, verified at 12:12 UTC**. Its Resolver and Lookup use ABI 2; Registry retains namespace-and-role-bound salt version 1. Use the IDs together; the earlier deployments remain separate. The examples target Stellar SDK 17 and Lookup ABI version 2. Native Registrar claiming and Resolver initialization add their separate version-1 interfaces; ordinary payment reads keep ABI 2.
 </Note>
 
 ## Shared testnet contracts
 
 | Contract | Address | Integration role |
 | --- | --- | --- |
-| **Universal Lookup** | `CDSORANKG77YZITKWCLWGPKLB2R3HPTP4D6KKZZ7X3R5HLXLMNOTGCDD` | Shared read entry point for every namespace |
-| Registry | `CASORANI5CN2NJFEO2MGTRDA35AOEF3D3OCVBWN3FS6B6FXNQ74RTJ7H` | Namespace ownership and routing; verify this Lookup anchor |
-| Primary | `CCSORANJZOR5ZYTI4KAW34ESAQFMJAO4NKMTIVOVJOI2VDKCDK3RICXZ` | Account-level Primary selection; read through Lookup |
-| Allocator | `CDSORANPTRS2EYHN57OZEXTW23P2HPDM3WEAC754B7GNHRB5V6FTJ2EE` | Namespace claims and fee escrow |
+| **Universal Lookup** | `CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA` | Shared read entry point for every namespace |
+| Registry | `CBSORANPM664QXYMYRZKLQDQE2TXFSK4GBMC6EIRSRTAUZRZCRZRFNMK` | Namespace ownership and routing; verify this Lookup anchor |
+| Primary | `CASORAN755O3GCQTRAHKDXLLCSDLNKAQWAP6MWABRSFVSHLJOEKAC7AB` | Account-level Primary selection; read through Lookup |
+| Allocator | `CCSORANYFHUJUWETEQ7UWIDN4JTPV7NN5G6YUSSBZI57X7EQWVA63VMJ` | Namespace claims and fee escrow |
 
 Connect to `https://soroban-testnet.stellar.org` with passphrase `Test SDF Network ; September 2015`. Mainnet is not deployed. [Release status](/reference/release-status) includes deployment transactions, exact code hashes, fees and package availability.
 
 Wallets and explorers call **Universal Lookup**. It discovers the current Registrar and Resolver for the requested namespace through the Registry. Namespace-specific contracts, including the [Nova example contracts](/reference/release-status#nova-namespace-contracts), belong in a deployment reference rather than an integration's global address list.
 
-The constructor is `(registry: Address, governance: Address, legacy: Option<LegacyCodeHashes>, primary: Option<Address>)`. `LegacyCodeHashes` contains exact Registrar and Resolver Wasm hashes. The optional Primary must be an active Wasm contract with the same Registry anchor. These anchors are fixed by the current implementation; governed code replacement remains possible.
+The constructor is `(registry: Address, governance: Address, legacy: Option<LegacyCodeHashes>, primary: Option<Address>)`. `LegacyCodeHashes` contains exact Registrar and Resolver Wasm hashes. The optional Primary must be an active Wasm contract with the same Registry anchor. These anchors are fixed by the current implementation; governed code replacement remains possible. This deployment configures `legacy = None`; it does not provide a route to a previous Registry.
 
 ## Forward result
 
@@ -51,6 +51,8 @@ MuxedPayment { account: Address, id: u64 }
 The original `resolve(name) -> Resolution` and `resolve_payment(name) -> Payment` retain their V1 shapes for direct G/C instructions but reject muxed records with `MuxedDestination`. `resolve_address(name) -> Address` also rejects required memos. Never use a rejected old read as permission to substitute the base G address.
 
 Canonical names contain exactly two 1–63-byte labels of lowercase ASCII letters/digits/interior hyphens. Classic G destinations permit None, unsigned 64-bit ID, 1–28 UTF-8 byte text or 32-byte hash. Contract C destinations support None only. Muxed destinations require a G base and a u64 ID, with no separate memo in this ABI. See [address types and complete examples](/concepts/payment-destinations).
+
+The Registrar-only `initialize_destination` method atomically establishes a fresh generation’s complete payment destination during native claiming or recipient acceptance. It requires the bound Registrar and holder authorization, verifies current native bindings and refuses an already configured generation. It is not an unrestricted initializer. See the [native claim ABI](/api/native-claiming).
 
 The native Resolver exposes `payment_version() == 2`, `destination_version() == 2`, `resolve_destination(name)` and holder-authorized `set_muxed(name,holder,account,id)`. Its existing `set_payment` method remains the atomic G/C-and-memo writer. The muxed base, ID, address record and configuration marker are updated in one transaction and bound to the current ownership generation.
 
@@ -106,8 +108,8 @@ import {
 } from "@stellar/stellar-sdk";
 
 const deployment = {
-  lookupId: "CDSORANKG77YZITKWCLWGPKLB2R3HPTP4D6KKZZ7X3R5HLXLMNOTGCDD",
-  registryId: "CASORANI5CN2NJFEO2MGTRDA35AOEF3D3OCVBWN3FS6B6FXNQ74RTJ7H",
+  lookupId: "CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA",
+  registryId: "CBSORANPM664QXYMYRZKLQDQE2TXFSK4GBMC6EIRSRTAUZRZCRZRFNMK",
   rpcUrl: "https://soroban-testnet.stellar.org",
   passphrase: "Test SDF Network ; September 2015",
 };

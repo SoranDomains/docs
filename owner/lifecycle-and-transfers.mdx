@@ -13,7 +13,7 @@ await owner.renew("acme", "alice", 86_400);
 await owner.setTreasury("acme", treasuryAddress);
 ```
 
-Reclaim requires reclaimability. Renewal extends an eligible finite term; zero-term names cannot be renewed as if they had a finite expiry. Treasury config controls custody for future reclaims. A current name expires only when ledger time is strictly greater than its finite expiry.
+Reclaim requires reclaimability. Renewal extends an eligible finite term; zero-term names cannot be renewed as if they had a finite expiry. `setTreasury` controls custody for future reclaims. It does not update the native username claim fee recipient; change that through `configureClaims`. A current name expires only when ledger time is strictly greater than its finite expiry.
 
 ## Transfer the namespace
 
@@ -23,7 +23,7 @@ const pending = await owner.pendingNamespaceTransfer("acme");
 await owner.cancelNamespaceTransfer("acme");
 ```
 
-The recipient uses its own configured `SoranOwner` client to call `acceptNamespaceTransfer("acme")`. Ownership moves on acceptance, not proposal. This Registry transfer is distinct from an individual name's Registrar transfer in the Holder SDK or console Names view.
+The recipient uses its own configured `SoranOwner` client to call `acceptNamespaceTransfer("acme")`. Ownership moves on acceptance, not proposal. This Registry transfer is distinct from an individual name's Registrar transfer in the Holder SDK or console Names view. Acceptance advances the ownership epoch and makes prior-owner native claim settings ineffective. The new owner must explicitly configure registration; returning to the former owner does not restore old approval authority. Existing holder renewal and record rights do not depend on re-enabling public claims.
 
 ## Change routing
 

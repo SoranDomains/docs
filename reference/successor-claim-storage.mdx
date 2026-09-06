@@ -1,0 +1,441 @@
+---
+title: "Native claim storage"
+description: "Versioned storage additions and canonical types for the native username claim deployment."
+---
+
+<Note>
+This is the native-claim schema deployed on **6 September 2026**, verified at ledger
+**4,534,629**. Read it with the [complete current contract reference](/reference/contract-storage).
+The [previous native-muxed schema](/reference/legacy-contract-storage) applies only
+to its matching historical deployment.
+</Note>
+
+The native-claim release adds native Registrar claims, owner reservations, request receipts,
+recipient destination initialization and holder renewal. It keeps the existing
+namespace-specific Registrar/Resolver arrangement and Universal Lookup read path.
+See the [native API](/api/native-claiming) and [application walkthrough](/owner/automatic-claiming).
+
+Use a verified deployment's code hashes and schema together. A method returning a
+familiar version is not proof that its code or storage has remained unchanged.
+The new Registry uses an immutable native-claim template pair; it does not rewrite
+the previous Registry or automatically migrate old namespace records.
+
+## Encoding conventions
+
+The [XDR conventions](/reference/contract-storage#ledger-and-xdr-conventions)
+also apply here. A named struct is a map keyed by field-name **symbols**. Enum
+variants are symbol vectors with their exact payload arity, not integer ordinals.
+`BytesN<32>` is raw 32-byte `SCV_BYTES`; `u64` and `i128` must retain their full
+precision. Labels use canonical lowercase ASCII and are stored as `Bytes`.
+
+Contract field names use `snake_case`. The SDK exposes equivalent
+`camelCase` fields, `bigint` numbers and lowercase 64-character hex identifiers.
+Do not hash a JSON serialization when reproducing a contract commitment.
+
+```text
+namespace_node = SHA256(zero32 || SHA256(namespace_label_bytes))
+name_node      = SHA256(namespace_node || SHA256(username_label_bytes))
+```
+
+## Registry additions
+
+| Key or field | Storage | Value and rule |
+| --- | --- | --- |
+| `DataKey::OwnershipSequence` | Instance | Required `u64`, initialized to `0` in the constructor |
+| `Record.owner_epoch` | In persistent `DataKey::Node(namespace_node)` | The next checked global ownership sequence value at each allocation, reserved award or accepted ownership transfer |
+
+The current namespace record is:
+
+```rust
+struct Record {
+    owner: Address,
+    owner_epoch: u64,
+    resolver: Option<Address>,
+    registrar_status: RegistrarStatus,
+    resolver_status: ResolverStatus,
+}
+```
+
+Other Registry keys and `Config` retain their documented shapes. The ownership
+sequence is Registry-wide, so a particular namespace's epochs can skip numbers.
+An absent sequence is an error, not a reset to zero. Increment overflow also errors.
+The required namespace record carries its epoch through ordinary writes. A transfer
+back to a former owner receives a new epoch.
+
+`owner_epoch(node)` reads this field. `template_hashes()` returns Registrar then
+Resolver Wasm hashes from immutable configuration. `native_contracts(node)` reads
+existing records and attestations; it adds no storage key.
+
+This extra required field changes the Registry record schema. An old four-field
+record is not a native-claim record with an implied epoch. Use the old schema only
+for its matching deployment. Existing owner/resolver pointers and namespace
+transfer proposals keep their original meanings.
+
+## Registrar keys
+
+The legacy `DataKey::Config`, `Name(node)` and `PendingTransfer(node)` shapes remain
+unchanged. In particular, the name still stores holder, built-in address, expiry
+and ownership generation. New state uses a separate `ClaimKey` enum:
+
+| Key | Storage | Value | Fresh absence |
+| --- | --- | --- | --- |
+| `ClaimKey::ConfigV1` | Instance | `ClaimConfig` | Unconfigured/manual; public claiming unavailable |
+| `ClaimKey::PolicyVersionV1` | Instance | `u64` | `0`, before any configuration or reservation change |
+| `ClaimKey::GrantEpochV1` | Instance | `u64` | `0`, before any configuration or enable/pause change |
+| `ClaimKey::ApprovalUsageV1` | Instance | `ApprovalUsage` | All fields `0`, before any approved claim |
+| `ClaimKey::ReservedV1(name_node)` | Persistent | `bool` | Never reserved; an explicit release stores `false` |
+| `ClaimKey::UsageV1(holder)` | Persistent | `ClaimUsage` | Both fields `0`, before that holder's first public/reserved issue |
+| `ClaimKey::ReceiptV1(holder, request_id)` | Persistent | `ClaimReceipt` | No committed operation under this ID |
+
+For example, a receipt key encodes as:
+
+```text
+SCV_VEC [Symbol("ReceiptV1"), Address(holder), Bytes(request_id)]
+```
+
+Instance keys are entries of the single contract-instance storage map, not separate
+persistent ledger entries. The suffix `V1` belongs to the key name. It is not an
+integer schema-version record. No new application state uses temporary storage;
+native authorization nonce entries belong to the Soroban runtime separately.
+
+### Configuration and usage types
+
+```rust
+enum ClaimMode {
+    Manual,
+    Public,
+}
+
+enum Admission {
+    Open,
+    Allowlist(BytesN<32>),
+    Approval(Address),
+}
+
+struct ClaimSettings {
+    mode: ClaimMode,
+    enabled: bool,
+    admission: Admission,
+    fee_token: Address,
+    fee_amount: i128,
+    fee_recipient: Address,
+    /// Zero is unlimited. Counts are lifetime public admissions, not holdings.
+    wallet_limit: u64,
+    /// Absolute lifetime approved-admission ceiling, not a resettable balance.
+    approval_allowance: u64,
+    approval_rate_limit: u64,
+    approval_window_secs: u64,
+    approval_ttl_secs: u64,
+}
+
+struct ClaimConfig {
+    settings: ClaimSettings,
+    owner_epoch: u64,
+    policy_version: u64,
+    grant_epoch: u64,
+}
+
+struct ClaimUsage {
+    public_claims: u64,
+    reserved_issues: u64,
+}
+
+struct ApprovalUsage {
+    total: u64,
+    window_used: u64,
+    window_ends: u64,
+}
+```
+
+`fee_token` must be the current network's native XLM asset contract. `fee_amount`
+is nonnegative; `0` means free. `fee_recipient` must be G. Approval mode requires
+a separate G account and nonzero explicit allowance, rate limit, window and
+lifetime. Outside Approval mode, all four approval-specific numeric settings are
+zero. `wallet_limit = 0` means unlimited cumulative public claims.
+
+Configuration stamps the current owner epoch. Configure and enable/pause operations
+advance both policy and grant epochs. Reservations advance the policy version,
+including when changed before public claiming is first configured.
+
+An ownership transfer does **not** rewrite this stored configuration. Its enabled
+flag may remain `true`, but it is ineffective when `ClaimConfig.owner_epoch` differs
+from Registry's current epoch. A new owner must configure explicitly. SDKs and
+interfaces must compare the epochs when displaying whether claiming is usable.
+
+`public_claims` counts lifetime ordinary claims, including expired-name reissues.
+`reserved_issues` counts privileged reserved assignments. Neither count decreases
+on transfer, expiry, reclaim, mode change or ownership change. The approval total
+and active window likewise survive policy and key changes. An allowance is an
+absolute lifetime ceiling, not a balance automatically replenished by rotation.
+
+## Request types
+
+The payment types keep the deployed native-muxed representation:
+
+```rust
+enum PaymentMemo {
+    None,
+    Id(u64),
+    Text(String),
+    Hash(BytesN<32>),
+}
+
+struct Payment {
+    address: Address,
+    memo: PaymentMemo,
+}
+
+struct MuxedPayment {
+    account: Address,
+    id: u64,
+}
+
+enum PaymentDestination {
+    Direct(Payment),
+    Muxed(MuxedPayment),
+}
+```
+
+`Direct` supports G with None/ID/Text/Hash or C with None. `Muxed` requires a G
+base account and an exact `u64` ID. It does not carry a transaction memo. The
+public SDK displays a canonical M string with `memo: { type: "none" }`.
+
+The complete operation intent is the authorization and idempotency boundary:
+
+```rust
+struct RequestContext {
+    network: BytesN<32>,
+    registry: Address,
+    registrar: Address,
+    namespace: BytesN<32>,
+    request_id: BytesN<32>,
+    valid_after: u64,
+    deadline: u64,
+}
+
+struct ClaimIntent {
+    context: RequestContext,
+    label: Bytes,
+    claimant: Address,
+    destination: PaymentDestination,
+    resolver: Address,
+    expected_generation: Option<u64>,
+    expected_expiry: Option<u64>,
+    term_secs: u64,
+    owner_epoch: u64,
+    policy_version: u64,
+    grant_epoch: u64,
+    fee_token: Address,
+    fee_amount: i128,
+    fee_recipient: Address,
+}
+
+struct ReservedIntent {
+    context: RequestContext,
+    label: Bytes,
+    holder: Address,
+    destination: PaymentDestination,
+    resolver: Address,
+    expected_generation: Option<u64>,
+    expected_expiry: Option<u64>,
+    term_secs: u64,
+    owner_epoch: u64,
+    policy_version: u64,
+}
+
+struct TransferIntent {
+    context: RequestContext,
+    label: Bytes,
+    from: Address,
+    to: Address,
+    expected_generation: u64,
+    expected_expiry: u64,
+    proposal_expires: u64,
+    destination: PaymentDestination,
+    resolver: Address,
+}
+
+struct RenewIntent {
+    context: RequestContext,
+    label: Bytes,
+    holder: Address,
+    expected_generation: u64,
+    expected_expiry: u64,
+    term_secs: u64,
+    min_new_expiry: u64,
+    max_new_expiry: u64,
+}
+```
+
+A fresh name uses `expected_generation = None` and `expected_expiry = None`.
+Reissue binds both previous values. First issuance creates generation `0`; reissue,
+accepted transfer and reclaim advance it with checked arithmetic. Renewal preserves
+it. An active record is not available for ordinary issuance.
+
+`term_secs` must equal the namespace's immutable default term. The public claim
+intent also binds all fee fields and current policy/owner/grant epochs. An atomic
+reserved assignment uses the current owner and policy epochs but has no username
+fee. Transfer and renewal do not depend on claim policy or approval epochs.
+
+Transfer binds the exact pending sender/recipient, original generation, name expiry
+and proposal deadline. Renewal binds the holder/generation/current expiry and
+permitted result range. For an expired name, the renewal result is based on actual
+execution time, so the signed range accommodates the reviewed timing window.
+
+## Quote and receipt types
+
+```rust
+enum ClaimConfigState {
+    Unconfigured,
+    Configured(ClaimConfig),
+}
+
+struct ClaimQuote {
+    network: BytesN<32>,
+    registry: Address,
+    registrar: Address,
+    namespace: BytesN<32>,
+    resolver: Address,
+    label: Bytes,
+    node: BytesN<32>,
+    claimant: Address,
+    config: ClaimConfigState,
+    owner_epoch: u64,
+    policy_version: u64,
+    available: bool,
+    reserved: bool,
+    generation: Option<u64>,
+    expires_at: Option<u64>,
+    term_secs: u64,
+    now: u64,
+    usage: ClaimUsage,
+    approval_usage: ApprovalUsage,
+}
+
+enum ClaimOperation {
+    Claim,
+    Reserved,
+    Transfer,
+    Renew,
+}
+
+struct ClaimReceipt {
+    operation: ClaimOperation,
+    intent_hash: BytesN<32>,
+    node: BytesN<32>,
+    holder: Address,
+    generation: u64,
+    expires_at: u64,
+    fee_amount: i128,
+    fee_token: Address,
+    fee_recipient: Option<Address>,
+    ledger: u32,
+    timestamp: u64,
+}
+
+enum ClaimResult {
+    Fresh(ClaimReceipt),
+    Replayed(ClaimReceipt),
+}
+```
+
+`ClaimQuote.config` is an explicit enum: `[Symbol("Unconfigured")]` or
+`[Symbol("Configured"), ClaimConfig]`. This differs from the standalone
+`claim_config()` getter's `Option<ClaimConfig>`, whose absence is `SCV_VOID`.
+The SDK converts either absence representation to `null` at its respective API.
+
+Quote availability, reservation and enablement are separate facts. An expired
+record still supplies its prior generation/expiry. A quote's `available` flag
+is not proof that the requesting wallet satisfies admission or quota rules.
+
+Receipts are stored under the receiving holder's identity for reserved assignment,
+transfer and renewal, and the claimant for a public claim. The key spans operation
+types: a holder cannot reuse the same request ID for a different operation.
+The commitment is:
+
+```text
+intent_hash = SHA256(SorobanXDR((Symbol(exact_method_name), complete_intent)))
+```
+
+The exact method name is one of `claim`, `issue_reserved_with_destination`,
+`accept_transfer_with_destination` or `renew_holder`. Merkle proof bytes and native
+credential nonce/signatures are excluded. A different business deadline or epoch
+changes the commitment; refreshing only credentials does not.
+
+A matching receipt yields historical `Replayed` without writes or renewed
+business authorization. It never reinitializes records after transfer/reissue.
+An unmatched commitment is an error. Receipt expiry/generation are historical,
+not a replacement for current Lookup state. Free operations have `fee_amount = 0`
+and `fee_recipient = None`; `fee_token` still identifies native XLM.
+
+## Resolver behavior
+
+The native-claim release adds `initialization_version() = 1`, restricted
+`initialize_destination` and `preview_destination`. It adds no storage key and
+does not change the deployed payment version `2` or its record encodings.
+
+Initialization writes the existing generation-bound `Addr(node)`,
+`Text(node, Symbol("payment"))` and `PaymentConfigured(node, generation)` records
+together. It refuses an existing marker for that generation or address/payment
+records from the same or a newer generation. Old-generation records can be
+replaced when the trusted Registrar creates a new ownership generation.
+
+The caller must be the bound, currently clean native Registrar, and the exact
+holder must consent. The Registrar creates the generation internally; callers
+cannot use this helper as an arbitrary generation or owner-setting API. The
+initializer does not call back into the active Registrar. It writes no reverse
+or Primary identity automatically.
+
+Preview returns a read-only value, not another stored record:
+
+```rust
+struct DestinationPreview {
+    node: BytesN<32>,
+    holder: Address,
+    generation: u64,
+    expires_at: u64,
+    active: bool,
+    destination: PaymentDestination,
+}
+```
+
+Preview requires an exact generation and valid configured payment state, but can
+return `active = false` for an expired name. Ordinary payment reads remain strict:
+expired names do not resolve. Renewal leaves the existing generation and records
+intact, so the holder should review this preview before reactivating them.
+
+## TTL, restoration and events
+
+Ownership expiry and storage lifetime remain independent. An archived receipt,
+reservation, usage entry or name must restore or fail. An application must not
+replace an unavailable read with zero usage, an unreserved label or a fresh
+request. No admin action deletes usage or receipts to reset these values.
+
+Registrar bumps use the existing threshold/target of `2,500,000`/`3,000,000`
+ledgers, clamped to the network maximum. Policy/configuration writes bump the
+instance. Receipt, usage and reservation writes bump their persistent entries.
+Name writes retain their name-plus-instance bump. Keeping entries live costs
+network resources even when there is no username renewal fee.
+
+`touch_claim_state(holder, request_ids, labels)` is permissionless. It bumps the
+instance, that holder's existing usage and the supplied existing receipt and
+reservation entries. The combined supplied request/label count is at most `23`;
+the return count excludes the instance. It skips keys that were never created.
+It does not enumerate every wallet, request or reservation. Keep a discovery list
+or use indexed events to select entries; verify values against the contracts.
+
+| New event topics | Data |
+| --- | --- |
+| `(Symbol("claimcfg"))` | `ClaimConfig` |
+| `(Symbol("reserved"), name_node)` | `(label, reserved, policy_version)` |
+| `(Symbol("claim_v1"), namespace_node, holder)` | `(request_id, ClaimReceipt)` |
+
+Legacy `issued`, `transfer`, `renewed` and `name_v1` lifecycle events remain.
+The renewed payload remains `(label, name_node, new_expiry)`. Destination writes
+retain the native Resolver payment events. Replaying a receipt emits no new claim
+event because it performs no business mutation.
+
+Allocator, Primary and Lookup receive no claim-specific storage additions in this
+release. Use one deployment’s matching contract anchors. Previous contract records
+and namespace escrow liabilities remain attached to their original contracts;
+new deployment does not rewrite them.
