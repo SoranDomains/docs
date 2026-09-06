@@ -61,6 +61,8 @@ The [namespace fee configuration transaction](https://stellar.expert/explorer/te
 
 The Allocator timing change requires an in-place code upgrade. Replacing the earlier pending proposal with the revised Wasm hash restarts the current 24-hour wait. Zero waiting applies only after that replacement executes and its code is verified. The Allocator address and its retained records remain the same; this does not redeploy the Registry. Governance still proposes the exact hash, execution remains permissionless, and cancellation and the single-pending-proposal rule remain. See [governance and upgrades](/concepts/governance#allocator-upgrade-policy-pending-installation).
 
+The revised proposal was confirmed at ledger **4,539,796** on 6 September in [this proposal transaction](https://stellar.expert/explorer/testnet/tx/1fb5fff74210841be222950339c76ab1018fbc3f76bb480c2fc71ccef1f28416). It selects Wasm `9480a4f980de9df0a31652b0b64c54d5c5e1979745cc8c4fc486624b9c177e40`, combining the XLM payout correction and zero-delay policy. Its earliest activation is **7 September 2026 at 19:22:47 UTC** (20:22:47 Lagos). This is a pending proposal, not confirmation that the new code is active.
+
 A **username** fee is separate. A namespace owner can configure free claims or a flat XLM amount paid directly to their G treasury, atomically with issuance and complete payment instructions. There is no username approval escrow or mandatory annual ownership charge. The bounded holder renewal has no separate username renewal fee. Network execution, storage and restoration costs remain separate. See [automatic claiming](/owner/automatic-claiming).
 
 ## SDK versions
