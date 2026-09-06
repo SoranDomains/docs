@@ -16,6 +16,7 @@ The contract addresses and initial configuration below are a dated deployment re
 | Current published SDKs | Lookup 0.7.0, Holder 0.5.1, Owner 0.7.0 and MCP 0.7.1 |
 | Native receipt patch | Holder 0.5.1 published; Nova claiming app and Studio updates verified live |
 | Later contract source fixes | Merged but not deployed; contract addresses and deployed Wasm are unchanged |
+| Allocator upgrade-delay change | Selected policy: zero waiting for future contract upgrades; **not installed yet**. Installing the revised proposal still requires the live code's 24-hour wait |
 | Public app / API | Current deployment verified: API at 12:45 UTC and public web assets at 12:47 UTC |
 | Hosted MCP | 0.7.0 verified against the current contracts at 12:48 UTC; 15 read-only tools |
 | Mainnet | No deployment or supported preset announced |
@@ -50,12 +51,15 @@ All six addresses are **deployed contracts**, not predictions. `SORAN` branding 
 - Lookup ABI/destination versions and Resolver payment/destination versions: `2`.
 - Registrar native claim version and Resolver initializer version: `1`.
 - Mandatory Lookup upgrade delay: `0` seconds.
+- Allocator contract-upgrade delay: currently **24 hours** on this testnet deployment. The pending replacement sets future proposals to `0` seconds; it does not change claim, objection or reopening windows.
 - Registry namespace deployment salt version: `1`.
 - Governance and namespace-fee recipient: `GAJCWWNMBKCSTQQISDFTHFTCEOGXYA37YTP3U3ZW7Q5CYQPHSW6TB4QX`.
 - Native XLM asset contract: `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC`.
 - Namespace application fee: `50000000000` base units, with 7 decimals = **5,000 XLM**.
 
 The [namespace fee configuration transaction](https://stellar.expert/explorer/testnet/tx/6bb169c931a2802dd3419729f24e3d11c382b6b2d19fb2e59fd77a8933badc0e) sets the upfront escrow policy. Award pays the recipient; rejection and stuck cancellation return 100%; withdrawal and expiry return 80%. Settlement may create protected pull credit if delivery fails. See [claim outcomes](/concepts/claiming-a-namespace).
+
+The Allocator timing change requires an in-place code upgrade. Replacing the earlier pending proposal with the revised Wasm hash restarts the current 24-hour wait. Zero waiting applies only after that replacement executes and its code is verified. The Allocator address and its retained records remain the same; this does not redeploy the Registry. Governance still proposes the exact hash, execution remains permissionless, and cancellation and the single-pending-proposal rule remain. See [governance and upgrades](/concepts/governance#allocator-upgrade-policy-pending-installation).
 
 A **username** fee is separate. A namespace owner can configure free claims or a flat XLM amount paid directly to their G treasury, atomically with issuance and complete payment instructions. There is no username approval escrow or mandatory annual ownership charge. The bounded holder renewal has no separate username renewal fee. Network execution, storage and restoration costs remain separate. See [automatic claiming](/owner/automatic-claiming).
 
