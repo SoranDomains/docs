@@ -3,16 +3,18 @@ title: "Soran for AI agents"
 description: "Use MCP with Universal Lookup, explicit payment memos and reviewed namespace claim fees."
 ---
 
-The MCP server exposes read tools to local and hosted agents. Local mode additionally supports wallet-authorized writes. MCP 0.7.0 uses Lookup 0.7.0, Holder 0.5.0, Owner 0.7.0 and Stellar SDK 17. See [release status](/reference/release-status) for package availability and the matching testnet contracts.
+The MCP server exposes read tools to local and hosted agents. Local mode additionally supports wallet-authorized writes. MCP 0.7.1 uses Lookup 0.7.0, Holder 0.5.1, Owner 0.7.0 and Stellar SDK 17. See [release status](/reference/release-status) for package availability and the matching testnet contracts.
+
+Published MCP **0.7.1** includes Holder **0.5.1** for the updated [receipt recovery checks](/owner/automatic-claiming#recover-before-replacing-a-request). Hosted MCP remains **0.7.0** with read-only tools; it does not expose the local native receipt helpers.
 
 ## Connect
 
 The hosted MCP URL is `https://mcp.soran.domains/mcp`. Its independently verified deployment and package status are recorded in [release status](/reference/release-status). Remote mode provides read tools, without receiving a signing key.
 
-MCP 0.7.0 is published for local clients, and the hosted read-only service uses the same release:
+For local clients, install the published MCP 0.7.1 patch:
 
 ```bash
-npx -y @sorandomains/mcp@0.7.0
+npx -y @sorandomains/mcp@0.7.1
 ```
 
 Configure `SORAN_REGISTRY_ID`, `SORAN_LOOKUP_ID`, `SORAN_PRIMARY_ID`, `SORAN_ALLOCATOR_ID`, `SORAN_RPC_URL` and `SORAN_PASSPHRASE` from one verified deployment. `SORAN_HINT_URL` selects indexed discovery. `SORAN_RESOLUTION_MODE` defaults to universal; missing Lookup configuration fails closed. `SORAN_PRIMARY_ID=none` disables Primary.
