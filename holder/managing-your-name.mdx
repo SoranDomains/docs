@@ -3,10 +3,10 @@ title: "Managing your name"
 description: "Publish an atomic on-chain address and optional memo, profile records and account display names."
 ---
 
-The Holder SDK writes to the current namespace contracts. Lookup remains the shared read entry point. These examples target Holder 0.4.0 with Stellar SDK 17. See [release status](/reference/release-status) for the matching testnet contracts.
+The Holder SDK writes to the current namespace contracts. Lookup remains the shared read entry point. These examples target Holder 0.5.0 with Stellar SDK 17. See [release status](/reference/release-status) for the matching testnet contracts.
 
 <Note>
-Holder **0.4.0** is published. M-address writes require this version; older packages do not submit `set_muxed`. You can also publish a destination through the app or its [on-chain Resolver methods](/api/onchain-resolution).
+Holder **0.5.0** adds native username claims, atomic acceptance with a destination and independent bounded renewal. It retains M-address writes introduced in 0.4.0. Check [release status](/reference/release-status) for publication and the current contract pins.
 </Note>
 
 ```ts
@@ -23,6 +23,10 @@ const me = new SoranHolder({
 `walletSigner` implements `publicKey()` and `signTransaction(xdr, options)`. A backend can use the package's `keypairSigner` with a securely supplied secret. Never put signing keys in frontend configuration.
 
 This `TxSigner` flow uses a classic G account as the transaction source. C support as a payment recipient or contract holder does not provide arbitrary contract-wallet signing through this adapter. A contract-owned name needs a compatible contract authorization integration; M destinations are payment routes, not signer identities.
+
+## Claim a username
+
+Use `claimQuote`, `createClaimIntent` and `claim` for native registration. The quote includes the owner’s price, treasury, admission rules and exact versioned terms. The user reviews and authorizes both ownership and the full receiving destination; issuance, fee, route and receipt commit together. See the [complete signup and recovery examples](/owner/automatic-claiming#claim-from-your-application). This is separate from applying for a top-level namespace.
 
 ## Address and memo together
 
@@ -77,8 +81,16 @@ const pending = await me.pendingNameTransfer("alice.nova");
 await me.cancelNameTransfer("alice.nova");
 ```
 
-The intended recipient accepts with `acceptNameTransfer` and its own signer. Policy and activity gates apply. Acceptance advances ownership generation, invalidating prior-holder records. Transferring a name is separate from transferring its entire namespace.
+The intended recipient can use `acceptNameTransferWithDestination` with a reviewed `TransferIntent` to accept and initialize a complete G/M/C destination atomically. It binds the pending proposal, sender, recipient, generation and expiry, preserves the name’s expiry and advances generation. The older `acceptNameTransfer` method selects the recipient’s ordinary default route; it does not copy the previous holder’s memo or muxed destination. Policy and activity gates apply to both. Transferring a name is separate from transferring its entire namespace.
+
+## Renew a finite name
+
+`renewalPreview(name)` returns the exact generation and stored destination, including `active:false` for an expired name. It does not make an expired name resolve for live payments. Use `renewName` with a canonical `RenewIntent` binding the holder, generation, existing expiry, immutable term and accepted new-expiry bounds.
+
+Renewal is independent of public-claim pause, app eligibility and namespace ownership epochs. It has no separate username renewal fee; network/storage costs still apply. It is allowed only within the last `min(30 days, term)` of a finite lease or after expiry until reissuance wins. It extends by one immutable term from `max(now, expiry)` and cannot exceed 100 years from execution time. Zero-term names and stale/reissued generations are ineligible. Owner reclaim rights remain subject to the namespace policy.
+
+See the [exact lifecycle ABI](/api/native-claiming#transfer-and-renewal) before constructing a transfer or renewal intent.
 
 ## Errors and uncertain submissions
 
-Simulation catches many permission/policy failures before signing. Contract failures are typed `HolderError`s; a transaction that reached the network can carry `txHash`. Check uncertain inclusion before retrying. Preflight success does not guarantee later submission success or remove its network fee.
+Simulation catches many permission/policy failures before signing. Existing Holder methods use `HolderError`; native methods use `NativeClaimError` with `kind`, optional contract code/name and `txHash`. A transaction that reached the network can carry that recovery hash. Check uncertain inclusion before retrying. Preflight success does not guarantee later submission success or remove its network fee.

@@ -5,7 +5,9 @@ description: "Use the Owner SDK to issue names through the namespace Registrar w
 
 The Owner SDK writes to Registry and the namespace's Registrar/Resolver. It does not route writes through Universal Lookup. Read integrations use the [Lookup SDK](/sdk/installation).
 
-These examples use published Owner **0.6.0** with Stellar SDK 17. See [release status](/reference/release-status) for verified package versions and the matching testnet contracts. You can also use the app for namespace operations.
+These examples target Owner **0.7.0** with Stellar SDK 17. See [release status](/reference/release-status) for verified package versions and the matching testnet contracts. You can also use the app for namespace operations.
+
+For app signup and user-authorized registration, use [automatic username claiming](/owner/automatic-claiming). The owner configures on-chain fees, receiving wallets and reservations once; each user authorizes their own claim. The ordinary owner issuance methods below require Manual mode. Public mode blocks them even while public claims are paused.
 
 ```ts
 import { SoranOwner } from "@sorandomains/owner";
@@ -35,7 +37,7 @@ for (const outcome of batch.outcomes) {
 
 A batch contains at most 23 names. The resulting name's initial built-in address is its holder; a native Resolver is needed for the strict memo-aware integration. Future holder instructions can override that address. Issuance applies the namespace policy and generation rules.
 
-The current contracts add no per-name Soran claim fee. Namespace claim escrow was paid at the namespace level. Stellar transaction and storage fees remain separate, and a namespace owner may run its own commercial issuance service.
+Manual issuance does not charge the public username claim price. In Public mode, use the native user claim method so the configured fee, eligibility, reservation and quota rules apply. Reserved assignment is the explicit owner-authorized exception. The top-level namespace escrow and Stellar transaction/storage fees remain separate.
 
 ## Check batch outcomes
 

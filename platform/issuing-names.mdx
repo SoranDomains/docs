@@ -3,7 +3,7 @@ title: "Issuing names"
 description: "Activate a Registrar, issue under its policy and maintain state availability."
 ---
 
-After a namespace is awarded, activate its Registrar and issue names from the console or [Owner SDK](/owner/issuing-from-code). The namespace claim fee is separate from issuance.
+After a namespace is awarded, activate its Registrar and native Resolver. Then choose Manual issuance or configure [automatic username claiming](/owner/automatic-claiming) for your app signup. The namespace application fee is separate from any owner-set username price.
 
 ## Activate the namespace
 
@@ -25,13 +25,15 @@ Individual names are records, not separate contracts. Existing contract addresse
 
 ## Issue names
 
+Manual mode accepts owner-authorized issuance. Public mode requires the user claim path, except explicitly reserved assignment; the console does not bypass those rules.
+
 Supply a canonical label and valid holder address. Issuance writes the holder and initial built-in target under the namespace policy. The holder can later publish its own complete Resolver payment instruction.
 
 The console supports single issuance and CSV workflows with per-row outcomes. The Owner SDK supports batches of at most 23 names per transaction. Check confirmed outcomes and uncertain transaction hashes before retrying a row.
 
 ## Fees
 
-The implemented naming contracts do not add a Soran per-name claim fee or a mandatory annual ownership charge. Stellar transaction/resource fees and storage rent still apply. Their amounts depend on current network parameters and transaction simulation; old displayed benchmark figures are not a current fee quote.
+A namespace owner can set free public username claims or a flat native XLM price paid directly to their G treasury. There is no mandatory annual ownership charge or separate holder renewal fee. Stellar transaction/resource fees and storage rent still apply. Their amounts depend on current network parameters and transaction simulation; old displayed benchmark figures are not a current fee quote.
 
 When enabled on a deployment, managed billing can charge for hosted services. A namespace owner can also offer its own commercial service or timed names under its disclosed contract policy. These costs are distinct from the upfront top-level namespace claim fee.
 
@@ -43,4 +45,4 @@ If a required entry is archived, current payment resolution may need restoration
 
 ## Who can change what
 
-Namespace-owner authorization controls issuance, policy-permitted reclaim and renewal. Holder authorization controls a name's records and permitted individual transfer. Destination address authorization controls reverse/Primary identity for that address. An admin or issuer role in the console does not combine these authorities.
+Namespace-owner authorization controls claim settings, Manual/reserved issuance, policy-permitted reclaim and owner renewal. Native self-service claiming uses the claimant’s authorization plus the configured eligibility proof, if any; eligible bounded renewal uses the holder’s authorization. Holder authorization controls a name's records and permitted individual transfer. Destination address authorization controls reverse/Primary identity for that address. An admin or issuer role in the console does not combine these authorities.

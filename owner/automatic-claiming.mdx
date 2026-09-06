@@ -1,0 +1,412 @@
+---
+title: "Automatic username claiming"
+description: "Configure on-chain username registration, pricing, receiving wallets and reservations for your application."
+---
+
+<Note>
+Automatic claiming is deployed in the **6 September 2026 native-claim contracts**.
+The examples target Owner 0.7.0 and Holder 0.5.0; their publication and hosted console
+cutover are tracked independently in [release status](/reference/release-status).
+Older namespaces remain owner-only unless they use a compatible native-claim deployment.
+</Note>
+
+You build username registration inside your own application using the SDKs. Your
+users can choose a username during signup or later in account settings. You do not
+need to embed a Soran interface or send every user to soran.domains.
+
+The Owner SDK configures the namespace. The Holder SDK lets each user authorize
+their own claim and manage their name. The Lookup SDK reads the resulting records
+through Universal Lookup. An optional open-source claim application can provide a
+separate public interface under your control.
+
+## Configure registration
+
+Claiming starts disabled. The namespace owner signs an on-chain configuration
+transaction before users can claim. The updated console provides these controls after its release cutover. A console update does not activate native claims on older contracts.
+
+Choose the following settings:
+
+| Setting | Purpose |
+| --- | --- |
+| Allocation mode | Manual owner issuance or public claims with the configured rules |
+| Registration enabled | Enable or pause new self-service claims |
+| Who can claim | Open registration, an invitation list or optional app-approved registration |
+| Username fee | Free, or a flat amount per successful claim |
+| Fee asset | Native XLM for this testnet release |
+| Receiving wallet | A G treasury wallet you control that does not require a deposit memo |
+| Claims per wallet | The cumulative allowance for each claiming holder address |
+| Reserved usernames | Labels you want to keep out of ordinary registration |
+
+The receiving wallet may differ from the wallet that owns the namespace. Only the
+current on-chain namespace owner can publish these settings. A console team role
+alone does not grant contract signing authority.
+
+## Where username fees go
+
+The namespace's Registrar stores the configured fee and receiving wallet on chain.
+When someone claims a name, the app reads those settings and shows the exact amount
+before requesting authorization.
+
+The claim transaction transfers the username fee directly from the claimant to
+the configured treasury. It also issues the name and initializes the user's complete
+receiving details. These effects either succeed together or roll back together.
+There is no separate treasury withdrawal step for this fee.
+
+If the claim fails, its username fee transfer does not settle. Stellar network fees
+are separate and may still apply. A confirmed claim is not an escrowed application
+awaiting manual owner approval.
+
+Free registration means a zero username fee, not a free network transaction.
+Contract execution and storage rent still cost XLM. Initial contract storage rent
+can be substantially higher than later actions, and storage upkeep can incur
+additional costs. Always review the current transaction estimate.
+
+Owner 0.7.0 and Holder 0.5.0 default to a **5 XLM network-fee limit** for
+native claim operations. This limit is separate from the namespace's username
+price; it is not the amount charged. An estimate above the limit is rejected before
+wallet signing. Applications can explicitly set `maxNativeFeeStroops` after their
+user reviews the estimate. The updated owner console also exposes this separate
+limit. Do not automatically raise it or assume an earlier estimate remains valid.
+
+The owner can update the fee or treasury with another on-chain settings transaction.
+A pending claim using older settings cannot silently charge a different price.
+Reconcile the original receipt and transaction before preparing a replacement.
+If the original did not apply and can no longer apply, create a new request ID
+and obtain the user's authorization for the changed terms.
+
+This username fee is separate from Soran's **5,000 testnet XLM namespace application
+fee**. The namespace application's objection, withdrawal and refund rules do not
+become the username claim's pricing or refund policy. See [namespace claiming](/concepts/claiming-a-namespace).
+
+## Open or restricted registration
+
+Open registration allows any wallet satisfying the on-chain rules to claim. It
+needs no backend eligibility key. Charging a fee does not change that: a paid
+namespace can still offer open registration.
+
+An invitation list suits a known set of eligible wallets. An organization that
+needs to admit newly eligible app accounts can choose optional app-approved
+registration. Its account service provides a scoped approval, and the user still
+authorizes the claim. This is automatic backend approval, not a request for the
+human namespace owner to sign each signup.
+
+App-approved registration requires an explicitly configured approval account,
+approval lifetime and namespace-wide admission allowances. The total allowance is a cumulative ceiling. Raising it requires an owner-authorized
+change; key rotation, mode changes and ownership transfer do not reset usage.
+The rate limit also retains its active window across these changes. A wallet quota is not proof of one
+private app account or one person.
+
+The app determines whether its account qualifies; the contract checks its approval
+and the claim rules. Membership is checked when the approval is issued. Logout,
+account suspension and unlinking a wallet do not recall an already signed approval
+or undo a confirmed claim. Ordinary app access remains governed by the app's login
+and account rules.
+
+## Reserve usernames
+
+Reserve labels before opening registration, or reserve additional available labels
+later. A reserved, unassigned label has no holder and does not resolve.
+
+Use the dedicated owner-authorized assignment action to issue a reserved username.
+You do not need to briefly release it and expose it to other claimants. Reserved
+assignment is the declared administrative exception to ordinary username fees and
+claim quotas; network costs still apply.
+
+Releasing a reservation makes the label subject to normal claim availability. It
+does not revoke an already issued name. Reservations also do not disable an
+existing holder's permitted payment updates, transfer or renewal.
+
+## User signup and receiving details
+
+1. The user authenticates with your app and deliberately links a supported wallet.
+2. Your app checks the namespace's current claim capability, rules and availability.
+3. The user chooses a name and receiving details and reviews any fee.
+4. The user authorizes the transaction. The contract enforces the selected rules.
+5. Your app verifies the confirmed receipt and current holder before associating
+   the name with the existing app account.
+
+Receiving details can be a classic **G address without a memo**, **G with a supported
+memo**, a **muxed M address**, or a **C contract destination**. A required memo or
+muxed routing ID stays part of the complete on-chain destination. Supporting a
+receiving address does not mean every wallet type can sign claims. The initial
+signer flow uses a supported G transaction-source account. See [payment destination examples](/concepts/payment-destinations).
+
+Signing in again does not claim another name or charge again. An existing holder
+can link their name without making another paid claim. Keep a stable internal app
+account ID: transferring a username must never give its new holder access to the
+previous holder's private account or data.
+
+## Confirmation and interruption
+
+Persist the original public operation reference before submission. After a timeout
+or wallet interruption, recover that operation's result before preparing another
+claim. A completed receipt describes historical success; separately verify current
+ownership, because the name may since have transferred or been reissued.
+
+A quote does not reserve a name. The first valid claim confirmed on chain wins.
+An unavailable or archived read is not proof that a name is free. Pausing new
+registration or an approval-service outage does not remove existing holders'
+permitted contract operations.
+
+
+## Owner SDK example
+
+These examples target **Owner 0.7.0 and Holder 0.5.0**. Check their publication
+status before installing them. Supply the [verified native-claim Registry](/reference/release-status)
+explicitly; an older deployment cannot provide this interface.
+The `acme` namespace below is illustrative.
+
+```ts
+import { SoranOwner, type TxSigner } from "@sorandomains/owner";
+
+declare const operatorSigner: TxSigner;
+declare const deployment: {
+  registryId: string;
+  rpcUrl: string;
+  passphrase: string;
+};
+declare const treasuryG: string;
+
+const owner = new SoranOwner({
+  signer: operatorSigner,
+  ...deployment,
+});
+const capability = await owner.nativeClaimCapability("acme");
+if (!capability.supported) throw new Error("Native claiming is unavailable");
+
+const nativeToken = await owner.nativeClaimFeeToken("acme");
+await owner.reserveNames("acme", ["admin", "support", "payments"]);
+await owner.configureClaims("acme", {
+  mode: "public",
+  enabled: false,
+  admission: { type: "open" },
+  feeToken: nativeToken,
+  feeAmount: 0n,              // This example deliberately offers free claims.
+  feeRecipient: treasuryG,    // A G wallet that does not require a memo.
+  walletLimit: 0n,            // Deliberately unlimited, not one name per person.
+  approvalAllowance: 0n,
+  approvalRateLimit: 0n,
+  approvalWindowSecs: 0n,
+  approvalTtlSecs: 0n,
+});
+
+// Enable only after you have reviewed the confirmed configuration.
+await owner.setClaimsEnabled("acme", true);
+```
+
+A nonzero `feeAmount` is the owner-selected number of XLM base units; one XLM is
+`10_000_000` base units. Use `bigint` and exact decimal conversion. Read back
+`owner.claimPolicy("acme")` to display the current settings. Each settings action
+is a separate transaction; preserve its hash and reconcile an uncertain result
+before repeating it.
+
+`owner.pauseClaims(namespace)` pauses new public claims. It does not revoke issued
+names. In Public mode, ordinary legacy `issue` and `issueBatch` calls are blocked;
+reserved assignment is the explicit exception. Switching back to Manual mode is
+an owner-authorized policy change, not an immutable fairness guarantee.
+
+Reservation batches contain 1–23 distinct canonical labels and succeed or fail
+as a group. `owner.assignReserved(namespace, label, holderG)` assigns a reserved
+name using the holder's default receiving address. Its reservation remains until
+`releaseReservations` is called. A custom initial destination needs the holder's
+consent: the raw contract has an atomic co-authorized method, while this SDK's
+simple assignment method leaves a later `setPayment` to that holder.
+
+## Claim from your application
+
+For open registration, no approval service is needed. Keep the selected intent
+unchanged while the wallet reviews and submits it.
+
+```ts
+import {
+  SoranHolder,
+  createClaimIntent,
+  stringifyNativeIntent,
+  type TxSigner,
+} from "@sorandomains/holder";
+
+declare const userSigner: TxSigner;
+declare const deployment: {
+  registryId: string;
+  rpcUrl: string;
+  passphrase: string;
+};
+declare function persistPublicClaim(reference: {
+  intent: string;
+  hash?: string;
+  transactionXdr?: string;
+}): Promise<void>;
+
+const holder = new SoranHolder({ signer: userSigner, ...deployment });
+const quote = await holder.claimQuote("alice.acme");
+if (!quote.available || quote.reserved) throw new Error("Choose another name");
+
+const requestId = Array.from(
+  crypto.getRandomValues(new Uint8Array(32)),
+  byte => byte.toString(16).padStart(2, "0"),
+).join("");
+const intent = createClaimIntent(quote, {
+  address: await userSigner.publicKey(),
+  memo: { type: "none" },
+}, {
+  requestId,
+  deadline: quote.now + 300n,
+});
+
+// Show the exact fee, receiving details and ownership terms before proceeding.
+const savedIntent = stringifyNativeIntent(intent);
+await persistPublicClaim({ intent: savedIntent });
+const result = await holder.claim(intent, {
+  onPrepared: prepared => persistPublicClaim({
+    intent: savedIntent,
+    hash: prepared.hash,
+    transactionXdr: prepared.transactionXdr,
+  }),
+});
+console.log(result.status, result.receipt.generation, result.transaction?.hash);
+```
+
+The five-minute business deadline above is an example, not a reservation. The
+contract accepts at most one hour, and restricted mode may require a shorter
+lifetime. A successful historical recovery returns `status: "replayed"` and
+`transaction: null`; it sends no second claim transaction.
+
+To use different receiving instructions, change the destination passed to
+`createClaimIntent` before review:
+
+| Destination | SDK value |
+| --- | --- |
+| Ordinary G account | `{ address: recipientG, memo: { type: "none" } }` |
+| G account and memo ID | `{ address: recipientG, memo: { type: "id", value: "123456" } }` |
+| G account and text memo | `{ address: recipientG, memo: { type: "text", value: "customer-42" } }` |
+| G account and hash memo | `{ address: recipientG, memo: { type: "hash", value: memoHashHex } }` with exactly 32 bytes in hex |
+| M muxed address | `{ address: recipientM, memo: { type: "none" } }` |
+| C receiving contract | `{ address: recipientC, memo: { type: "none" } }` |
+
+Use the recipient's actual route. An M address contains a base G account and a
+64-bit ID; that ID is not a transaction memo. The name holder and fee payer remain
+the user's G account even when the receiving destination differs.
+
+## Recover before replacing a request
+
+```ts
+import {
+  SoranHolder,
+  parseNativeClaimIntent,
+  type TxSigner,
+} from "@sorandomains/holder";
+
+declare const userSigner: TxSigner;
+declare const deployment: {
+  registryId: string;
+  rpcUrl: string;
+  passphrase: string;
+};
+declare const savedIntentJson: string;
+
+const holder = new SoranHolder({ signer: userSigner, ...deployment });
+const intent = parseNativeClaimIntent(savedIntentJson);
+const receipt = await holder.recoverClaim(intent);
+if (receipt) {
+  console.log("Previously completed", receipt.node, receipt.generation);
+} else {
+  console.log("Reconcile the original transaction hash before any replacement");
+}
+```
+
+A null receipt does not prove failure. The original transaction may still be
+pending. A successful receipt does not prove current ownership. Read the current
+holder, generation and destination through Universal Lookup before linking the
+name to a private app account.
+
+Changing a fee, destination, holder, business deadline or epoch creates a different
+intent and requires a new request ID after reconciliation. Refreshing only the
+native authorization credential's nonce/signature for the identical still-valid
+intent keeps the same business request ID.
+
+## Add app approval only when needed
+
+For restricted signup, use a dedicated G eligibility account. Keep it separate
+from the namespace owner, treasury and claimant. The backend authenticates the app
+account and wallet link, then signs the exact claim intent using
+`signClaimEligibility`. Its trusted configuration, deployment anchors and expiry
+bounds must come from independent chain reads, not the applicant's request.
+
+A server-side integration can keep account checks separate from contract signing:
+
+```ts
+import {
+  signClaimEligibility,
+  type ClaimApprovalContext,
+  type ClaimIntent,
+  type EligibilitySigner,
+} from "@sorandomains/holder";
+
+declare const dedicatedApprovalSigner: EligibilitySigner;
+declare function assertAuthenticatedMemberOwnsWallet(claimantG: string): Promise<void>;
+declare function readTrustedApprovalContext(): Promise<ClaimApprovalContext>;
+
+export async function approveSignupClaim(
+  intent: ClaimIntent,
+  unsignedEntryXdr: string,
+): Promise<string> {
+  await assertAuthenticatedMemberOwnsWallet(intent.claimant);
+  const trusted = await readTrustedApprovalContext();
+  return signClaimEligibility(
+    intent,
+    unsignedEntryXdr,
+    trusted,
+    dedicatedApprovalSigner,
+  );
+}
+```
+
+The two declared functions are application responsibilities: enforce the current
+server-authenticated account and wallet binding, then independently read and verify
+the configured namespace/deployment and current claim policy. Never implement the
+trusted-context function by returning applicant-supplied configuration. The signer
+belongs on your server or signing service, not in frontend code.
+
+The client calls `holder.buildClaim(intent)` to obtain the unsigned admission
+entry without signing or submitting a transaction. After the backend supplies the
+scoped native authorization entry, pass it as
+`holder.claim(intent, { eligibilityAuthorization, onPrepared })`. The user's wallet
+still authorizes the transaction. The approver entry contains only the exact
+Registrar claim intent and no fee-transfer authorization.
+
+Configure all four approval limits explicitly: cumulative allowance, claims per
+window, window length and approval lifetime. No budget is selected for you. The
+contract's window maximum is one year, and its approval lifetime maximum is one
+hour; the SDK additionally bounds approval credentials to at most 60 future ledgers.
+A compromised approver can admit attacker-controlled wallets within those limits.
+It cannot use that admission signature to debit another user's wallet, alter an
+existing holder's payment route or undo a completed permanent claim.
+
+For a stable invitation cohort, use `buildClaimAllowlist` and publish its complete
+root through `configureClaims`. Keep the complete wallet list and distribute each
+wallet's proof. Rebuilding a root from a smaller subset replaces the invitation
+list; it does not append to it. Frontend login alone never restricts an Open
+contract policy.
+
+## Existing holders after signup
+
+Payment updates and permitted transfers do not need the app approval service.
+`acceptNameTransferWithDestination` lets a recipient accept and initialize their
+chosen receiving details in one transaction, preserving the name's expiry.
+
+Finite-term holders use `renewName` with their exact generation, existing expiry,
+fixed policy term and reviewed new-expiry bounds. There is no separate username
+renewal fee. Renewal is independent of new-claim pause, reservations and app
+approval. The earliest renewal window is the shorter of 30 days or one policy
+term before expiry. The resulting lease must also remain within 100 years of the
+execution time, so that limit can postpone renewal for very long terms.
+
+An expired name may be renewed by its recorded holder only until someone reissues
+it. There is no guaranteed grace period. Renewal preserves the generation and
+reactivates its previous receiving instructions; `renewalPreview(name)` shows that
+exact-generation destination before authorization. A zero-expiry or permanent name
+has no finite term to renew. Existing policy-based owner reclaim rights remain.
+
+See the [native contract API](/api/native-claiming) and
+[native claim storage reference](/reference/successor-claim-storage) for exact types,
+authorization, receipt and lifecycle boundaries.

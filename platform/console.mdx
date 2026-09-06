@@ -3,7 +3,7 @@ title: "The console"
 description: "Wallet sign-in, operator roles and separate contract signing authority."
 ---
 
-The console at [soran.domains](https://soran.domains) provides namespace management, issuance, team access and webhooks. It serves the replacement contracts in [release status](/reference/release-status), verified on 5 September 2026. Billing and marketplace features appear **when enabled on a deployment**; both are disabled on this testnet setup.
+The console at [soran.domains](https://soran.domains) provides namespace management, issuance, team access and webhooks. The native-claim release adds on-chain username registration controls; [release status](/reference/release-status) records its hosted cutover separately from the 6 September contract verification. Billing and marketplace features appear **when enabled on a deployment**; both are disabled on this testnet setup.
 
 ## Wallet sign-in
 
@@ -40,3 +40,25 @@ The namespace claim flow displays the upfront XLM quote and refund terms, and ch
 A transfer in the Names view is an **individual name transfer**. A whole namespace moves through Registry's separate proposal/acceptance process, described in [Owner lifecycle](/owner/lifecycle-and-transfers).
 
 After an uncertain submission, inspect the transaction outcome before retrying. A successful simulation is not final inclusion.
+
+## Username registration
+
+Select your namespace and open **Username registration**. Connect the current
+namespace owner wallet. Read the live contract state, then choose Manual or Public
+mode, open/invitation/app-approved eligibility, username price and G treasury,
+wallet quota and any explicit approval budgets. Configure and enable registration
+before offering it in your own app signup. Console team membership does not replace
+the owner’s on-chain signature.
+
+Reserve administrative labels before opening claims. The reserved assignment flow
+can issue them without exposing them through a temporary release. Public mode
+blocks ordinary owner issuance even while claims are paused.
+
+The maximum network fee defaults to 5 XLM and is separate from the username price.
+Review the estimate before explicitly raising it for storage rent or other network
+costs. A rejected estimate stops before wallet signing. After an interrupted
+submission, use **Check transaction** before making another change; the saved hash
+is a public recovery reference, not a private signing key.
+
+Apps integrate through the [Owner and Holder SDKs](/owner/automatic-claiming); a
+user is not required to visit the Soran console to claim during signup.

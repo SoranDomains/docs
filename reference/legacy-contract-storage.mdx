@@ -1,29 +1,37 @@
 ---
-title: "Contract storage reference"
-description: "Raw ledger keys, stored types, payment encodings and storage lifetimes for the six native-claim testnet contracts."
+title: "Legacy native-muxed storage"
+description: "Raw ledger keys, stored types, payment encodings and storage lifetimes for the six native-muxed testnet contracts."
 ---
 
-This reference describes the native-claim deployment verified on **6 September 2026 at ledger 4,534,629**. Match the contract's current Wasm hash to the [public deployment manifest](/reference/deployments/testnet.json) before decoding storage with this schema. An upgrade can change an upgradeable contract's implementation while keeping its address.
+<Note>
+This is the historical storage schema for the native-muxed deployment verified on
+5 September 2026 at ledger **4,521,644**. Use its
+[deployment record](https://raw.githubusercontent.com/SoranDomains/docs/main/reference/deployments/testnet-2026-09-05-native-muxed.json)
+to select the matching contracts. This page does not describe native username
+claim storage. See the [native claim storage reference](/reference/successor-claim-storage)
+for that separate schema.
+</Note>
+
+This reference describes the native-muxed deployment verified on **5 September 2026 at ledger 4,521,644**. Match the contract's current Wasm hash to the [public deployment manifest](/reference/deployments/testnet-2026-09-05-native-muxed.json) before decoding storage with this schema. An upgrade can change an upgradeable contract's implementation while keeping its address.
 
 Use [Universal Lookup](/api/onchain-resolution#on-chain-resolution) for authoritative name and payment answers. Raw ledger entries are useful for explorers, storage tools and independent inspection. They are not a substitute for the contracts' ownership, generation, routing and payment checks.
 
 <Note>
-The complete native claim types and request receipts are defined in the
-[native claim storage reference](/reference/successor-claim-storage). The previous
-5 September deployment has its own [legacy schema](/reference/legacy-contract-storage);
-its Registry records do not contain the new required ownership epoch.
+The native-claim successor has a separate [storage reference](/reference/successor-claim-storage).
+It is not deployed at the addresses below. This page continues to describe the
+verified native-muxed deployment.
 </Note>
 
 ## Deployment scope
 
 | Contract | Address | Storage / interface version |
 | --- | --- | --- |
-| Registry | `CBSORANPM664QXYMYRZKLQDQE2TXFSK4GBMC6EIRSRTAUZRZCRZRFNMK` | Immutable; namespace deployment salt version `1`; required ownership epoch |
-| Allocator | `CCSORANYFHUJUWETEQ7UWIDN4JTPV7NN5G6YUSSBZI57X7EQWVA63VMJ` | Stored `SchemaVersion = 4` |
-| Nova Registrar | `CBSORANHQRVZ7PEZ7VVFEQ7GQJ3M4RLBY2DNQ44MIVLU5C4J2DJ3DH3N` | `claim_version() = 1`; versioned `ClaimKey` entries below |
-| Nova Resolver | `CDSORANQGIHRR7ZLQTARI6UJUA6TPVFUYO4BXKFJQPUXUVWLCJPGWA5H` | `payment_version() = 2`; `destination_version() = 2`; `initialization_version() = 1` |
-| Primary | `CASORAN755O3GCQTRAHKDXLLCSDLNKAQWAP6MWABRSFVSHLJOEKAC7AB` | Immutable; no stored schema-version key |
-| Lookup | `CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA` | `version() = 2`; `destination_version() = 2` |
+| Registry | `CASORANI5CN2NJFEO2MGTRDA35AOEF3D3OCVBWN3FS6B6FXNQ74RTJ7H` | Immutable; namespace deployment salt version `1` |
+| Allocator | `CDSORANPTRS2EYHN57OZEXTW23P2HPDM3WEAC754B7GNHRB5V6FTJ2EE` | Stored `SchemaVersion = 4` |
+| Nova Registrar | `CDSORANZHOVD6EO345UWC23BNEXSPNFWCYJD4X35HXFC2S3GWQ3S64YX` | Layout below; no stored schema-version key |
+| Nova Resolver | `CDSORANIUM3QAYBNNVJZOCGV6ZKU4ZLLHDWD25OULB6N6FKMANK6HUFZ` | `payment_version() = 2`; `destination_version() = 2` |
+| Primary | `CCSORANJZOR5ZYTI4KAW34ESAQFMJAO4NKMTIVOVJOI2VDKCDK3RICXZ` | Immutable; no stored schema-version key |
+| Lookup | `CDSORANKG77YZITKWCLWGPKLB2R3HPTP4D6KKZZ7X3R5HLXLMNOTGCDD` | `version() = 2`; `destination_version() = 2` |
 
 Registrar and Resolver are namespace-specific. The other four contracts are shared. For another namespace, discover its current Registrar and Resolver through Lookup/Registry; do not use nova's pair. See [release status](/reference/release-status) for the verification timestamp, deployment transactions and historical deployments.
 
@@ -63,8 +71,7 @@ name_node  = H(ns_node || H(name_label_bytes))       // Registrar / Resolver nam
 | Key | Storage | Value | Meaning |
 | --- | --- | --- | --- |
 | `DataKey::Config` | Instance | `Config` | Immutable Allocator, reservation-root and approved template anchors |
-| `DataKey::OwnershipSequence` | Instance | Required `u64`, initialized to `0` | Checked Registry-wide ownership sequence |
-| `DataKey::Node(ns_node)` | Persistent | `Record` | Namespace owner, ownership epoch, current resolver pointer and provenance statuses |
+| `DataKey::Node(ns_node)` | Persistent | `Record` | Namespace owner, current resolver pointer and provenance statuses |
 | `DataKey::Pending(ns_node)` | Persistent | `Pending` | Proposed namespace owner and acceptance deadline |
 | `DataKey::ResolverLock(ns_node)` | Persistent | `bool` (`true`) | Irreversible resolver lock; current reads test presence |
 | `DataKey::Registrar(ns_node)` | Persistent | `Address` | Registry-attested Registrar |
@@ -79,7 +86,6 @@ struct Config {
 }
 struct Record {
     owner: Address,
-    owner_epoch: u64,
     resolver: Option<Address>,
     registrar_status: RegistrarStatus,
     resolver_status: ResolverStatus,
@@ -90,8 +96,6 @@ struct Pending { to: Address, expires: u64 }
 ```
 
 `Clean` and `Tainted` are single-symbol vectors. There are no current `RegistrarTainted` or `ResolverTainted` storage keys: both statuses are fields of `Record`. Ordinary owner/pointer updates preserve them. `Tainted` marks provenance ineligible for permanence, including an upgrade or post-hoc Registrar attestation; restoring an earlier Wasm hash does not clear it. A fresh `Clean` field does not prove a contract has been attested. Resolver attestation and the current resolver pointer must be distinguished.
-
-`Record.owner_epoch` receives the next global ownership sequence on allocation, reserved award and accepted namespace transfer. An absent sequence is an error, not zero; overflow fails. Epochs can skip numbers for one namespace. Returning to a former owner does not reactivate their previous claim configuration. `owner_epoch`, `template_hashes` and `native_contracts` are read methods, not storage keys.
 
 The reservation Merkle root is stored, but the complete label list and allocation witnesses are not. Namespace deployment salts and vanity-search candidates are not stored application records. Salt version `1` is a code-defined namespace-and-role binding rule, not a `DataKey` or storage-schema version.
 
@@ -227,20 +231,6 @@ Generation starts at `0` for first issuance and increases on reissue, accepted t
 
 Policy terms are either `0` or `86400`–`3153600000` seconds. `trade_fee_bps` is `0`–`10000`; it is a basis-point field, not proof that a marketplace feature is enabled. Making a namespace permanent is one-way, requires no-expiry terms, disables reclaim and freezes Registrar upgrades.
 
-### Native claim state
-
-| Key | Storage | Value | Fresh absence |
-| --- | --- | --- | --- |
-| `ClaimKey::ConfigV1` | Instance | `ClaimConfig` | Unconfigured/manual; public claiming unavailable |
-| `ClaimKey::PolicyVersionV1` | Instance | `u64` | `0`, before any configuration or reservation change |
-| `ClaimKey::GrantEpochV1` | Instance | `u64` | `0`, before any configuration or enable/pause change |
-| `ClaimKey::ApprovalUsageV1` | Instance | `ApprovalUsage` | All fields `0`, before any approved claim |
-| `ClaimKey::ReservedV1(name_node)` | Persistent | `bool` | Never reserved; an explicit release stores `false` |
-| `ClaimKey::UsageV1(holder)` | Persistent | `ClaimUsage` | Both fields `0`, before that holder's first public/reserved issue |
-| `ClaimKey::ReceiptV1(holder, request_id)` | Persistent | `ClaimReceipt` | No committed operation under this ID |
-
-These seven versioned keys coexist with the original name/configuration keys. Public claim and reserved-assignment usage is cumulative; configuration changes do not erase history. Request receipts preserve the exact historical operation and are not proof of current ownership. See [stored types, defaults, TTL and receipt encoding](/reference/successor-claim-storage) for the complete definitions.
-
 Name writes extend the name entry and instance/code. Transfer proposal writes extend the proposal entry. `touch(label)` extends the Name entry only; `keep_alive()` maintains instance/code. Neither is a blanket renewal of every PendingTransfer. Renewal changes the ownership clock; a TTL extension does not.
 
 ## Resolver
@@ -364,7 +354,7 @@ Use the relevant contract read after restoration to recheck current meaning. Res
 
 ## Read raw keys with Stellar RPC
 
-This read-only Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.7.0`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It does not sign, submit, restore, or construct a payment. Replace the example name with an actually issued name.
+This read-only Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.6.0`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It does not sign, submit, restore, or construct a payment. Replace the example name with an actually issued name.
 
 ```typescript
 import { Address, nativeToScVal, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";

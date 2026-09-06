@@ -3,16 +3,16 @@ title: "Soran for AI agents"
 description: "Use MCP with Universal Lookup, explicit payment memos and reviewed namespace claim fees."
 ---
 
-The MCP server exposes read tools to local and hosted agents. Local mode additionally supports wallet-authorized writes. MCP 0.6.0 uses Lookup 0.6.0, Holder 0.4.0, Owner 0.6.0 and Stellar SDK 17. See [release status](/reference/release-status) for package availability and the matching testnet contracts.
+The MCP server exposes read tools to local and hosted agents. Local mode additionally supports wallet-authorized writes. MCP 0.7.0 uses Lookup 0.7.0, Holder 0.5.0, Owner 0.7.0 and Stellar SDK 17. See [release status](/reference/release-status) for package availability and the matching testnet contracts.
 
 ## Connect
 
 The hosted MCP URL is `https://mcp.soran.domains/mcp`. Its independently verified deployment and package status are recorded in [release status](/reference/release-status). Remote mode provides read tools, without receiving a signing key.
 
-The hosted service is live on MCP 0.6.0, and the same version is published to npm for local clients:
+MCP 0.7.0 is published for local clients, and the hosted read-only service uses the same release:
 
 ```bash
-npx -y @sorandomains/mcp@0.6.0
+npx -y @sorandomains/mcp@0.7.0
 ```
 
 Configure `SORAN_REGISTRY_ID`, `SORAN_LOOKUP_ID`, `SORAN_PRIMARY_ID`, `SORAN_ALLOCATOR_ID`, `SORAN_RPC_URL` and `SORAN_PASSPHRASE` from one verified deployment. `SORAN_HINT_URL` selects indexed discovery. `SORAN_RESOLUTION_MODE` defaults to universal; missing Lookup configuration fails closed. `SORAN_PRIMARY_ID=none` disables Primary.
@@ -44,13 +44,49 @@ Tools combine different sources. Payment reads come from chain contracts; discov
 3. Call `claim_namespace` with the reviewed `expectedFee` and an explicit `maxNetworkFeeStroops` ceiling. The local signer independently verifies the on-chain policy and exact claim/token authorization.
 4. Follow `claim_status` until the objection and award conditions resolve. A keeper may execute an eligible claim; a countdown alone does not prove an award.
 5. `activate_namespace` prepares Registrar activation and verifies the selected policy, predicted contract, namespace, deployment scheme and fee ceiling before signing. Address generation can return `activated: false`, `pending: true` and `retryAfterMs`; retry the same namespace, policy and fee limit after that interval. This pending response means no deployment transaction was signed or submitted.
-6. Use `issue_name` or `issue_batch` to issue names. Holder tools manage names the wallet holds.
+6. Choose Manual mode for `issue_name` / `issue_batch`, or configure public registration and use `claim_username`. Public mode blocks ordinary owner issuance, including while claims are paused. Holder tools manage names the wallet holds.
 
 `withdraw_claim` also requires a network-fee ceiling. Namespace fee refunds follow [claim outcomes](/concepts/claiming-a-namespace): delivery is attempted, with protected pull credit for undelivered amounts. Objection bonds and reserved direct claims are separate.
 
 `cancel_namespace_activation({ namespace, role: "registrar" | "resolver" })` cancels or clears the off-chain address-generation job for that namespace and contract role. It does not withdraw a paid claim, return claim fees or undo a deployed contract. Retry activation or Resolver setup to begin a fresh search.
 
 The activation policy named `permanent` selects a non-reclaimable, zero-term policy. The namespace remains unlocked until the separate [permanence transition](/concepts/ownership-guarantees) completes.
+
+## Native usernames in local mode
+
+The following tools require local mode with a configured G signer and native-claim
+contracts. They are not added to the hosted read-only service merely because some
+perform read operations.
+
+| Tool | Purpose |
+| --- | --- |
+| `native_claim_quote`, `native_claim_policy` | Read availability and exact on-chain registration terms |
+| `prepare_native_claim` | Build without signing; return complete fee estimate and any scoped eligibility entry |
+| `claim_username` | Claim under the exact immutable intent using the local claimant wallet |
+| `native_claim_receipt` | Recover historical success without claiming or charging again |
+| `configure_native_claims`, `set_native_claims_enabled` | Owner-authorized settings and enable/pause |
+| `reserve_usernames`, `assign_reserved_username` | Atomic reservation batch and explicit reserved assignment |
+| `native_renewal_preview` | Exact-generation route preview, including inactive names |
+| `accept_name_transfer_with_destination` | Recipient-authorized acceptance and receiving details together |
+| `renew_held_name` | Independent bounded holder renewal without a separate username renewal fee |
+
+`intentJson` is the lossless output of SDK `stringifyNativeIntent`; retain its
+request ID and exact business terms. A quote does not reserve a label. On timeout,
+recover the original receipt and transaction before preparing a replacement.
+A historic receipt does not establish the current holder.
+
+The local operator's `SORAN_MAX_NATIVE_FEE_STROOPS` setting (or
+`WriteToolOptions.maxNativeFeeStroops`) caps native-operation network fees. It
+defaults to `50000000` stroops (5 XLM); an agent tool argument cannot raise it.
+The operator may explicitly choose a higher canonical integer up to `4294967295`
+after reviewing estimates. Initial storage rent can exceed the default. This
+ceiling is separate from a namespace owner's username price.
+
+Optional application eligibility uses a separate scoped native approval; it does
+not require placing the namespace owner's key in the app backend. See
+[automatic claiming](/owner/automatic-claiming) for eligibility limits and the
+backend signing example. `assign_reserved_username` initializes only the holder's
+default route; a custom route needs the holder's separate payment update.
 
 ## Publish an identity or payment route
 
