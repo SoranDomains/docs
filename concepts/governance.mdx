@@ -3,7 +3,7 @@ title: "Governance and upgrades"
 description: "Which contracts can change, what zero delay means, and which addresses remain stable."
 ---
 
-The fresh Universal Lookup has **no mandatory upgrade delay**. That decision applies to Lookup's upgrade proposal, not Allocator claims, objections, reopening rules or namespace permanence.
+Universal Lookup has **no mandatory upgrade delay**. The selected policy for Allocator contract upgrades is also zero delay, but that change is **not live yet**. The deployed testnet Allocator still requires a 24-hour wait to install the replacement. Namespace claim windows, objections, reopening rules and namespace permanence are unchanged.
 
 ## Universal Lookup upgrade flow
 
@@ -16,12 +16,26 @@ Governance can call `cancel_upgrade()` while a proposal is pending, but there is
 
 A stable Lookup address makes integration routing consistent. Its Registry/version checks establish reported wiring and ABI compatibility, **not a pin of the executable code**. Integrators requiring reviewed code need their own current-code verification policy.
 
+## Allocator upgrade policy (pending installation)
+
+After the replacement is installed and verified:
+
+1. Governance authorizes `propose_upgrade(new_wasm_hash)` for one exact Wasm hash. The proposal stores `eta` as the current ledger timestamp.
+2. Anyone may call `execute_upgrade()` immediately. It uses the stored proposal's hash; the caller cannot substitute another hash.
+3. Successful execution replaces the Wasm at the same Allocator address and consumes the proposal. A failed replacement rolls back the transaction.
+
+Governance retains `cancel_upgrade()`. Only one proposal can be pending, and it must be cancelled before a different one is proposed. With zero waiting, cancellation has no guaranteed review window before permissionless execution.
+
+Installing this policy still requires one **24-hour wait under the currently deployed code**. Replacing the pending proposal with the revised code hash starts a fresh wait; editing the replacement code does not shorten an existing proposal's recorded `eta`. See [release status](/reference/release-status) for installation status.
+
+This changes only contract-upgrade timing. A namespace application still completes its configured public claim window, objections retain their existing rules, and governance reopening proposals still wait one full allocation window. Storage compatibility and fee/credit obligations must also survive a code upgrade; keeping the same address does not migrate incompatible state.
+
 ## Other contracts
 
 | Contract | Upgrade boundary |
 | --- | --- |
 | Registry | No upgrade method in the reviewed implementation; replacing a Registry means a new deployment and configuration |
-| Allocator | Governed code upgrades with its own rules; the new fee schema is a fresh deployment, not automatic migration of old unpaid claims |
+| Allocator | Current testnet code requires 24 hours for upgrades; the pending replacement makes future upgrade proposals immediately eligible. Claim, objection and reopening windows remain separate |
 | Registrar and Resolver | The namespace owner can change eligible unlocked contracts; permanence and upgrade taint constrain that ability |
 | Primary | No code upgrade entry point in the reviewed implementation |
 | Universal Lookup | Governed exact-hash code replacement with zero mandatory delay |
