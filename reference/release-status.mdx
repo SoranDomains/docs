@@ -13,9 +13,9 @@ This is a dated deployment record. Recheck upgradeable code and configuration be
 | Native username claim ABI / Resolver initializer ABI | `1` / `1`, verified |
 | Public namespace application fee | **5,000 testnet XLM** paid upfront into Allocator escrow |
 | Nova automatic registration | Public/Open configuration, **disabled**, username price **0 XLM**, treasury is the namespace owner; verified at 12:19 UTC |
-| SDK npm release | Lookup 0.7.0, Holder 0.5.0 and Owner 0.7.0 published and verified; MCP 0.7.0 publication verification pending |
-| Public app / API | Native-claim cutover verification pending; previous release remains documented below |
-| Hosted MCP | Native-claim cutover verification pending |
+| SDK npm release | Lookup 0.7.0, Holder 0.5.0, Owner 0.7.0 and MCP 0.7.0 published and verified |
+| Public app / API | Current deployment verified: API at 12:45 UTC and public web assets at 12:47 UTC |
+| Hosted MCP | 0.7.0 verified against the current contracts at 12:48 UTC; 15 read-only tools |
 | Mainnet | No deployment or supported preset announced |
 | Mainnet namespace fee | Proposed 5,000 USDC; not a live configured price |
 
@@ -64,9 +64,9 @@ A **username** fee is separate. A namespace owner can configure free claims or a
 | [Lookup](https://www.npmjs.com/package/@sorandomains/lookup) | **0.7.0** | Published; downloaded bytes match the verified release |
 | [Holder](https://www.npmjs.com/package/@sorandomains/holder) | **0.5.0** | Published; downloaded bytes match the verified release |
 | [Owner](https://www.npmjs.com/package/@sorandomains/owner) | **0.7.0** | Published; downloaded bytes match the verified release |
-| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.7.0** | Publication verification pending |
+| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.7.0** | Published; downloaded bytes match the verified release |
 
-These versions use Stellar SDK 17. The previous published release was Lookup 0.6.0, Holder 0.4.0, Owner 0.6.0 and MCP 0.6.0. That release already supports muxed payments; it does not provide the new native username claim interface or the new default deployment.
+All four public npm tarballs were downloaded and matched the tested release bytes by **12:35:18 UTC** on 6 September. These versions use Stellar SDK 17. The previous published release was Lookup 0.6.0, Holder 0.4.0, Owner 0.6.0 and MCP 0.6.0. That release already supports muxed payments; it does not provide the new native username claim interface or the new default deployment.
 
 The [quickstart](/quickstart) pins Registry, Lookup and Primary explicitly. Missing Lookup configuration throws `CONFIG`; resolution never silently falls back to direct reads. A successfully read supported version selects the matching ABI. Unknown versions and failed reads do not trigger a downgrade.
 
@@ -76,7 +76,7 @@ The [quickstart](/quickstart) pins Registry, Lookup and Primary explicitly. Miss
 - HTTP API: `https://api.soran.domains`; resolution alias: `https://resolve.soran.domains`.
 - Hosted MCP: `https://mcp.soran.domains/mcp`, with read tools only.
 
-The prior muxed app/API was verified on 5 September at 18:24 UTC and hosted MCP 0.6.0 at 18:23 UTC. Verification of the new hosted cutover is pending. Contract deployment and npm publication do not independently prove a hosted service has switched its configuration.
+The primary API at `api.soran.domains` was verified against the current contracts at **12:45:56 UTC**, including fee configuration, routing, preserved receiving instructions and indexed coverage. Public app routes and served assets were verified with the new pins at **12:47:15 UTC** on 6 September. Hosted MCP **0.7.0** was verified at **12:48:47 UTC**, including its 15 read-only tools, current Registrar metadata, C payment resolution and namespace fee quote. Native claim helpers remain [local-only](/agents/access#native-usernames-in-local-mode). Contract deployment and npm publication do not independently prove a hosted service has switched its configuration.
 
 Check [service status](/api/status), coverage and network settings when integrating. Indexed coverage is a bounded report, not proof against omission. Billing and marketplace features are disabled on this setup. The console's [branded-address preparation](/platform/issuing-names#automatic-branded-contract-addresses) remains namespace- and role-bound.
 

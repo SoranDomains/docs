@@ -93,7 +93,7 @@
     "replays": 8,
     "reservedAssignments": 1,
     "rejections": 3,
-    "migratedOriginalTestNames": 2,
+    "reissuedOriginalTestNames": 2,
     "finalClaimSettings": {
       "mode": "public",
       "enabled": false,
