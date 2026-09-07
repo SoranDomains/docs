@@ -78,3 +78,9 @@ Coverage is an indexer's report, not an independent proof against omission. Insp
 `/v1/names/{namespace}/{label}/history` is a cursor-paginated informational projection. Event `at` is chain time and `ingestedAt` is processing time; older rows can have unknown chain/issuance metadata. A bounded SDK `history()` response does not replace paginating the archive.
 
 Hosted webhooks have their own [supported event list](/platform/webhooks). The addition of raw `pay_v1`/`pay_v2`, fee, text and renewal events does not automatically add those events to webhook subscriptions.
+
+## Muxed display-name elections
+
+The deployed muxed identity extension emits `set_mrev` / `clr_mrev` for namespace elections and `set_mpri` / `clr_mpri` for cross-namespace elections from **Universal Lookup**. The payloads retain the base G and exact u64 ID; a set event also contains the versioned name/routing/generation snapshot. See the [exact event and storage shapes](/reference/contract-storage#muxed-identity-storage) and [release status](/reference/release-status) before indexing them.
+
+An event does not prove that an election is still valid. Recheck it through `reverse_muxed` or `primary_name_muxed`. Keep M IDs separate from G/C reverse keys and from customer memo values.

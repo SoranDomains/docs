@@ -3,8 +3,8 @@
   "network": "testnet",
   "networkPassphrase": "Test SDF Network ; September 2015",
   "rpcUrl": "https://soroban-testnet.stellar.org",
-  "verifiedAt": "2026-09-06T12:12:11.925Z",
-  "verifiedLedger": 4534629,
+  "verifiedAt": "2026-09-07T08:37:00.175Z",
+  "verifiedLedger": 4549326,
   "governance": "GAJCWWNMBKCSTQQISDFTHFTCEOGXYA37YTP3U3ZW7Q5CYQPHSW6TB4QX",
   "lookupVersion": 2,
   "lookupUpgradeDelaySeconds": 0,
@@ -66,9 +66,13 @@
     },
     "lookup": {
       "id": "CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA",
-      "wasmHash": "67c2d2c7f9b80b2901426a31d4a85cf1cf56c4f70afd69d229dfe4b67db78041",
+      "wasmHash": "0d8ed0c9dd5f7ea4e8783ecb505f3da37ba643c632d85a52b3d9976fd11cea10",
       "deploymentTransaction": "d480c19edd9d101357432142a14e0d0e3e6b2c7706b01de8393cb94d6d6a63fc",
-      "deploymentLedger": 4534628
+      "deploymentLedger": 4534628,
+      "deploymentWasmHash": "67c2d2c7f9b80b2901426a31d4a85cf1cf56c4f70afd69d229dfe4b67db78041",
+      "upgradeTransaction": "0ad8700aee3c142330e6c02d7c8d3139663001bccc50ed2f3a40c1571e403f8a",
+      "upgradeLedger": 4549326,
+      "codeVerifiedAt": "2026-09-07T08:37:00.175Z"
     }
   },
   "namespaceDeploymentSaltVersion": 1,
@@ -82,9 +86,10 @@
     "version": 2,
     "destinationVersion": 2,
     "upgradeDelaySeconds": 0,
-    "governance": "GAJCWWNMBKCSTQQISDFTHFTCEOGXYA37YTP3U3ZW7Q5CYQPHSW6TB4QX"
+    "governance": "GAJCWWNMBKCSTQQISDFTHFTCEOGXYA37YTP3U3ZW7Q5CYQPHSW6TB4QX",
+    "muxedIdentityVersion": 1
   },
-  "verificationScope": "Confirmed deployment receipts, deployed Wasm hashes, contract anchors, native claim and initializer versions, initial claim configuration, namespace ownership/provenance/policy, and namespace fee policy. Package publication, hosted cutovers and explicitly reissued legacy records are tracked separately in release status.",
+  "verificationScope": "Original deployment receipts and configuration were verified on 6 September at deploymentVerifiedLedger. On 7 September at verifiedLedger, the in-place Lookup code upgrade, retained Registry/governance/Primary anchors, ABI 2, destination ABI 2 and muxed identity ABI 1 were verified. All other contract IDs and code hashes were rechecked unchanged. Namespace claim configuration and fees retain their dated original verification. Package publication and hosted service activation are tracked separately in release status.",
   "nativeClaimVerification": {
     "verifiedAt": "2026-09-06T12:19:15.689Z",
     "throughLedger": 4534713,
@@ -112,5 +117,55 @@
     "configurationTransaction": "eba8c55b241c420de3ff15484ff3bd72aa72edb9f26f3bbdba9a0ab28e528550",
     "configurationLedger": 4534712,
     "reissuanceHistoryMigrated": false
+  },
+  "deploymentVerifiedAt": "2026-09-06T12:12:11.925Z",
+  "deploymentVerifiedLedger": 4534629,
+  "lookupMuxedIdentityVersion": 1,
+  "publishedPackages": [
+    {
+      "name": "@sorandomains/lookup",
+      "version": "0.8.0",
+      "integrity": "sha512-up/sYSfSlZMqe8fYFtlxlr5TBqUIQ3ZHrlim19jxV6kJOwGLLI6fXgRDKDxhdMWdKNazerJV0wUaS+mmXnfpVQ==",
+      "tarballSha256": "3f17c93b85258f24d12d59aff6cd88677e5e669ff3271f10882d78c0839b157c",
+      "verifiedAt": "2026-09-07T08:34:42.544Z"
+    },
+    {
+      "name": "@sorandomains/holder",
+      "version": "0.6.0",
+      "integrity": "sha512-CZeFk7kV4I0tSRLjnhk1FT7ROJBBKJ9kRs6MRtPPkd/eoU8Z9qcAeiVtdP1fzF0wU16BHUqn2WeC9CDmkydD/w==",
+      "tarballSha256": "c87b3a9085a295cc0833bff278bbae5edc303b0e281e0f5205f1a1e3759a2957",
+      "verifiedAt": "2026-09-07T08:34:42.521Z"
+    },
+    {
+      "name": "@sorandomains/mcp",
+      "version": "0.8.0",
+      "integrity": "sha512-YJYGSh+wLyMWf9U/H+duq5jfyMolQD6b4Myb5qKM5MhdMq/lGtt3zKZRBNm0EgeiSXmblndv9OnnLVxWqGrsng==",
+      "tarballSha256": "6c3671700af45d6fd23de1bd7e9a3f2ac48a04d305e50f283f94af01842530c3",
+      "verifiedAt": "2026-09-07T08:34:42.484Z"
+    }
+  ],
+  "lookupUpkeep": {
+    "transaction": "50c1c2506d3c0a123a5126f984dff66352bc58606428f68c8bec4acbd423ab82",
+    "ledger": 4549418,
+    "feeStroops": "1337205130",
+    "paidBy": "platform deployment account",
+    "instanceLiveUntilLedger": 7534628,
+    "codeLiveUntilLedger": 7549418,
+    "consumerFeeCapsChanged": false
+  },
+  "hostedServices": {
+    "verifiedAt": "2026-09-07T08:47:25.093Z",
+    "api": {
+      "url": "https://api.soran.domains",
+      "resolutionAlias": "https://resolve.soran.domains",
+      "deploymentVersion": "ff35e3dd-117a-4b99-b6de-b280759d4714"
+    },
+    "mcp": {
+      "url": "https://mcp.soran.domains/mcp",
+      "serverVersion": "0.8.0",
+      "deploymentVersion": "71b205dc-a112-431e-a0a1-3362e6fb1226",
+      "mode": "read-only"
+    },
+    "verificationScope": "Confirmed exact M IDs 0, 9007199254740993 and 18446744073709551615 Primary/reverse through API and reverse_lookup through hosted MCP; same-G ID 1 returned no election and base G returned its independent account election. Forward destinations preserved every ID without rounding."
   }
 }

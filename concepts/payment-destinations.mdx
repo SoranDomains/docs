@@ -5,10 +5,10 @@ description: "Classic G accounts, optional memos, muxed M destinations and contr
 
 Soran's deployed payment interface returns a **destination address and an optional memo together**. It supports classic Stellar `G...` accounts, muxed `M...` destinations and Soroban `C...` contract addresses. The Resolver stores muxed destinations as an explicit base G account and unsigned 64-bit ID; the SDK and HTTP result encode that pair as the complete M address.
 
-These are payment-destination capabilities, not a promise that every wallet can sign for every account type. This page describes the deployed Resolver payment ABI 2, Lookup ABI 2, Lookup SDK 0.7.0 and Holder SDK 0.5.1 in [release status](/reference/release-status).
+These are payment-destination capabilities, not a promise that every wallet can sign for every account type. This page describes the deployed Resolver payment ABI 2, Lookup ABI 2, Lookup SDK 0.8.0 and Holder SDK 0.6.0 in [release status](/reference/release-status).
 
 <Note>
-The SDK examples target Lookup **0.7.0** and Holder **0.5.1**. Check [release status](/reference/release-status) for their publication status. M-address support was introduced in Lookup 0.6.0 and Holder 0.4.0 and is preserved by this release. The same instructions are available through the [contract methods](/api/onchain-resolution), [HTTP payment endpoint](/api/resolution) and app.
+The SDK examples target Lookup **0.8.0** and Holder **0.6.0**. Check [release status](/reference/release-status) for their publication status. M-address support was introduced in Lookup 0.6.0 and Holder 0.4.0 and is preserved by this release. The same instructions are available through the [contract methods](/api/onchain-resolution), [HTTP payment endpoint](/api/resolution) and app.
 </Note>
 
 ## Support at a glance
@@ -133,7 +133,9 @@ const muxedId = muxed.id(); // "420", kept as a decimal string
 // Keep the full M address for payment; the base address is for account inspection.
 ```
 
-Reverse and Primary names identify a G/C account, not a muxed customer or a memo customer. They do not strip a muxed ID to establish a base-account proof. Current account-input methods accept G or C addresses, not M addresses. Changing a payment destination to M can invalidate an earlier reverse/Primary forward proof; direct M payment support does not create a customer-specific account identity.
+G/C reverse and Primary names identify that account without distinguishing customer memos. The deployed [muxed identity extension](/sdk/reverse-and-primary) gives each complete M address its own elected reverse and Primary name, with no base-G or other-ID fallback. Use Lookup 0.8.0 and Holder 0.6.0 with `muxed_identity_version() == 1`; older packages do not provide M elections. See [release status](/reference/release-status).
+
+The base G account must authorize an M election. For an exchange-controlled account, the exchange signs; having a customer M address does not give the customer its signing key. Changing a name to an M destination can invalidate an earlier G/C election. A M ID does not become a separate holder, namespace owner, or signing account.
 
 ## Publish and read the whole instruction
 

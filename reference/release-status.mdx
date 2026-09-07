@@ -5,6 +5,8 @@ description: "Verified native-claim testnet contracts, namespace fees and indepe
 
 The native-claim contracts were deployed on **6 September 2026**. Their Wasm hashes, routing and configuration were verified at testnet ledger **4,534,629** (`2026-09-06T12:12:11.925Z`). The new Registrar provides native username claims and the Resolver provides atomic destination initialization. Lookup and Resolver payment ABI 2 continue to support G addresses, optional memos, muxed M destinations and C contract destinations.
 
+Universal Lookup was upgraded in place on **7 September 2026 at 08:37 UTC**, verified at ledger **4,549,326**, to add complete-M reverse and Primary elections. The Registry, Allocator, Registrar, Resolver and Primary code hashes were unchanged by that upgrade.
+
 The contract addresses and initial configuration below are a dated deployment record. Package and hosted-service updates are tracked separately. Recheck upgradeable code and configuration before relying on them.
 
 | Item | Status |
@@ -13,12 +15,13 @@ The contract addresses and initial configuration below are a dated deployment re
 | Native username claim ABI / Resolver initializer ABI | `1` / `1`, verified |
 | Public namespace application fee | **5,000 testnet XLM** paid upfront into Allocator escrow |
 | Nova bootstrap registration (12:19 UTC) | Public/Open configuration, **disabled at bootstrap**, username price **0 XLM**, treasury is the namespace owner; this is the initial configuration, not a current policy reading |
-| Current published SDKs | Lookup 0.7.0, Holder 0.5.1, Owner 0.7.0 and MCP 0.7.1 |
+| Current published SDKs | Lookup 0.8.0, Holder 0.6.0, Owner 0.7.0 and MCP 0.8.0 |
+| Muxed reverse and Primary identity | Lookup upgrade verified at ledger 4,549,326; `muxed_identity_version() = 1`. Lookup 0.8.0, Holder 0.6.0 and MCP 0.8.0 publication verified; all addresses unchanged |
 | Native receipt patch | Holder 0.5.1 published; Nova claiming app and Studio updates verified live |
-| Later contract source fixes | Merged but not deployed; contract addresses and deployed Wasm are unchanged |
+| Separate Allocator source fixes | Pending the existing proposal; the Lookup identity upgrade does not execute or replace it |
 | Allocator upgrade-delay change | Selected policy: zero waiting for future contract upgrades; **not installed yet**. Installing the revised proposal still requires the live code's 24-hour wait |
-| Public app / API | Current deployment verified: API at 12:45 UTC and public web assets at 12:47 UTC |
-| Hosted MCP | 0.7.0 verified against the current contracts at 12:48 UTC; 15 read-only tools |
+| Public app / API | API M identity endpoints verified on 7 September at 08:47 UTC; main public web deployment retains its separate 6 September verification |
+| Hosted MCP | **0.8.0**, verified on 7 September at 08:47 UTC with exact-M reverse reads; read-only tools |
 | Mainnet | No deployment or supported preset announced |
 | Mainnet namespace fee | Proposed 5,000 USDC; not a live configured price |
 
@@ -44,12 +47,21 @@ These serve the new `nova` namespace in this Registry. Other namespaces have the
 
 All six addresses are **deployed contracts**, not predictions. `SORAN` branding is not proof of authenticity or ownership. The [machine-readable deployment record](https://raw.githubusercontent.com/SoranDomains/docs/main/reference/deployments/testnet.json) includes Wasm hashes, deployment transactions, ledgers, governance and fee configuration.
 
+## Lookup muxed identity upgrade
+
+The [confirmed upgrade transaction](https://stellar.expert/explorer/testnet/tx/0ad8700aee3c142330e6c02d7c8d3139663001bccc50ed2f3a40c1571e403f8a) installed Lookup Wasm **`0d8ed0c9dd5f7ea4e8783ecb505f3da37ba643c632d85a52b3d9976fd11cea10`** at ledger **4,549,326**. Its address, Registry, governance and G/C Primary anchors are unchanged. The deployment manifest retains the original deployment transaction and records this code upgrade separately.
+
+`muxed_identity_version()` returns `1`; ordinary Lookup ABI and destination versions remain `2`. M reverse and Primary elections use the complete G-plus-u64 key in Lookup, with base-G authorization and current payment/routing/generation validation. Existing G/C elections remain in the namespace Resolver and immutable Primary contract. See the [exact ABI](/api/onchain-resolution#muxed-identity-extension) and [persistent storage schema](/reference/contract-storage#muxed-identity-storage).
+
+Platform-funded [Lookup storage upkeep](https://stellar.expert/explorer/testnet/tx/50c1c2506d3c0a123a5126f984dff66352bc58606428f68c8bec4acbd423ab82) confirmed at ledger **4,549,418**. It extended the newly uploaded code's TTL so subsequent consumer writes do not fund that initial shared extension. Consumer fee caps were unchanged; current code and instance TTLs remain separate maintenance concerns.
+
 ## Network, versions and fees
 
 - RPC: `https://soroban-testnet.stellar.org`.
 - Passphrase: `Test SDF Network ; September 2015`.
 - Lookup ABI/destination versions and Resolver payment/destination versions: `2`.
 - Registrar native claim version and Resolver initializer version: `1`.
+- Lookup muxed identity version: `1`, active after the 7 September in-place upgrade.
 - Mandatory Lookup upgrade delay: `0` seconds.
 - Allocator contract-upgrade delay: currently **24 hours** on this testnet deployment. The pending replacement sets future proposals to `0` seconds; it does not change claim, objection or reopening windows.
 - Registry namespace deployment salt version: `1`.
@@ -69,16 +81,18 @@ A **username** fee is separate. A namespace owner can configure free claims or a
 
 | Package | Current published version | Status |
 | --- | --- | --- |
-| [Lookup](https://www.npmjs.com/package/@sorandomains/lookup) | **0.7.0** | Published; downloaded bytes match the verified release |
-| [Holder](https://www.npmjs.com/package/@sorandomains/holder) | **0.5.1** | Published; installed package matches the reviewed receipt-verification patch |
+| [Lookup](https://www.npmjs.com/package/@sorandomains/lookup) | **0.8.0** | Published; full-M reverse and Primary reads; downloaded bytes verified |
+| [Holder](https://www.npmjs.com/package/@sorandomains/holder) | **0.6.0** | Published; exact-M election and clearing methods; downloaded bytes verified |
 | [Owner](https://www.npmjs.com/package/@sorandomains/owner) | **0.7.0** | Published; downloaded bytes match the verified release |
-| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.7.1** | Published; selects Holder 0.5.1 for local tools |
+| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.8.0** | Published; full-M reads and explicit local election tools; downloaded bytes verified |
 
-The initial native-claim packages—Lookup 0.7.0, Holder 0.5.0, Owner 0.7.0 and MCP 0.7.0—were downloaded and matched the tested release bytes by **12:35:18 UTC** on 6 September. Holder **0.5.1** was subsequently verified from npm at **18:13 UTC**, with its installed code matching the reviewed patch. Use 0.5.1 for current Holder integrations. These versions use Stellar SDK 17. The previous published release was Lookup 0.6.0, Holder 0.4.0, Owner 0.6.0 and MCP 0.6.0. That release already supports muxed payments; it does not provide the new native username claim interface or the new default deployment.
+Lookup **0.8.0**, Holder **0.6.0** and MCP **0.8.0** were downloaded from npm and byte-verified at **08:34:42 UTC on 7 September**. Owner remains **0.7.0**. These packages retain Stellar SDK 17 support and use the existing testnet contract addresses.
 
-Holder 0.5.1 verifies Registrar attestation and executable with RPC ledger context at least as recent as each receipt read or transaction confirmation, including reads that find no receipt. Unavailable or older context stops recovery; preserve the original request and transaction hash. A verified receipt remains historical success, not proof of current ownership. See [receipt recovery](/owner/automatic-claiming#recover-before-replacing-a-request).
+The initial native-claim packages—Lookup 0.7.0, Holder 0.5.0, Owner 0.7.0 and MCP 0.7.0—were downloaded and matched the tested release bytes by **12:35:18 UTC** on 6 September. Holder **0.5.1** was subsequently verified from npm at **18:13 UTC**, with its installed code matching the reviewed patch. Use 0.6.0 for current Holder integrations. These versions use Stellar SDK 17. The previous published release was Lookup 0.6.0, Holder 0.4.0, Owner 0.6.0 and MCP 0.6.0. That release already supports muxed payments; it does not provide the new native username claim interface or the new default deployment.
 
-MCP **0.7.1** is published with an exact Holder 0.5.1 dependency for local tools. Hosted MCP remains the separately verified **0.7.0** read-only service. None of these client updates changes the contract addresses or deploys later contract source fixes.
+Holder 0.6.0 retains the 0.5.1 checks for Registrar attestation and executable with RPC ledger context at least as recent as each receipt read or transaction confirmation, including reads that find no receipt. Unavailable or older context stops recovery; preserve the original request and transaction hash. A verified receipt remains historical success, not proof of current ownership. See [receipt recovery](/owner/automatic-claiming#recover-before-replacing-a-request).
+
+MCP **0.8.0** uses Lookup 0.8.0 and Holder 0.6.0. Hosted MCP activation is verified separately below. Package publication alone does not deploy an HTTP API, app or MCP service. The separate Allocator proposal remains pending.
 
 The [quickstart](/quickstart) pins Registry, Lookup and Primary explicitly. Missing Lookup configuration throws `CONFIG`; resolution never silently falls back to direct reads. A successfully read supported version selects the matching ABI. Unknown versions and failed reads do not trigger a downgrade.
 
@@ -88,7 +102,11 @@ The [quickstart](/quickstart) pins Registry, Lookup and Primary explicitly. Miss
 - HTTP API: `https://api.soran.domains`; resolution alias: `https://resolve.soran.domains`.
 - Hosted MCP: `https://mcp.soran.domains/mcp`, with read tools only.
 
-The primary API at `api.soran.domains` was verified against the current contracts at **12:45:56 UTC**, including fee configuration, routing, preserved receiving instructions and indexed coverage. Public app routes and served assets were verified with the new pins at **12:47:15 UTC** on 6 September. Hosted MCP **0.7.0** was verified at **12:48:47 UTC**, including its 15 read-only tools, current Registrar metadata, C payment resolution and namespace fee quote. Native claim helpers remain [local-only](/agents/access#native-usernames-in-local-mode). Contract deployment and npm publication do not independently prove a hosted service has switched its configuration.
+The API and hosted MCP **0.8.0** were verified at **08:47:25 UTC on 7 September**. Both returned the elected names for M IDs `0`, `9007199254740993` and `18446744073709551615`; the same G account with ID `1` returned no election, while the base G account returned its separately elected name. Forward payment instructions were also checked. This verifies exact-ID separation through API `primary` / scoped `reverse` and hosted MCP `reverse_lookup`.
+
+The API deployment is `ff35e3dd-117a-4b99-b6de-b280759d4714`; hosted MCP deployment is `71b205dc-a112-431e-a0a1-3362e6fb1226`. Native claim helpers and M signing tools remain [local-only](/agents/access#native-usernames-in-local-mode). Neither contract deployment nor npm publication alone proves a hosted service has switched.
+
+Earlier API fee/routing/indexed coverage checks completed at **12:45:56 UTC on 6 September**. Main public web assets were independently verified at **12:47:15 UTC** that day; this is separate from the new M identity API/MCP verification.
 
 The Nova claiming app and Studio receipt-handling updates are also live. Their served assets match the reviewed builds using published Holder 0.5.1. This verification covers the deployed client code; it does not imply a contract upgrade or new wallet-provider test.
 

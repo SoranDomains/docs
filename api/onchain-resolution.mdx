@@ -8,7 +8,7 @@ description: "A shared on-chain ABI for wallets, explorers and other contracts a
 Read **Universal Lookup** for the authoritative contract result. It follows current Registry routing and invokes each namespace's supported contracts. You do not need a Soran SDK or Soran HTTP API to use it.
 
 <Note>
-The addresses below are the native-claim **6 September 2026 testnet deployment, verified at 12:12 UTC**. Its Resolver and Lookup use ABI 2; Registry retains namespace-and-role-bound salt version 1. Use the IDs together; the earlier deployments remain separate. The examples target Stellar SDK 17 and Lookup ABI version 2. Native Registrar claiming and Resolver initialization add their separate version-1 interfaces; ordinary payment reads keep ABI 2.
+The addresses below are the native-claim **6 September 2026 testnet deployment**. Lookup was upgraded at the same address on **7 September at 08:37 UTC** to add muxed identity version `1`. Its Resolver and Lookup use ABI 2; Registry retains namespace-and-role-bound salt version 1. Use the IDs together; the earlier deployments remain separate. The examples target Stellar SDK 17 and Lookup ABI version 2. Native Registrar claiming and Resolver initialization add their separate version-1 interfaces; ordinary payment reads keep ABI 2.
 </Note>
 
 ## Shared testnet contracts
@@ -96,7 +96,53 @@ Metadata is not a payment fallback. `builtin_address` can differ from effective 
 
 `text` accepts a nonempty Symbol of at most 32 bytes and returns at most 4,096 UTF-8 bytes; larger historical values return `ReadTooLarge`. The raw `payment` text key is not a replacement for typed payment reads.
 
-Reverse and Primary results receive a current forward check, including required memos as valid account routes. Muxed payment destinations do not become base-account identity proofs; a muxed forward answer is rejected. Their underlying contracts may collapse absent/stale/failed proof into None; a returned None does not diagnose every downstream failure. See [identity limits](/sdk/reverse-and-primary).
+The existing G/C `reverse` and `primary_name` results receive a current forward check, including required memos as valid account routes. A muxed payment does not prove base-G identity and is rejected by those paths. Their underlying contracts may collapse absent/stale/failed proof into None; a returned None does not diagnose every downstream failure. The dedicated M methods below preserve the complete route. See [identity limits](/sdk/reverse-and-primary).
+
+## Muxed identity extension
+
+<Note>
+This additive interface is live on testnet, verified at ledger **4,549,326**. Require a successful `muxed_identity_version() == 1` probe before using it and check [release status](/reference/release-status) for the current Wasm hash. `version()` and `destination_version()` remain `2`; their existing value alone does not prove muxed identity support. All listed contract addresses remain unchanged.
+</Note>
+
+The same Universal Lookup contract stores opt-in elections for a **base G account plus its exact u64 ID**. It does not copy the name's payment record: every returned election is checked against the current namespace routing and complete payment destination. Existing G/C elections continue using the namespace Resolver and immutable Primary contract.
+
+| Method | Result / authorization |
+| --- | --- |
+| `muxed_identity_version()` | `u32`, currently `1` for this extension |
+| `set_reverse_muxed(account:Address,id:u64,name:String)` | Elect a namespace display name; base G account authorizes |
+| `reverse_muxed(namespace:String,account:Address,id:u64)` | `Option<String>`, exact current M display name |
+| `clear_reverse_muxed(namespace:String,account:Address,id:u64)` | Remove that namespace's M election; base G authorizes |
+| `touch_reverse_muxed(namespace:String,account:Address,id:u64)` | Extend that existing record and Lookup lifetime; permissionless |
+| `set_primary_muxed(account:Address,id:u64,name:String)` | Elect an existing verified M reverse as Primary; base G authorizes |
+| `primary_name_muxed(account:Address,id:u64)` | `Option<String>`, exact current M Primary name |
+| `clear_primary_muxed(account:Address,id:u64)` | Remove that M Primary election; base G authorizes |
+| `touch_primary_muxed(account:Address,id:u64)` | Extend that existing record and Lookup lifetime; permissionless |
+
+All setters, clears and touches return `Result<(), Error>`. The argument named `account` must be a classic G account. A M address is decoded into that G account and `id`; it is not passed as `Address`. The base G account authorizes all selection and clearing arguments. If a custodian controls G, that custodian signs; a deposit customer cannot authorize it merely by holding a name or receiving an M address.
+
+A reverse election snapshots the name, Registrar, Resolver and ownership generation. A valid read requires an active name, unchanged snapshot, current Registry pointers and `NativePayment(Muxed { account, id })` matching **both** input fields. `Direct(G, Memo::Id(id))` is a different destination and never satisfies this proof. IDs `0` and `18446744073709551615` are valid and distinct. There is no fallback to G, a different ID, a memo record, a legacy payment or another namespace.
+
+Primary additionally requires the same currently valid M reverse snapshot. A missing or proven stale election returns `None`. Invalid stored records, unsupported capabilities, unavailable dependencies and malformed payments fail. Clearing reverse stops the old Primary from verifying while its required election is absent. Touch methods maintain existing storage; they do not elect names or validate stale proof. See [storage and lifetime](/reference/contract-storage#muxed-identity-storage).
+
+For an unsigned read using the `view` helper below:
+
+```ts
+import { Address, MuxedAccount, nativeToScVal } from "@stellar/stellar-sdk";
+
+const fullAddress = "MA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUAAAAAAAAAABUTGI4";
+const muxed = MuxedAccount.fromAddress(fullAddress, "0");
+const account = new Address(muxed.baseAccount().accountId()).toScVal();
+const id = nativeToScVal(BigInt(muxed.id()), { type: "u64" });
+if (await view(deployment.lookupId, "muxed_identity_version") !== 1) {
+  throw new Error("Unsupported muxed identity ABI");
+}
+const name = await view(deployment.lookupId, "reverse_muxed", [
+  nativeToScVal("nova", { type: "string" }), account, id,
+]);
+const primary = await view(deployment.lookupId, "primary_name_muxed", [account, id]);
+```
+
+Use the same Registry and destination-version checks as the full example below. Decode the returned `Option<String>` strictly and verify any nonempty name against the full requested M destination. For writes, construct a transaction with `set_reverse_muxed(account,id,name)` or `set_primary_muxed(account,id,name)`, obtain the base G account's authorization, and submit it. A read simulation does not save an election. The [Holder SDK](/holder/managing-your-name#muxed-display-names) supplies these write flows.
 
 ## Read through Soroban RPC
 
@@ -157,6 +203,10 @@ Soroban `contracttype` structs encode as field-symbol maps. Enum variants encode
 | 9 | UnsupportedImplementation | 20 | InvalidPrimary |
 | 10 | DependencyUnavailable | 21 | ReadTooLarge |
 | 11 | InvalidPayment | 22 | MuxedDestination |
+| 23 | InvalidMuxedAccount | 24 | MuxedForwardMismatch |
+| 25 | NotMuxedDisplayName | 26 | InvalidMuxedRecord |
+
+Errors `23`–`26` belong to the muxed identity extension.
 
 Dependency failure never means a memo-free result. Unsupported methods on an older Lookup must not trigger a silent direct-read fallback.
 
@@ -164,4 +214,4 @@ Dependency failure never means a memo-free result. Unsupported methods on an old
 
 Raw ledger entries are useful for indexing but bypass contract validation. Separate reads can mix generations or routing, and missing live entries may be archived rather than unowned. Use typed contract methods for payment answers and [versioned events](/api/events) for discovery. Historical data can be displayed as history, not silently promoted to a current destination.
 
-Lookup stores configuration, including fixed Registry and optional Primary anchors in this implementation. It does not maintain copied names or memos. [Governance](/concepts/governance) can change its executable code without a mandatory delay.
+Lookup stores configuration, including fixed Registry and optional Primary anchors. The muxed identity extension adds persistent M election snapshots. It does not duplicate the namespace's payment or memo records; valid answers require live forward proof. [Governance](/concepts/governance) can change its executable code without a mandatory delay.

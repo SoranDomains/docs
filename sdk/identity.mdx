@@ -43,7 +43,7 @@ Values are current-generation holder-authored text, not verified real-world clai
 
 `identity(name)` combines details, profile and optional display-name enrichments. Details and profile fail closed; the holder/recipient/namespace-owner display-name enrichments can degrade to `null`. `walletProfile(address)` combines Primary, scoped reverse candidates, a holdings page and profile.
 
-An M payment destination remains complete in payment fields. It is not converted into a base-G recipient identity; holder and owner identity still use their G/C accounts.
+An M payment destination remains complete in payment fields. With the [muxed identity extension](/sdk/reverse-and-primary), recipient enrichment and `walletProfile(mAddress)` can read the exact M route's elected names. They do not substitute the base G account. `walletProfile` returns `holdings: null` and an empty `names` list for M: a routing ID is not a name holder. `namesOf` and `namesOfPage` continue to require G/C holder addresses; holder and namespace-owner identity also use their G/C accounts. Check [release status](/reference/release-status) before using the extension.
 
 These aggregates perform several reads. They are not one atomic ledger snapshot. `details` checks for inconsistent generation/routing across its reads, but application code must still treat results as point-in-time data.
 

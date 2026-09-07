@@ -16,7 +16,8 @@ The public testnet API is `https://api.soran.domains`; `https://resolve.soran.do
 | Current payment plus selected records | `/v1/records/{namespace}/{label}` |
 | Contract source of truth without Soran HTTP | [Universal Lookup ABI](/api/onchain-resolution) |
 | Indexed ownership candidates | `/v1/names/by-holder/{address}` |
-| Verified account Primary | `/v1/primary/{address}` |
+| Verified scoped G/C/M display name | `/v1/reverse/{namespace}/{address}` |
+| Verified G/C/M Primary | `/v1/primary/{address}` |
 | Namespace discovery | `/v1/namespaces` and optional directory |
 | History, raw events and gaps | [Explorer API](/api/events) |
 | Namespace fee policy/receipt/credit | [Claim fee API](/api/claim-fees) |
@@ -30,7 +31,7 @@ The new payment routes use configured Universal Lookup with anchor/version check
 - Full-name payment inputs reject non-ASCII before lowercasing ASCII uppercase. Names are not Unicode-normalized.
 - Large integer token amounts and generations use decimal strings where JSON cannot preserve their contract precision.
 - Rate limits apply and may differ by deployment; handle `429`.
-- Payment, records, Primary and claim-fee reads use `Cache-Control: no-store`. Recheck instructions before signing or paying.
+- Payment, records, scoped reverse, Primary and claim-fee reads use `Cache-Control: no-store`. Recheck instructions before signing or paying.
 
 ## Discovery and freshness
 
