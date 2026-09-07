@@ -5,6 +5,8 @@ description: "Preserve optional memos, reject unknown legacy instructions and re
 
 Use `resolvePayment(name)` for payments. It returns one atomic instruction from the current on-chain namespace Resolver through Universal Lookup.
 
+Try the [live testnet examples](/live-examples) for all supported address and memo forms, including resolving and calling `cyclops.nova`.
+
 <Note>
 These examples target Lookup **0.8.0** and the current deployment. Muxed payment support was introduced in 0.6.0. The same complete payment instructions are available through the [contract ABI](/api/onchain-resolution) or [HTTP payment endpoint](/api/resolution). Check [release status](/reference/release-status) for matching contracts and package availability.
 </Note>
@@ -50,7 +52,7 @@ Both variants contain the canonical name, Registrar, optional Resolver and exact
 `resolve(name)`, `record(name)` and `verify(name,address)` are restricted to native memo-free instructions. They reject a required memo with `PAYMENT_REQUIRED` and an unknown legacy memo with `LEGACY_MEMO_UNKNOWN`. For a muxed record, these updated SDK methods return or compare the complete M address. The older on-chain address methods cannot represent M and reject it. Prefer `resolvePayment` for general payment integration.
 
 ```ts
-const address = await soran.resolve("alice.nova");
+const address = await soran.resolve("nikcle.nova");
 // Only succeeds with an address when the native instruction is memo-free.
 ```
 

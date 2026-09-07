@@ -33,6 +33,8 @@ Universal mode is the default. Its contract validates current namespace routing 
 
 ## Read the whole payment instruction
 
+Use the [live testnet examples](/live-examples) to try every supported destination type in Nova Whois or with the SDK. The gallery includes memo-free G, G with ID/text/hash memos, full M and a callable hello-world C contract.
+
 ```ts
 const payment = await soran.resolvePayment("Alice.Nova");
 // payment = { address: "G..., M... or C...", memo: { type: "none" } }

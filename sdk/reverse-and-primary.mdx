@@ -5,6 +5,8 @@ description: "Verify elected account and complete muxed-address display names th
 
 A forward lookup starts with a name. A reverse lookup starts with an address and asks for a currently verified display name.
 
+Use the five [live wallet examples](/live-examples#check-address-to-name-lookup) to test both directions. Each has an elected Nova reverse name and Primary name; the hello-world contract example is forward-only.
+
 Universal Lookup exposes namespace-scoped and cross-namespace display-name reads. For G/C addresses, it uses `reverse(namespace,address)` and `primary_name(address)`. The muxed identity extension adds separate reads keyed by the complete base G account and muxed ID.
 
 <Note>

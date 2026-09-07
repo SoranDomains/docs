@@ -1,0 +1,126 @@
+---
+title: "Try live examples"
+description: "Resolve real testnet names for G accounts, memos, muxed destinations and a hello-world contract."
+---
+
+Open [Nova Whois](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/whois) and select a name from the example gallery. These names have real records in Soran's current Stellar testnet deployment. You can read them without connecting a wallet.
+
+| Name | Destination | Memo or routing ID |
+| --- | --- | --- |
+| `cyclops.nova` | Soroban C contract with `hello()` | No memo; `hello()` returns `Hello, world!` |
+| `nikcle.nova` | Classic G account | No memo |
+| `mux.nova` | Muxed M address | Embedded routing ID `42`; no separate memo |
+| `robert.nova` | Classic G account | Memo ID `12345` |
+| `alice.nova` | Classic G account | Text memo `hello` |
+| `echo.nova` | Classic G account | Hash memo containing the 32-byte SHA-256 digest of `hello` |
+
+These are demonstration destinations, not deposit instructions. The [public example manifest](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/examples/manifest.json) contains their complete addresses and memo values. It is a dated snapshot: read the current on-chain records when testing. Testnet resets, record changes and storage expiry can affect availability.
+
+## Read all destination types
+
+Install the published Lookup SDK and Stellar SDK:
+
+```sh
+npm install @sorandomains/lookup@0.8.0 @stellar/stellar-sdk@17.0.1
+```
+
+Save this as `examples.mjs`, then run `node examples.mjs`:
+
+```js
+import { Soran } from "@sorandomains/lookup";
+
+const soran = new Soran({
+  network: "testnet",
+  resolutionMode: "universal",
+});
+
+for (const name of [
+  "cyclops.nova", "nikcle.nova", "mux.nova",
+  "robert.nova", "alice.nova", "echo.nova",
+]) {
+  console.log(name, await soran.resolvePayment(name));
+}
+```
+
+`resolvePayment` returns the effective address and memo together through Universal Lookup. For `robert.nova`, the verified example instruction is:
+
+```json
+{
+  "address": "GBHKTFVBDUA6RYP5JM4SPZ76OXYAAHV4QHUOFV4S4TK342FMVGPHA2WN",
+  "memo": { "type": "id", "value": "12345" }
+}
+```
+
+Memo ID `12345` is different from text memo `"12345"`. Preserve the returned type and value. For `echo.nova`, the hash bytes are `2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824`; do not hash that string again. See [payment handling](/sdk/resolving-names) before constructing a payment.
+
+## Inspect the muxed example
+
+`mux.nova` resolves to this complete M address:
+
+```text
+M address: MDHHA2WBSH4ZKIAWALPY4KVOC57ZUT6W6HWS3JBUQ4KFJRT6US4MWAAAAAAAAAAAFKV2W
+G account: GDHHA2WBSH4ZKIAWALPY4KVOC57ZUT6W6HWS3JBUQ4KFJRT6US4MXTZ5
+Routing ID: 42
+Separate memo: none
+```
+
+The routing ID identifies a route under the G account. It is part of the M address, not a separate balance, signing account or transaction memo. Use the full M address in a compatible payment flow. Dropping the ID changes the destination; replacing it with G plus Memo ID `42` is not the same instruction. See [muxed accounts](/concepts/payment-destinations#muxed-accounts-what-is-and-is-not-supported).
+
+## Check address-to-name lookup
+
+The five wallet examples have both a Nova reverse selection and a Primary selection. Copy their returned destination into Whois's address-to-name search, or run:
+
+```js
+const muxedPayment = await soran.resolvePayment("mux.nova");
+console.log(await soran.reverse("nova", muxedPayment.address)); // "mux.nova"
+console.log(await soran.primaryOf(muxedPayment.address));       // "mux.nova"
+```
+
+Use this with the configured `soran` instance above. The complete M address selects its exact routing ID; its underlying G account and other IDs have independent elections. G elections identify the account without distinguishing separate customer memos.
+
+Claiming a name establishes name-to-destination resolution. Address-to-name lookup requires an additional election authorized by the destination account. It does not list every name a wallet owns. An empty result means no currently verified election was returned. Read failures must be handled separately. See [reverse and Primary semantics](/sdk/reverse-and-primary).
+
+The minimal `cyclops.nova` contract demonstrates forward resolution and a method call. It does not implement display-name election, so it is not a positive reverse-lookup example.
+
+## Call a contract by name
+
+Select `cyclops.nova` in Whois, then select **Run hello-world example**. Nova resolves the name to a C address and simulates its `hello()` method. The expected result is `Hello, world!`. This read does not sign or submit a transaction.
+
+The verified example contract is `CCVKI6UYJDO34LO4D653IXCTPBGJOHJSJGSIOB4A46IH4ULNHS2MPQL7`. Stellar contract invocations take a C address; the application resolves `cyclops.nova` first. The name does not add a new address type to Stellar.
+
+```js
+import {
+  Account, Contract, TransactionBuilder, rpc, scValToNative,
+} from "@stellar/stellar-sdk";
+
+const contractPayment = await soran.resolvePayment("cyclops.nova");
+if (!contractPayment.address.startsWith("C") || contractPayment.memo.type !== "none") {
+  throw new Error("The name no longer resolves to a memo-free contract");
+}
+
+const server = new rpc.Server("https://soroban-testnet.stellar.org");
+// Public account used only as the source of an unsigned read simulation.
+const source = new Account(
+  "GCQXEMOVPGQQHBX7OS2ZMCCS7FSZC6Q6EAKQHP7G5DIWQWREW2V3BWU7", "0",
+);
+const tx = new TransactionBuilder(source, {
+  fee: "100",
+  networkPassphrase: "Test SDF Network ; September 2015",
+}).addOperation(new Contract(contractPayment.address).call("hello"))
+  .setTimeout(60).build();
+
+const result = await server.simulateTransaction(tx);
+if (!rpc.Api.isSimulationSuccess(result)
+    || rpc.Api.isSimulationRestore(result) || !result.result) {
+  throw new Error("Could not read hello()");
+}
+console.log(scValToNative(result.result.retval)); // "Hello, world!"
+```
+
+Use this with the configured `soran` instance above, or download the [standalone runnable example](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/examples/resolve-and-call.mjs). The [hello-world Rust source](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/examples/hello-world.rs) is also available.
+
+## Inspect the contract calls
+
+Expand **Developer details** below a Whois result to inspect the Universal Lookup contract, typed arguments and decoded result. Name reads use `resolve_v2`; account identity reads use `reverse` and `primary_name`; M identity reads use `reverse_muxed` and `primary_name_muxed`. Supporting checks verify the deployment and interface before accepting results. See the [on-chain reference](/api/onchain-resolution).
+
+For claiming, Nova shows **Exact transaction for wallet approval** before signing. The Registrar's `claim(intent, proof)` invocation is separate from Whois reads. Use the [Holder SDK claim flow](/owner/automatic-claiming) to implement registration in your own app. After a claim, **Choose my wallet display name** opens the optional account-authorized setup.

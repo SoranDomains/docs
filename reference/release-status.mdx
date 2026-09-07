@@ -17,7 +17,9 @@ The contract addresses and initial configuration below are a dated deployment re
 | Nova bootstrap registration (12:19 UTC) | Public/Open configuration, **disabled at bootstrap**, username price **0 XLM**, treasury is the namespace owner; this is the initial configuration, not a current policy reading |
 | Current published SDKs | Lookup 0.8.0, Holder 0.6.0, Owner 0.7.0 and MCP 0.8.0 |
 | Muxed reverse and Primary identity | Lookup upgrade verified at ledger 4,549,326; `muxed_identity_version() = 1`. Lookup 0.8.0, Holder 0.6.0 and MCP 0.8.0 publication verified; all addresses unchanged |
-| Native receipt patch | Holder 0.5.1 published; Nova claiming app and Studio updates verified live |
+| Native receipt patch | Introduced in Holder 0.5.1; retained in current Holder 0.6.0 used by Nova and Studio |
+| Nova and Studio clients | Lookup 0.8.0 and Holder 0.6.0; served assets verified against the reviewed builds. Studio also uses Owner 0.7.0 |
+| Readable testnet examples | Six live G/memo/M/C destinations; five wallet reverse and Primary elections; `cyclops.nova` resolves to a hello-world contract |
 | Separate Allocator source fixes | Pending the existing proposal; the Lookup identity upgrade does not execute or replace it |
 | Allocator upgrade-delay change | Selected policy: zero waiting for future contract upgrades; **not installed yet**. Installing the revised proposal still requires the live code's 24-hour wait |
 | Public app / API | API M identity endpoints verified on 7 September at 08:47 UTC; main public web deployment retains its separate 6 September verification |
@@ -108,7 +110,11 @@ The API deployment is `ff35e3dd-117a-4b99-b6de-b280759d4714`; hosted MCP deploym
 
 Earlier API fee/routing/indexed coverage checks completed at **12:45:56 UTC on 6 September**. Main public web assets were independently verified at **12:47:15 UTC** that day; this is separate from the new M identity API/MCP verification.
 
-The Nova claiming app and Studio receipt-handling updates are also live. Their served assets match the reviewed builds using published Holder 0.5.1. This verification covers the deployed client code; it does not imply a contract upgrade or new wallet-provider test.
+The [Nova claiming app](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/) and [Soran Studio](https://soran-studio.throbbing-cloud-0f8e.workers.dev/) now use published **Lookup 0.8.0** and **Holder 0.6.0**. Studio also uses Owner 0.7.0. Their served assets match the reviewed builds; Holder 0.5.1 describes the earlier receipt-patch release, not these current clients.
+
+Nova's claim cancellation/retry, claim confirmation, display-name election and Primary election were exercised using a disposable testnet wallet on 7 September. Its layout was checked at 320, 390 and 1280 pixels. These checks do not certify physical devices or Freighter extension signing.
+
+The [live example guide](/live-examples) covers `cyclops.nova`, `nikcle.nova`, `mux.nova`, `robert.nova`, `alice.nova` and `echo.nova`. All six payment instructions and the five wallet reverse/Primary elections were verified on 7 September, along with a read-only `hello()` call through `cyclops.nova`. These are testnet demonstrations with mutable records and finite storage TTLs.
 
 Check [service status](/api/status), coverage and network settings when integrating. Indexed coverage is a bounded report, not proof against omission. Billing and marketplace features are disabled on this setup. The console's [branded-address preparation](/platform/issuing-names#automatic-branded-contract-addresses) remains namespace- and role-bound.
 
