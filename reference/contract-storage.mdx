@@ -3,29 +3,26 @@ title: "Contract storage reference"
 description: "Raw ledger keys, stored types, payment encodings and storage lifetimes for the six native-claim testnet contracts."
 ---
 
-This reference describes the native-claim deployment verified on **6 September 2026 at ledger 4,534,629**, plus the additive Lookup muxed identity upgrade verified on **7 September at ledger 4,549,326**. Match the contract's current Wasm hash to the [public deployment manifest](/reference/deployments/testnet.json) before decoding storage with this schema. An upgrade can change an upgradeable contract's implementation while keeping its address.
+Use this page to decode the raw ledger entries behind Soran's contracts. For a validated name or payment answer, call [Universal Lookup](/api/onchain-resolution#on-chain-resolution) instead.
 
-Use [Universal Lookup](/api/onchain-resolution#on-chain-resolution) for authoritative name and payment answers. Raw ledger entries are useful for explorers, storage tools and independent inspection. They are not a substitute for the contracts' ownership, generation, routing and payment checks.
-
-<Note>
-The complete native claim types and request receipts are defined in the
-[native claim storage reference](/reference/successor-claim-storage). The previous
-5 September deployment has its own [legacy schema](/reference/legacy-contract-storage);
-its Registry records do not contain the new required ownership epoch.
-</Note>
+The tables list **storage keys**; the code blocks define their **stored values**. Each contract section also explains how to interpret those values and maintain their storage lifetime.
 
 ## Deployment scope
 
-| Contract | Address | Storage / interface version |
-| --- | --- | --- |
-| Registry | `CBSORANPM664QXYMYRZKLQDQE2TXFSK4GBMC6EIRSRTAUZRZCRZRFNMK` | Immutable; namespace deployment salt version `1`; required ownership epoch |
-| Allocator | `CCSORANYFHUJUWETEQ7UWIDN4JTPV7NN5G6YUSSBZI57X7EQWVA63VMJ` | Stored `SchemaVersion = 4` |
-| Nova Registrar | `CBSORANHQRVZ7PEZ7VVFEQ7GQJ3M4RLBY2DNQ44MIVLU5C4J2DJ3DH3N` | `claim_version() = 1`; versioned `ClaimKey` entries below |
-| Nova Resolver | `CDSORANQGIHRR7ZLQTARI6UJUA6TPVFUYO4BXKFJQPUXUVWLCJPGWA5H` | `payment_version() = 2`; `destination_version() = 2`; `initialization_version() = 1` |
-| Primary | `CASORAN755O3GCQTRAHKDXLLCSDLNKAQWAP6MWABRSFVSHLJOEKAC7AB` | Immutable; no stored schema-version key |
-| Lookup | `CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA` | `version() = 2`; `destination_version() = 2`; `muxed_identity_version() = 1` |
+Match the contract's current Wasm hash to the [deployment manifest](https://raw.githubusercontent.com/SoranDomains/docs/main/reference/deployments/testnet.json) before using this schema. An upgrade can change the implementation without changing its address.
 
-Registrar and Resolver are namespace-specific. The other four contracts are shared. For another namespace, discover its current Registrar and Resolver through Lookup/Registry; do not use nova's pair. See [release status](/reference/release-status) for the verification timestamp, deployment transactions and historical deployments.
+| Contract | State covered | Schema or interface |
+| --- | --- | --- |
+| [Registry](#registry) | Namespace ownership, routing and attestations | Required ownership epoch; salt version `1` |
+| [Allocator](#allocator) | Namespace applications, objections and fee escrow | Stored schema `4` |
+| [Registrar](#registrar) | Issued names, policy, transfers and claim receipts | Native claim version `1` |
+| [Resolver](#resolver) | Payment destinations, profiles and G/C reverse names | Payment/destination version `2`; initializer `1` |
+| [Primary](#primary) | G/C cross-namespace display names | No stored version key |
+| [Lookup](#lookup) | Configuration and exact-M display names | ABI/destination `2`; muxed identity `1` |
+
+Registrar and Resolver are namespace-specific. Discover their addresses through Lookup; the Nova pair in the [address reference](/reference/release-status#nova-namespace-contracts) serves only `.nova`.
+
+The [native claim storage page](/reference/successor-claim-storage) expands the Registrar's claim types and receipts. The [historical schema](/reference/legacy-contract-storage) applies only to older deployments, whose Registry records lack the required ownership epoch.
 
 ## Ledger and XDR conventions
 
@@ -60,6 +57,10 @@ name_node  = H(ns_node || H(name_label_bytes))       // Registrar / Resolver nam
 
 ## Registry
 
+Stores who owns a namespace and which contracts serve it. Registry code is immutable.
+
+### Storage keys
+
 | Key | Storage | Value | Meaning |
 | --- | --- | --- | --- |
 | `DataKey::Config` | Instance | `Config` | Immutable Allocator, reservation-root and approved template anchors |
@@ -89,17 +90,23 @@ enum ResolverStatus { Clean, Tainted }
 struct Pending { to: Address, expires: u64 }
 ```
 
+### Provenance and ownership epochs
+
 `Clean` and `Tainted` are single-symbol vectors. There are no current `RegistrarTainted` or `ResolverTainted` storage keys: both statuses are fields of `Record`. Ordinary owner/pointer updates preserve them. `Tainted` marks provenance ineligible for permanence, including an upgrade or post-hoc Registrar attestation; restoring an earlier Wasm hash does not clear it. A fresh `Clean` field does not prove a contract has been attested. Resolver attestation and the current resolver pointer must be distinguished.
 
 `Record.owner_epoch` receives the next global ownership sequence on allocation, reserved award and accepted namespace transfer. An absent sequence is an error, not zero; overflow fails. Epochs can skip numbers for one namespace. Returning to a former owner does not reactivate their previous claim configuration. `owner_epoch`, `template_hashes` and `native_contracts` are read methods, not storage keys.
 
 The reservation Merkle root is stored, but the complete label list and allocation witnesses are not. Namespace deployment salts and vanity-search candidates are not stored application records. Salt version `1` is a code-defined namespace-and-role binding rule, not a `DataKey` or storage-schema version.
 
+### Transfers and storage upkeep
+
 Namespace transfer proposals expire after `604800` seconds. A keeper can call `touch_node(ns_node)` to extend the namespace record and existing Registrar, Resolver and ResolverLock entries. It does not extend `Pending` or the Registry instance; `keep_alive()` covers the instance and code. A raw missing owner entry does not authorize reallocation: the contract also checks related state.
 
 ## Allocator
 
-Use `label_hash = H(label_bytes)` in this section. Objections and upfront claim fees use separate accounting, even when their configured token happens to be the same asset.
+Use `label_hash = H(label_bytes)` in this section. Objections and upfront claim fees use separate accounting, even when they use the same asset.
+
+### Storage keys
 
 | Key | Storage | Value | Meaning |
 | --- | --- | --- | --- |
@@ -157,9 +164,13 @@ struct ClaimFeeReceipt {
 enum FeeOutcome { Held, Awarded, Rejected, Withdrawn, Expired, Stuck }
 ```
 
+### Claim states
+
 `ClaimState` and `FeeOutcome` use their **named** variants, not `0`, `1`, or other numeric state IDs. Objection fields are meaningful while `state = Objected`; do not interpret leftover numeric `obj_*` fields as an active objection after settlement. `announced_at` can be adjusted when a frozen window resumes, so it is not always the original submission timestamp. `rejected_at = 0` means no recorded rejection timestamp in that field.
 
 There are no `Expired` or `Stuck` ClaimState variants: those exits store `Withdrawn` in the claim while recording `Expired` or `Stuck` in the fee receipt. Missing Config, SchemaVersion or required FeePolicy is an error, unlike an intentionally absent optional claim. `time_remaining = 0` alone does not prove that a claim can execute.
+
+### Fee receipts and credits
 
 Fee amounts and credits are signed 128-bit integers in the configured token's smallest units, with nonnegative accounting invariants. Decimals are token metadata, not part of these records. The current fee is `50000000000` stroops, or **5,000 testnet XLM**. Receipt outcomes have these refund entitlements:
 
@@ -172,15 +183,23 @@ Fee amounts and credits are signed 128-bit integers in the configured token's sm
 
 The equivalent refund basis points are `0`, `10000`, and `8000`; those numbers describe policy arithmetic, not the stored enum encoding. `refund_amount` and `treasury_amount` describe entitlements, including any undelivered pull-credit. A settled receipt does not by itself prove that every transfer was delivered. A later claim can overwrite the label's old Claim/FeeReceipt; use confirmed events for history.
 
+### Objections, timing and history
+
 `ObjCount` is capped at `3` objection cycles per claim epoch. The configured live-time budget and per-claimant `ParkedAge` survive different transitions from the per-label cycle counter. Rejection locks and claimant-specific reopen proposals are separate from the label's latest claim. Reopen tuples bind a proposal to its precise rejection timestamp; a historical reopen does not necessarily free the label.
 
 `Config.window` is bounded to `86400`–`3153600000` seconds. `max_claim_age` is at most `3153600000` and must exceed the window by at least `3600` seconds. Rejection cooldown, objection timeout and the minimum banked concession budget each use `2592000` seconds. Those are timing/budget rules, not TTLs or automatic deletion deadlines. Claim basis accounting requires `sum(entry.len() + 8) <= 4096`, including the per-element overhead; an objection basis is at most `4096` raw bytes.
 
+### Storage upkeep and compatibility
+
 `touch_claim(label)` extends the existing Claim, legacy ReopenEta, FeeReceipt and ObjCount plus the instance/code. It does not enumerate claimant-keyed history or all payee credits. `touch_reopen_for(label, claimant)` maintains that claimant's proposal and matching rejection lock plus the instance/code; `touch_fee_credit(address)` maintains that fee credit plus the instance/code. There is no general enumeration of every persistent key. Known keys can also be maintained through Stellar's ledger-entry TTL operations.
 
-Schema `4` requires fee receipts for claims. Schema `3` had no claim-fee receipt requirement; schema `2` used a single `u64` ReopenEta value rather than the two-element tuple; legacy schema `1` had no SchemaVersion entry and different Claim/Config layouts. The current deployment was created fresh. There is no general raw-storage migration method: an upgrade must preserve the existing schema or implement a separately reviewed migration. Changing a version getter or stored version number does not convert old values. Allocator upgrade proposals retain their own configured claim-window delay; Lookup's zero delay does not change this rule.
+Schema `4` requires fee receipts for claims. Schema `3` had no claim-fee receipt requirement; schema `2` used a single `u64` ReopenEta value rather than the two-element tuple; legacy schema `1` had no SchemaVersion entry and different Claim/Config layouts. The current deployment was created fresh. There is no general raw-storage migration method: an upgrade must preserve the existing schema or implement a separately reviewed migration. Changing a version getter or stored version number does not convert old values. The installed Allocator derives an upgrade proposal's wait from `Config.window` (currently 24 hours). A pending upgrade changes that timing; see [current upgrade status](/reference/release-status#pending-allocator-upgrade). Lookup's zero delay does not change the Allocator's installed behavior.
 
 ## Registrar
+
+Stores each issued name, its holder and its ownership policy.
+
+### Storage keys
 
 | Key | Storage | Value | Meaning |
 | --- | --- | --- | --- |
@@ -219,11 +238,15 @@ struct PendingTransfer {
 }
 ```
 
+### Ownership and generations
+
 `Config.owner` is the constructor-time owner; current namespace authority follows `Registry.owner_of(namespace_node)`. `treasury_set_by` identifies who configured the treasury. After namespace ownership changes, a treasury set by a previous owner is not the current owner's authorized reclaim destination.
 
 `Name.address` is a built-in G/C destination, not a complete native payment instruction. The namespace Resolver may supply an explicit destination and memo. `expires_at = 0` means no ownership expiry; it does not make a reclaimable namespace permanent. With a finite expiry, the name expires when ledger time is **greater than** `expires_at`. Storage TTL is independent.
 
 Generation starts at `0` for first issuance and increases on reissue, accepted transfer and reclaim. A holder address update or renewal does not change it. Resolver entries from another generation stop being current even if still present in the ledger. A transfer proposal carries both `from` and `generation`; its acceptance deadline is `604800` seconds after proposal. Acceptance changes holder and built-in address to the recipient and increments generation.
+
+### Ownership policy
 
 Policy terms are either `0` or `86400`–`3153600000` seconds. `trade_fee_bps` is `0`–`10000`; it is a basis-point field, not proof that a marketplace feature is enabled. Making a namespace permanent is one-way, requires no-expiry terms, disables reclaim and freezes Registrar upgrades.
 
@@ -244,6 +267,10 @@ These seven versioned keys coexist with the original name/configuration keys. Pu
 Name writes extend the name entry and instance/code. Transfer proposal writes extend the proposal entry. `touch(label)` extends the Name entry only; `keep_alive()` maintains instance/code. Neither is a blanket renewal of every PendingTransfer. Renewal changes the ownership clock; a TTL extension does not.
 
 ## Resolver
+
+Stores holder-controlled destinations and profile records. Records are bound to an ownership generation.
+
+### Storage keys
 
 | Key | Storage | Value | Meaning |
 | --- | --- | --- | --- |
@@ -272,15 +299,21 @@ There is **no `DataKey::Payment` entry**. `set_payment` and `set_muxed` atomical
 2. `Text(name_node, Symbol("payment"))` → `TextRec` with one complete versioned string below.
 3. `PaymentConfigured(name_node, generation)` → `true`.
 
-| Destination | Exact `TextRec.value` format |
-| --- | --- |
-| G or C, no memo | `1\|ADDRESS\|none\|` |
-| G plus ID memo | `1\|G_ACCOUNT\|id\|DECIMAL_U64` |
-| G plus text memo | `1\|G_ACCOUNT\|text\|UTF8_TEXT` |
-| G plus hash memo | `1\|G_ACCOUNT\|hash\|LOWERCASE_HEX_32_BYTES` |
-| Muxed destination | `2\|G_ACCOUNT\|muxed\|DECIMAL_U64` |
+The exact encodings are:
 
-The backslashes above only escape Markdown table separators; they are **not stored**. For example, an actual ID record is `1|GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ|id|420`.
+```text
+1|ADDRESS|none|                         // G or C, no memo
+1|G_ACCOUNT|id|DECIMAL_U64               // G with an ID memo
+1|G_ACCOUNT|text|UTF8_TEXT               // G with a text memo
+1|G_ACCOUNT|hash|LOWERCASE_HEX_32_BYTES   // G with a hash memo
+2|G_ACCOUNT|muxed|DECIMAL_U64            // M destination
+```
+
+The comments and alignment spaces above are explanatory. For example, the stored ID record is exactly:
+
+```text
+1|GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ|id|420
+```
 
 Only the first three `|` characters delimit fields; text memo content may itself contain `|`. Direct records use a 56-character G/C StrKey. IDs use canonical decimal digits from `0` through `18446744073709551615`, without leading zeros. Text memos contain 1–28 UTF-8 bytes. Hash memos contain exactly 64 lowercase hex characters. The decoder bounds the entire record to 128 bytes.
 
@@ -302,11 +335,15 @@ An untouched generation can resolve its current effective address with no memo. 
 
 Profile keys are symbols of 1–32 letters, digits or underscores. Values are public strings. Retraction writes an empty string; it does not delete the ledger entry or erase history. Standard profile readers treat empty values as unset. `AddrRec` and `TextRec` are current only when their generation matches the Registrar's current active name.
 
-Reverse records contain plaintext `label.namespace`, its node and generation. A raw reverse entry is only a declaration: verified reads also check the current generation and forward match. Legacy reverse records without the `name` string, or with a differently typed `name`, are not current `RevRec` values; holders must set a valid declaration again. The older two-field Resolver Config is likewise not the current three-field layout. This deployment was created fresh; do not assume an older Resolver can adopt it through a Wasm swap alone.
+Reverse records contain plaintext `label.namespace`, its node and generation. A raw reverse entry is only a declaration: verified reads also check the current generation and forward match. Legacy reverse records without the `name` string, or with a differently typed `name`, are not current `RevRec` values; the destination address must authorize a new valid declaration. The older two-field Resolver Config is likewise not the current three-field layout. This deployment was created fresh; do not assume an older Resolver can adopt it through a Wasm swap alone.
 
 `put` extends the modified persistent record and instance/code. `keep_alive()` maintains instance/code. `touch_node(node)`, `touch_text(node, key)` and `touch_reverse(address)` extend their existing entry plus instance/code. `touch_payment(name)` covers the current-generation marker, address, payment text and instance/code together; maintaining the address alone does not maintain its payment metadata. None of these changes ownership or payment content.
 
 ## Primary
+
+Stores a G/C address's chosen display name across namespaces. Exact-M elections live in Lookup.
+
+### Storage keys
 
 | Key | Storage | Value | Meaning |
 | --- | --- | --- | --- |
@@ -318,6 +355,8 @@ struct Config { registry: Address }
 struct PrimaryRec { name: String, ns_node: BytesN<32>, node: BytesN<32> }
 ```
 
+### Verifying a stored election
+
 All PrimaryRec fields are an election-time snapshot. `primary_of` checks the Registry's **current** resolver pointer and that Resolver's verified display name. The cached `node` is informational, not an independent proof. A stored declaration can remain present while the verified answer is absent after a transfer, destination change, reverse clear or resolver change. An unavailable dependent display-name read can also yield no verified primary; that does not prove no raw declaration exists.
 
 Universal Lookup's `primary_name` independently rechecks the returned name against current forward resolution. Its `reverse` path also verifies the complete native destination and refuses a muxed destination as an account-identity proof. Do not replace these checks with a raw PrimaryRec or an isolated Resolver address record that exposes only a muxed destination's base G account.
@@ -325,6 +364,10 @@ Universal Lookup's `primary_name` independently rechecks the returned name again
 `set_primary` extends the record and instance/code. `clear_primary` removes the current entry, not its historical transactions. `touch_primary(address)` extends the entry if present and maintains instance/code. Primary has no Wasm-upgrade entry point or general storage migration method.
 
 ## Lookup
+
+Stores the shared read configuration and exact-M display-name elections. It does not copy namespace payment records.
+
+### Storage keys
 
 | Key | Storage | Value | Meaning |
 | --- | --- | --- | --- |
@@ -339,7 +382,7 @@ struct LegacyCodeHashes { registrar: BytesN<32>, resolver: BytesN<32> }
 struct PendingUpgrade { wasm_hash: BytesN<32>, execute_after: u64 }
 ```
 
-The initial deployment has only the instance keys above. The additive muxed identity extension adds the two persistent election keys below; existing keys remain unchanged. Lookup does not copy payment records or memo instructions. Resolution structs, namespace/name metadata and the internal Provenance mirror are ABI data, not additional storage entries. An absent optional anchor is not a failed read; decoding or RPC failures must be handled separately.
+The instance keys above hold configuration and upgrades. The [muxed identity keys](#muxed-identity-storage) below hold persistent elections. Lookup does not copy payment records or memo instructions. Resolution structs, namespace/name metadata and the internal Provenance mirror are ABI data, not additional storage entries. An absent optional anchor is not a failed read; decoding or RPC failures must be handled separately.
 
 `version()` and `destination_version()` are code-defined getters; neither has a stored DataKey. ABI 2 selects complete `Direct`/`Muxed` destinations. A successful native Resolver payment-version `1` response uses its direct-payment interface; version `2` requires destination-version `2`. Failed or unknown capability responses do not justify a legacy fallback. The old Address-returning methods cannot represent a muxed ID and refuse that result.
 
@@ -347,9 +390,7 @@ All Lookup configuration and pending-upgrade data share the instance lifetime. `
 
 ### Muxed identity storage
 
-<Note>
-This additive schema is active on testnet after the Lookup upgrade at ledger **4,549,326**. Verify the current Wasm hash and `muxed_identity_version() == 1` against [release status](/reference/release-status). The original deployment receipts remain unchanged.
-</Note>
+These keys require `muxed_identity_version() == 1`. Confirm the interface and code hash against the [current deployment](/reference/release-status).
 
 | Key | Storage | Value | Meaning |
 | --- | --- | --- | --- |
@@ -405,7 +446,7 @@ threshold = min(2_500_000, saturating_sub(extend_to, 1))
 
 Lookup uses `threshold = min(2_500_000, max_ttl)` and `extend_to = min(3_000_000, max_ttl)`. These are ledger targets, not a promised number of days. A bump only extends an entry below its threshold; it can be a no-op for an already-long TTL. Instance extension checks the instance and Wasm-code TTLs separately. [Instance TTL semantics](https://docs.rs/soroban-sdk/26.1.0/soroban_sdk/storage/struct.Instance.html#method.extend_ttl)
 
-A newly uploaded replacement Wasm can have a shorter TTL than an existing Lookup instance. Because `keep_alive()` extends both, a later consumer write can inherit substantial code-extension cost if deployment upkeep has not been funded. Verify the code entry and instance separately after an upgrade, and confirm representative write fees before enabling consumers. Raising a consumer fee limit does not fix that deployment-maintenance gap.
+Code and instance TTLs are independent. A replacement Wasm can have a shorter lifetime than the existing instance, and extending it can add cost to the next write. Include both in storage upkeep.
 
 Persistent entries and contract instances can archive and later be restored. Archival does not establish that a namespace is unowned, a name has expired, a rejection/credit never existed, or a payment needs no memo. A raw `getLedgerEntries` result that omits a key is not a sufficient payment or ownership decision. A transaction accessing archived persistent data must include the required restoration work or fail; RPC simulation can identify what is needed. Restoration costs and subsequent TTL extension are distinct from name-renewal or claim fees. [Stellar state archival](https://developers.stellar.org/docs/learn/fundamentals/contract-development/storage/state-archival)
 
@@ -413,23 +454,24 @@ Use the relevant contract read after restoration to recheck current meaning. Res
 
 ### Hosted keeper coverage
 
-The API maintenance keeper checks **contract instance and current Wasm-code TTLs independently** for Lookup, Registry, Allocator, Primary and known namespace Registrar/Resolver contracts. A long-lived instance does not establish that replacement code has the same remaining lifetime. See [release status](/reference/release-status#hosted-services) for deployment verification; source changes alone do not establish that a keeper is running.
+The hosted API's keeper maintains known records. It is not an enumeration of all on-chain storage and does not guarantee that every record stays live.
 
-Primary has no `keep_alive` method. Its permissionless `touch_primary(keeper_address)` can maintain code and instance even when that address has no Primary record. This call does not create an election or change a display name. Prepared maintenance transactions must preserve the exact requested invocation and contain no contract authorization entries. A namespace contract that asks for additional account authority is not signed by the keeper.
+| Coverage | What it maintains |
+| --- | --- |
+| Shared and known namespace contracts | Instance and current Wasm-code TTLs, checked independently |
+| Namespace and name records | Known Registry nodes, Registrar names, Resolver payments, profiles and reverse records |
+| Display names | Known G/C Primary records and exact-M reverse/Primary keys |
+| Allocator claims | Known current and retained claims, plus historical claimant keys |
 
-Record maintenance covers known Registry nodes, names, Resolver payment/profile/reverse records, Primary records and retained Allocator claims. Complete M elections use the exact `MuxedReverse(namespace, G, u64)` and `MuxedPrimary(G, u64)` keys. Current election events supply candidates, and each pass can recover up to 500 matching events from the indexer's stored event archive. This bounded history recovery is not enumeration of all on-chain keys. A touch checks an existing key; it does not recreate a missing election or make its forward proof valid.
+M election candidates come from indexed events, including a bounded history scan. Historical claimant candidates preserve the exact `(label, claimant)` pair and include `ParkedAge`, `RejectedLock` and `ClaimantReopenEta`. `touch_claim` alone does not cover those claimant-specific keys.
 
-The testnet infrastructure configuration caps a keeper transaction at **200 XLM** and cumulative reserved fees at **1,000 XLM per pass**. These are maintenance spending ceilings, not namespace claim prices, username prices or wallet transaction limits. The keeper reserves each simulated fee before signing, counts failed attempts against its attempt limit and stops further attempts after an uncertain submission. Unused allowance is not spent. Other networks require explicit maintenance fee limits.
+A missing candidate can remain outside keeper coverage. An absent optional entry may never have existed or may have been cleared. Archived entries need inspection and restoration; a touch cannot restore them. Restoration preserves stored values and does not make a stale election valid or clear a rejection.
 
-Archived code, instances and records require restoration; a touch is not a restore. An absent optional record may never have existed or may have been intentionally cleared. Inspect the relevant contract state and event history before attempting restoration; absence alone does not justify recreating a record.
-
-Retained Rejected/Withdrawn claims are maintained alongside active claims. The keeper also retains each known `(label, claimant)` pair after the current claim changes and independently checks its `ParkedAge`, `RejectedLock` and `ClaimantReopenEta` entries. It extends due, live entries through Stellar's ledger-entry TTL operation. `touch_claim` alone does not cover those separate keys.
-
-Historical candidates come from exact fee and claimant-appeal events plus known claims. Events outside the indexer's coverage require verified historical evidence; a label-only event does not establish who the earlier claimant was. Unavailable entries require inspection before any restoration. Restoring an archived entry preserves its stored value and does not clear a rejection or grant a reopening.
+For independent upkeep, use the per-contract methods described above or Stellar's ledger-entry TTL operations. Check [service status](/api/status) for the hosted service's reported state.
 
 ## Read raw keys with Stellar RPC
 
-This read-only Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.8.0`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It does not sign, submit, restore, or construct a payment. Replace the example name with an actually issued name.
+This Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.8.0`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It only reads state. Use an active name from the [live examples](/live-examples), or one you have issued.
 
 ```typescript
 import { Address, nativeToScVal, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";

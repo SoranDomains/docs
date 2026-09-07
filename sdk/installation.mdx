@@ -3,11 +3,7 @@ title: "Installation and configuration"
 description: "Configure the matching Universal Lookup, Registry, Primary and Stellar network."
 ---
 
-<Note>
-These examples target Lookup **0.8.0**, whose default testnet pins select the native-claim deployment. Check [release status](/reference/release-status) before installation. Muxed payment support was introduced in Lookup 0.6.0; an older default deployment is not the current Registry. You can also use the [contract ABI](/api/onchain-resolution) or [HTTP payment endpoint](/api/resolution).
-</Note>
-
-These pages target Lookup 0.8.0. Its testnet preset matches the current Registry, Lookup and Primary in the deployment record.
+Install **Lookup 0.8.0** to read names, payment instructions and identity records. It needs no signer. The testnet preset uses the current [Registry, Lookup and Primary deployment](/reference/release-status).
 
 ```bash
 npm install @sorandomains/lookup@0.8.0 @stellar/stellar-sdk@^17
@@ -15,7 +11,7 @@ npm install @sorandomains/lookup@0.8.0 @stellar/stellar-sdk@^17
 
 The supported Stellar SDK peer range is `>=17 <18`. The package is ESM with TypeScript types and supports Node, browsers and workers.
 
-Lookup reads require no signer. The Owner and Holder SDKs' `TxSigner` write flows use a classic G account as the transaction source. C-address support for recipients or contract ownership does not mean arbitrary contract-wallet signing is supported by these adapters. Contract-wallet authorization needs a compatible integration of its own.
+To write records, use the [Holder SDK](/holder/managing-your-name). To issue names or configure a namespace, use the [Owner SDK](/owner/issuing-from-code). Their `TxSigner` adapters use a classic G account as the transaction source. Contract-wallet authorization requires a compatible integration of its own.
 
 ## Universal mode is the default
 
@@ -24,27 +20,44 @@ import { Soran } from "@sorandomains/lookup";
 
 const soran = new Soran({
   network: "testnet",
-  registryId: deployment.registryId,
-  lookupId: deployment.lookupId,
-  primaryId: deployment.primaryId,
-  rpcUrl: deployment.rpcUrl,
-  passphrase: deployment.passphrase,
   reverseNamespaces: ["nova"],
-  hintUrl: deployment.apiUrl,
+  hintUrl: "https://api.soran.domains",
   timeoutMs: 10_000,
 });
 ```
 
-`deployment` represents your verified network configuration. Universal Lookup is the shared read entry point; per-namespace Registrar and Resolver addresses are discovered on chain, not hard-coded in the app.
+This example uses the bundled testnet configuration. Universal Lookup discovers each namespace's Registrar and Resolver on chain.
 
-A network without a Lookup pin fails with `CONFIG`. `new Soran({ network: "testnet" })` selects this package version's bundled deployment. Lookup 0.8.0 matches the current testnet release; explicit configuration lets you pin a reviewed deployment independently of package updates. Changing Registry or network passphrase prevents inheriting a Lookup or Primary pin from an unrelated preset. There is no supported mainnet preset until a reviewed deployment exists.
+For a custom deployment, provide its matching `registryId`, `lookupId`, `rpcUrl` and `passphrase`. The [quickstart](/quickstart#configure-one-shared-reader) shows explicit current testnet IDs. Pinning those values lets you select a deployment independently of package updates.
 
-In universal mode, a provided `primaryId` is an extra check against `Lookup.primary()`. `primaryId: null` disables the G/C Primary path. Omitting it for a custom deployment lets Lookup's configured anchor determine that read. Complete-M Primary is stored in Lookup and does not use this older Primary pin.
+- A missing Lookup configuration throws `CONFIG`.
+- A custom Registry or network passphrase does not inherit an unrelated Lookup or Primary pin.
+- The SDK currently provides a testnet preset only.
+
+### Configure Primary reads
+
+In universal mode, `primaryId` has three meanings:
+
+| Value | G/C Primary behavior |
+| --- | --- |
+| Explicit contract ID | Must match `Lookup.primary()`. |
+| Omitted for a custom deployment | Use Lookup's configured Primary anchor. |
+| `null` | Disable G/C Primary reads. |
+
+Complete-M Primary is stored in Lookup and does not use this Primary pin.
 
 ## Explicit direct compatibility mode
 
 ```ts
 import { Soran } from "@sorandomains/lookup";
+
+// Supply a reviewed deployment; these are your application's configuration.
+declare const deployment: {
+  registryId: string;
+  primaryId: string;
+  rpcUrl: string;
+  passphrase: string;
+};
 
 const direct = new Soran({
   registryId: deployment.registryId,
@@ -55,7 +68,11 @@ const direct = new Soran({
 });
 ```
 
-`lookupId: null` also explicitly selects direct mode. Direct mode discovers **native** Resolvers and checks Registry, Registrar authority and payment version. A successful native payment version 1 selects the direct payment ABI; version 2 additionally checks destination version 2 and supports M. Failed or unknown capability reads never select an older ABI. It has no fallback to older address-only implementations. `lookup`, `namespaceMetadata` and `nameMetadata` require universal mode.
+Choose direct mode only for an integration that deliberately reads native Resolvers itself. `lookupId: null` also selects it.
+
+Direct mode checks Registry, Registrar authority and payment capability. Version 1 selects the native payment ABI; version 2 additionally requires destination version 2 and supports M. Failed or unknown capability reads throw instead of selecting an older ABI.
+
+`lookup`, `namespaceMetadata`, `nameMetadata` and M identity reads require universal mode.
 
 ## Other options
 

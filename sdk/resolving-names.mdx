@@ -3,13 +3,9 @@ title: "Resolving names and payments"
 description: "Preserve optional memos, reject unknown legacy instructions and recheck before paying."
 ---
 
-Use `resolvePayment(name)` for payments. It returns one atomic instruction from the current on-chain namespace Resolver through Universal Lookup.
+Use `resolvePayment(name)` to get the complete address and optional memo. Lookup 0.8.0 reads this instruction from the namespace's current Resolver through Universal Lookup.
 
 Try the [live testnet examples](/live-examples) for all supported address and memo forms, including resolving and calling `cyclops.nova`.
-
-<Note>
-These examples target Lookup **0.8.0** and the current deployment. Muxed payment support was introduced in 0.6.0. The same complete payment instructions are available through the [contract ABI](/api/onchain-resolution) or [HTTP payment endpoint](/api/resolution). Check [release status](/reference/release-status) for matching contracts and package availability.
-</Note>
 
 ```ts
 const payment = await soran.resolvePayment("Alice.Nova");
@@ -27,9 +23,17 @@ if (!unchanged) throw new Error("Review the new instructions before sending");
 | `{ type: "text", value: "customer-123" }` | Exact UTF-8 text, 1–28 bytes |
 | `{ type: "hash", value: "…" }` | Exactly 32 bytes represented by 64 lowercase hex characters |
 
-Ordinary native records without a current-generation payment configuration return their ordinary address with `none`. Holders do not have to create a memo to use Soran. Once a record has been configured, a persistent marker prevents lost instructions from being mistaken for that ordinary default. Removing a memo requires an explicit complete `setPayment` with `none`.
+Ordinary native records return their default address with `none` until the holder configures a payment instruction. Holders do not need to create a memo to use Soran.
 
-The four memo variants above are supported for `G...` addresses. `M...` and `C...` destinations support `none` only. An M address preserves its embedded muxed ID; `none` does not remove that ID. Return-hash memos and contract-specific routing arguments are outside this ABI. The SDK never substitutes G plus memo for M. See [supported address types and complete examples](/concepts/payment-destinations), including how a muxed ID differs from a transaction memo. Unknown memo types must be refused.
+After a holder configures an instruction, missing or invalid payment state fails instead of falling back to that default. To remove a memo, the holder explicitly writes the complete destination with `setPayment` and `none`.
+
+| Address | Supported memos |
+| --- | --- |
+| `G...` | `none`, `id`, `text`, `hash` |
+| `M...` | `none`; the embedded muxed ID remains part of the address |
+| `C...` | `none` |
+
+Return-hash memos and contract-specific arguments are outside this ABI. Refuse unknown memo types. Never convert M to G plus a transaction memo. See [complete destination examples](/concepts/payment-destinations).
 
 ## Native and legacy results
 
@@ -43,13 +47,21 @@ if (result.kind === "nativePayment") {
 }
 ```
 
-Both variants contain the canonical name, Registrar, optional Resolver and exact `bigint` generation. Lookup supports a legacy implementation only when the deployed configuration explicitly recognizes its current code hashes. A legacy address is not a memo-free payment instruction.
+Both variants contain the canonical name, Registrar, optional Resolver and exact `bigint` generation. Lookup recognizes a legacy implementation only when its current code hashes are explicitly configured.
+
+**A legacy address does not establish a memo-free payment instruction.**
 
 `resolvePayment`, `verifyPayment` and payment fields in `details`/`identity` reject legacy results with `LEGACY_MEMO_UNKNOWN`. Missing, malformed, archived or unreadable native instructions fail; no error retries through an older ABI or substitutes a Registrar address.
 
 ## Address-only convenience methods
 
-`resolve(name)`, `record(name)` and `verify(name,address)` are restricted to native memo-free instructions. They reject a required memo with `PAYMENT_REQUIRED` and an unknown legacy memo with `LEGACY_MEMO_UNKNOWN`. For a muxed record, these updated SDK methods return or compare the complete M address. The older on-chain address methods cannot represent M and reject it. Prefer `resolvePayment` for general payment integration.
+`resolve(name)`, `record(name)` and `verify(name, address)` work only with native memo-free instructions:
+
+- A required memo throws `PAYMENT_REQUIRED`.
+- Unknown legacy memo capability throws `LEGACY_MEMO_UNKNOWN`.
+- A muxed record returns or compares the complete M address.
+
+The older on-chain address methods cannot represent M and reject it. Use `resolvePayment` for general payment integration.
 
 ```ts
 const address = await soran.resolve("nikcle.nova");
@@ -58,11 +70,16 @@ const address = await soran.resolve("nikcle.nova");
 
 ## Building a payment
 
-Display and preserve the whole returned tuple. A `G...` or `M...` recipient can receive a compatible classic Stellar Payment; preserve the full M destination. A `C...` recipient needs a supported Soroban asset/token transfer flow. A classic transaction contains one memo, so multiple incompatible memos require separate transactions.
+1. Resolve the name and display its complete address and memo.
+2. Choose a payment flow that supports that destination. G/M can use a compatible classic Stellar Payment; C requires an appropriate Soroban asset/token transfer.
+3. Preserve the full M address or the exact G memo type and value. A classic transaction has one memo, so split payments needing different memos.
+4. Call `verifyPayment` near confirmation. If it returns `false`, show the changed instructions for another review.
 
 Honor recipient account memo-required settings such as [SEP-29](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0029.md). A Soran `none` instruction does not override that requirement.
 
-Rechecking immediately before confirmation detects stale client data. It does not atomically bind a later classic payment to that lookup: holders can update instructions before settlement. Even a permanent Resolver permits holder record changes. An exchange using a customer memo still needs a wallet integration that includes that memo in the outgoing payment.
+Rechecking detects stale client data. It cannot prevent a holder from updating records before a separate payment settles. Even a permanent Resolver permits holder record changes.
+
+The same complete instructions are available through the [contract ABI](/api/onchain-resolution) and [HTTP payment endpoint](/api/resolution).
 
 ## Metadata is a separate read
 

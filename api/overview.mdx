@@ -1,42 +1,54 @@
 ---
 title: "HTTP API overview"
-description: "Distinguish strict chain-backed payment reads from indexed discovery and optional services."
+description: "Find payment instructions, discover names and read namespace claim information."
 ---
 
-The HTTP API combines strict current contract reads with indexed discovery, history and hosted services. The source of truth remains the chain; an HTTP response still requires trusting the serving API and its RPC.
+Use the public testnet API at `https://api.soran.domains`. The resolution alias is `https://resolve.soran.domains`. Public `/v1` routes need no API key.
 
-The public testnet API is `https://api.soran.domains`; `https://resolve.soran.domains` is a resolution alias. Its deployment cutover is verified separately in [release status](/reference/release-status). Match the API to the contracts and network you integrate.
+Payment and identity routes read current contracts. Discovery and history routes read an index, which can be incomplete or delayed. If you need to verify an answer without trusting the HTTP service and its RPC, use [Universal Lookup directly](/api/onchain-resolution).
 
 ## Choose the right source
 
-| Need | Endpoint or method |
-| --- | --- |
-| Complete destination, including muxed ID or optional memo | `/v1/payment/{namespace}/{label}` or on-chain `resolve_destination` |
-| Memo-free G/C address convenience | `/v1/resolve/{namespace}/{label}`; required memo or M destination returns an error |
-| Current payment plus selected records | `/v1/records/{namespace}/{label}` |
-| Contract source of truth without Soran HTTP | [Universal Lookup ABI](/api/onchain-resolution) |
-| Indexed ownership candidates | `/v1/names/by-holder/{address}` |
-| Verified scoped G/C/M display name | `/v1/reverse/{namespace}/{address}` |
-| Verified G/C/M Primary | `/v1/primary/{address}` |
-| Namespace discovery | `/v1/namespaces` and optional directory |
-| History, raw events and gaps | [Explorer API](/api/events) |
-| Namespace fee policy/receipt/credit | [Claim fee API](/api/claim-fees) |
+### Payments and identity
 
-The new payment routes use configured Universal Lookup with anchor/version checks and no fallback on failure. Compatibility deployments can explicitly operate a native direct path; verify which setup you are integrating. Indexed holders, cold records and cached Registrar addresses are never substitutes for a failed current payment read.
+| You need | Route |
+| --- | --- |
+| Complete payment instructions, including any memo or muxed ID | [`/v1/payment/{namespace}/{label}`](/api/resolution#complete-payment) |
+| A memo-free G or C address | [`/v1/resolve/{namespace}/{label}`](/api/resolution#address-only-convenience) |
+| Payment instructions with holder and selected profile records | [`/v1/records/{namespace}/{label}`](/api/resolution#current-records) |
+| An elected display name within a namespace | [`/v1/reverse/{namespace}/{address}`](/api/resolution#verified-reverse-and-primary-names) |
+| An elected Primary name across namespaces | [`/v1/primary/{address}`](/api/resolution#verified-reverse-and-primary-names) |
+
+The current hosted API uses Universal Lookup with contract-anchor and version checks. A failed payment read returns an error. Indexed holders, cached addresses and older records are never substituted as payment destinations.
+
+### Discovery and claims
+
+| You need | Route or guide |
+| --- | --- |
+| Names that an address may hold | [`/v1/names/by-holder/{address}`](/api/resolution#holdings-pages) |
+| Namespace discovery | [`/v1/namespaces` and directory routes](/api/directory) |
+| Contract events, name history and indexing gaps | [Explorer API](/api/events) |
+| Namespace claim fee, receipt or recoverable credit | [Claim fee API](/api/claim-fees) |
+| Recent namespace claims and service status | [Status and allocations](/api/status) |
+| Username claims within a namespace | [Native Registrar interface](/api/native-claiming) |
+
+Billing and marketplace services are available only when enabled on a deployment. See [release status](/reference/release-status) for the current network and contract addresses.
 
 ## Conventions
 
-- Public `/v1` routes need no API key. Some optional marketplace routes create intents rather than merely reading data.
-- Responses are JSON; errors have a machine-readable `error` field.
-- Full-name payment inputs reject non-ASCII before lowercasing ASCII uppercase. Names are not Unicode-normalized.
-- Large integer token amounts and generations use decimal strings where JSON cannot preserve their contract precision.
-- Rate limits apply and may differ by deployment; handle `429`.
-- Payment, records, scoped reverse, Primary and claim-fee reads use `Cache-Control: no-store`. Recheck instructions before signing or paying.
+- Responses are JSON. Errors include a machine-readable `error` field.
+- Full-name payment inputs accept ASCII labels and lowercase ASCII uppercase letters. They reject non-ASCII input instead of applying Unicode normalization.
+- Large token amounts and generations are decimal strings where JSON numbers would lose precision.
+- Rate limits vary by deployment. Handle `429` responses.
+- Payment, records, scoped reverse, Primary and claim-fee reads send `Cache-Control: no-store`. Read them again before signing or paying.
+- Preparation routes return unsigned transactions. Review and sign them with the required wallet; preparing a transaction does not submit it.
 
 ## Discovery and freshness
 
-`/v1/namespaces`, holdings, directory and history endpoints use bounded pages with opaque cursors. Follow `nextCursor` and inspect `hasMore`, `truncated` and coverage. `/v1/lookup?q=...` is bounded search with truncation signals; `/v1/showcase` is a curated active-namespace grid, not exhaustive discovery.
+Paginated routes return `nextCursor`, `hasMore`, `truncated` and `coverage`. Continue with `nextCursor` using the same endpoint and filters. Reaching the final page means you exhausted that query's indexed results; inspect coverage for missing or stale history.
 
-`/v1/stats` gives indexed counts. `/v1/ledger/head` gives the last observed head, cached and retained if a refresh fails. Neither is proof of current RPC reachability or complete, fresh indexing; inspect `/v1/coverage` and [status semantics](/api/status).
+`/v1/lookup?q=...` returns bounded search results with truncation flags. `/v1/showcase` returns a curated selection of active namespaces. Neither replaces paginated namespace discovery.
 
-`GET /health` is a process-liveness endpoint. Use `/v1/status` for component measurements. Authenticated console management routes are outside this public reference except the tenant-facing paid-claim preparation contract described in the claim fee guide.
+`/v1/stats` reports indexed counts. `/v1/ledger/head` reports the last observed chain head, which can remain cached after a failed refresh. Use [`/v1/coverage` and status](/api/status) to assess freshness.
+
+`GET /health` checks process liveness. `GET /v1/status` reports component measurements. Authenticated console management is outside this public reference, apart from the tenant-facing [paid claim preparation flow](/api/claim-fees#prepare-a-paid-announcement).

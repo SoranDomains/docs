@@ -1,38 +1,43 @@
 ---
 title: "Optional managed billing"
-description: "Hosted subscriptions are separate from namespace escrow and ownership expiry."
+description: "Understand optional hosted subscriptions, invoices and ownership transfers."
 ---
 
-Billing is an optional hosted feature **when enabled on a deployment**. It does not add a mandatory annual Soran ownership fee to Registry, Registrar or Resolver.
+Managed billing pays for optional hosted services **when enabled on a deployment**. It is disabled on the current testnet setup. A subscription does not add a mandatory annual Soran ownership fee to the naming contracts.
 
-## Three separate costs
+<span id="three-separate-costs" />
+
+## Separate costs
 
 | Cost | What it pays for |
 | --- | --- |
 | Namespace claim fee | Upfront Allocator escrow for a top-level namespace; [outcome-dependent settlement](/concepts/claiming-a-namespace) |
+| Username claim price | Optional owner-set price for public claims, paid directly to the owner's G treasury |
 | Stellar fees and rent | Network transactions, contract resources and storage availability |
 | Optional hosted subscription | Deployment-enabled operational services |
 
-Current issuance contracts do not add a Soran fee to every name. A namespace owner may independently offer commercial or finite-term names under its own disclosed policy.
+Owners can make public username claims free or set a flat native XLM price. They may also offer commercial or finite-term names under their own disclosed policies.
 
 ## Managed services
 
-The implemented optional billing model can charge a yearly base floor plus a rate for names marked active by the hosted service. Prices and the USD/XLM conversion used for invoices are operator-set. A hosted live/cold flag is not proof of on-chain TTL status. Old chain-cost benchmarks shown in the console are not current network fee quotes.
+When enabled, the billing model can charge a yearly base amount plus a rate for names marked active by the hosted service. The operator sets prices and the invoice's USD/XLM conversion. Review the current quote. A hosted active/cold label measures dormancy, not on-chain storage availability.
 
-Hosted services include platform-operated issuance/relay, branding, new webhook subscriptions and subscription-filtered directory reach. Existing webhook delivery and signing-secret rotation have different availability rules from creating new subscriptions.
+A subscription can cover platform-operated issuance and relays, branding, new webhooks and directory reach. Existing webhook deliveries and signing-secret rotation remain available even when creating new subscriptions is restricted.
 
 ## Pay an invoice
 
-An invoice supplies the receiving account, exact native XLM amount and a unique hash memo. Send the full amount in one payment and preserve that memo. Invoice matching uses the memo; the payer need not be the namespace owner. Matching and UI updates depend on watcher health and are not guaranteed within a fixed time.
+1. Create an invoice and review its receiving account, native XLM amount and unique hash memo.
+2. Send the quoted amount in one payment with that exact hash memo. The payer can be someone other than the namespace owner.
+3. Check the invoice status after payment. Matching depends on the payment watcher, so an update may take time.
 
-Use a fresh invoice if the old quote expired. Invoice payments are separate from a Resolver's name-payment instructions and from Allocator claim escrow.
+If the quote has expired, request a fresh invoice before paying. Use the invoice's own instructions for this payment, rather than a name lookup or namespace claim escrow address.
 
 ## Ownership transfers and re-attestation
 
-Hosted entitlement attaches to the current namespace owner. After a namespace transfer it can become `suspended_transfer`; the new owner re-attests in the console to resume eligible remaining service time. Paying another invoice does not itself lift that suspension. Other states include `active` and `lapsed`.
+Hosted service access is tied to the namespace owner. A namespace transfer can place it in `suspended_transfer`. The new owner must re-attest in the console to resume any remaining service time. Paying another invoice does not lift this suspension. Other states include `active` and `lapsed`.
 
 ## Non-payment
 
 A lapsed subscription can restrict hosted relays, branding, creation of new webhooks and directory reach. It does not revoke the on-chain namespace or alter a name's contract expiry. Self-custody contract operations remain available with the required signer and network fees.
 
-On-chain resolution still depends on valid records, supported code and accessible storage. Do not interpret billing independence as a promise that archived entries or a failed RPC keep resolving. A timed namespace's own ownership expiry remains separate from the hosted subscription.
+Name resolution still needs valid records and accessible on-chain storage. A timed name's expiry follows the namespace policy independently of the hosted subscription.

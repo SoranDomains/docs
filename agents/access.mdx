@@ -3,25 +3,46 @@ title: "Soran for AI agents"
 description: "Use MCP with Universal Lookup, explicit payment memos and reviewed namespace claim fees."
 ---
 
-The MCP server exposes read tools to local and hosted agents. Local mode additionally supports wallet-authorized writes. MCP 0.8.0 uses Lookup 0.8.0, Holder 0.6.0, Owner 0.7.0 and Stellar SDK 17. See [release status](/reference/release-status) for package availability and the matching testnet contracts.
+Connect an agent to Soran with **MCP 0.8.0**. Read payment instructions and display names through the hosted service, or run locally to use a wallet for authorized writes.
 
-Published MCP **0.8.0** includes Holder **0.6.0** for full-M elections and the retained [receipt recovery checks](/owner/automatic-claiming#recover-before-replacing-a-request). Hosted MCP **0.8.0** was verified on 7 September with read-only tools, including exact-M reverse lookup. It does not expose local signing or native receipt helpers.
+| Mode | Available actions |
+| --- | --- |
+| Hosted | Read-only tools, including exact-M reverse lookup |
+| Local without a signer | Read tools, wallet status and testnet wallet creation |
+| Local with `SORAN_SECRET` | Read tools and wallet-authorized owner/holder operations, including native claim receipt helpers |
+
+MCP 0.8.0 uses Lookup 0.8.0, Holder 0.6.0, Owner 0.7.0 and Stellar SDK 17. See [release status](/reference/release-status) for matching contracts and hosted availability.
 
 ## Connect
 
-The hosted MCP URL is `https://mcp.soran.domains/mcp`. Its independently verified deployment and package status are recorded in [release status](/reference/release-status). Remote mode provides read tools, without receiving a signing key.
+### Hosted connection
 
-For local clients, install MCP 0.8.0:
+Add [Soran's hosted MCP endpoint](https://mcp.soran.domains/mcp) to your client's remote MCP configuration. It requires no signing key.
+
+### Local connection
+
+Run the pinned package from your local MCP client:
 
 ```bash
 npx -y @sorandomains/mcp@0.8.0
 ```
 
-Configure `SORAN_REGISTRY_ID`, `SORAN_LOOKUP_ID`, `SORAN_PRIMARY_ID`, `SORAN_ALLOCATOR_ID`, `SORAN_RPC_URL` and `SORAN_PASSPHRASE` from one verified deployment. `SORAN_HINT_URL` selects indexed discovery. `SORAN_RESOLUTION_MODE` defaults to universal; missing Lookup configuration fails closed. `SORAN_PRIMARY_ID=none` disables the G/C Primary path; full-M Primary uses Lookup independently.
+The default configuration uses testnet. For another deployment, configure a matching set of contract IDs and network settings:
 
-For local namespace activation, `SORAN_REGISTRY_DEPLOYMENT_SALT_VERSION=1` selects the current namespace-bound deployment scheme. The matching testnet preset defaults to `1`; a custom Registry requires an explicit `0` (older raw-salt deployment) or `1`. This is an MCP write configuration, not a Lookup SDK constructor option.
+| Environment variable | Purpose |
+| --- | --- |
+| `SORAN_REGISTRY_ID`, `SORAN_LOOKUP_ID` | Registry and shared Lookup contracts |
+| `SORAN_PRIMARY_ID` | G/C Primary contract; `none` disables that path |
+| `SORAN_ALLOCATOR_ID` | Namespace claim contract |
+| `SORAN_RPC_URL`, `SORAN_PASSPHRASE` | RPC endpoint and the network used for signing |
+| `SORAN_HINT_URL` | Indexed discovery and the API used to prepare namespace operations |
+| `SORAN_RESOLUTION_MODE` | `universal` by default; `direct` is an explicit compatibility choice |
 
-Only local writes use `SORAN_SECRET`, the signing key for a classic G transaction-source account. C recipient or contract-ownership support does not provide an arbitrary contract-wallet signer in local MCP. Keep that key private and never place it in prompts, profile records or public configuration.
+Missing Lookup configuration throws. Complete-M Primary uses Lookup independently of the G/C Primary setting. Use a trusted API for prepared namespace operations; the local signer also checks the transaction against the requested action before signing.
+
+For namespace activation, `SORAN_REGISTRY_DEPLOYMENT_SALT_VERSION=1` selects the current namespace-bound address scheme. The matching testnet preset defaults to `1`; a custom Registry requires explicit `0` for the older scheme or `1` for the current one. This is an MCP write setting, not a Lookup constructor option.
+
+Set `SORAN_SECRET` locally to enable writes with a classic G transaction-source account. Keep it out of prompts, profile records and public configuration. Receiving at a C contract does not provide a contract-wallet signer in local MCP.
 
 ## Read tools
 
@@ -41,24 +62,26 @@ Tools combine different sources. Payment reads come from chain contracts; discov
 
 ## Claim and operate a namespace
 
-1. Obtain a funded testnet wallet. `create_wallet` can create one and request Friendbot funding; funding availability is not guaranteed.
+1. Configure a funded testnet wallet. For a disposable experiment, `create_wallet` can generate one and request Friendbot funding. Its result includes the secret in the conversation; create wallets that will hold value outside chat. Funding is not guaranteed.
 2. Call `claim_fee_quote` and review the amount, network, exact recipient and refund terms.
 3. Call `claim_namespace` with the reviewed `expectedFee` and an explicit `maxNetworkFeeStroops` ceiling. The local signer independently verifies the on-chain policy and exact claim/token authorization.
 4. Follow `claim_status` until the objection and award conditions resolve. A keeper may execute an eligible claim; a countdown alone does not prove an award.
-5. `activate_namespace` prepares Registrar activation and verifies the selected policy, predicted contract, namespace, deployment scheme and fee ceiling before signing. Address generation can return `activated: false`, `pending: true` and `retryAfterMs`; retry the same namespace, policy and fee limit after that interval. This pending response means no deployment transaction was signed or submitted.
+5. Call `activate_namespace` with the reviewed policy and network-fee ceiling. The signer checks the policy, predicted contract address, namespace and address scheme before signing.
 6. Choose Manual mode for `issue_name` / `issue_batch`, or configure public registration and use `claim_username`. Public mode blocks ordinary owner issuance, including while claims are paused. Holder tools manage names the wallet holds.
 
 `withdraw_claim` also requires a network-fee ceiling. Namespace fee refunds follow [claim outcomes](/concepts/claiming-a-namespace): delivery is attempted, with protected pull credit for undelivered amounts. Objection bonds and reserved direct claims are separate.
 
-`cancel_namespace_activation({ namespace, role: "registrar" | "resolver" })` cancels or clears the off-chain address-generation job for that namespace and contract role. It does not withdraw a paid claim, return claim fees or undo a deployed contract. Retry activation or Resolver setup to begin a fresh search.
+### Pending activation
+
+Address generation can return `activated: false`, `pending: true` and `retryAfterMs`. Retry the same namespace, policy and fee limit after that interval. No deployment transaction has been signed or submitted for that pending result.
+
+`cancel_namespace_activation({ namespace, role: "registrar" | "resolver" })` cancels or clears that role's off-chain address-generation job. It does not withdraw a paid claim, return claim fees or undo a deployed contract. Retry activation or Resolver setup to start a fresh search.
 
 The activation policy named `permanent` selects a non-reclaimable, zero-term policy. The namespace remains unlocked until the separate [permanence transition](/concepts/ownership-guarantees) completes.
 
 ## Native usernames in local mode
 
-The following tools require local mode with a configured G signer and native-claim
-contracts. They are not added to the hosted read-only service merely because some
-perform read operations.
+These tools require local mode, a configured G signer and native-claim contracts. This includes the quote, policy and receipt helpers; they are not exposed by the hosted service.
 
 | Tool | Purpose |
 | --- | --- |
@@ -72,10 +95,17 @@ perform read operations.
 | `accept_name_transfer_with_destination` | Recipient-authorized acceptance and receiving details together |
 | `renew_held_name` | Independent bounded holder renewal without a separate username renewal fee |
 
-`intentJson` is the lossless output of SDK `stringifyNativeIntent`; retain its
-request ID and exact business terms. A quote does not reserve a label. On timeout,
-recover the original receipt and transaction before preparing a replacement.
-A historic receipt does not establish the current holder.
+### Prepare, submit and recover
+
+1. Obtain current terms with `native_claim_quote` and create an intent through the [Holder SDK flow](/owner/automatic-claiming#claim-from-your-application).
+2. Preserve `stringifyNativeIntent` output as `intentJson`, including its request ID and exact terms.
+3. Call `prepare_native_claim` to inspect the fee estimate and any eligibility entry without signing.
+4. Submit the reviewed intent through `claim_username`.
+5. After a timeout, reconcile the original receipt and transaction before replacing the request. A historical receipt does not establish the current holder.
+
+A quote does not reserve a label. See [receipt recovery](/owner/automatic-claiming#recover-before-replacing-a-request) for the verification and retry rules.
+
+### Set the network-fee ceiling
 
 The local operator's `SORAN_MAX_NATIVE_FEE_STROOPS` setting (or
 `WriteToolOptions.maxNativeFeeStroops`) caps native-operation network fees. It
@@ -84,8 +114,7 @@ The operator may explicitly choose a higher canonical integer up to `4294967295`
 after reviewing estimates. Initial storage rent can exceed the default. This
 ceiling is separate from a namespace owner's username price.
 
-Optional application eligibility uses a separate scoped native approval; it does
-not require placing the namespace owner's key in the app backend. See
+Optional app eligibility uses a separate scoped approval. Keep the namespace owner's key out of the app backend. See
 [automatic claiming](/owner/automatic-claiming) for eligibility limits and the
 backend signing example. `assign_reserved_username` initializes only the holder's
 default route; a custom route needs the holder's separate payment update.
@@ -96,11 +125,11 @@ default route; a custom route needs the holder's separate payment update.
 
 Payment addresses are G, M or C; M and C support `none` only. M addresses retain their embedded IDs and are never silently converted to G plus memo. Use the [supported address and memo examples](/concepts/payment-destinations) when constructing tool inputs.
 
-`claim_display_name` coordinates forward, reverse and Primary operations for the wallet's own G address. These are multiple writes, not one atomic universal transaction; handle partial completion. This existing tool is not the M election flow. G account elections do not identify an individual customer memo.
+`claim_display_name` coordinates forward, reverse and Primary operations for the wallet's own G address. Handle partial completion: these are separate transactions. It refuses to repoint a name that currently pays elsewhere; an intended routing change needs an explicit `set_payment` first. G account elections do not identify an individual customer memo.
 
 ### Muxed identity tools
 
-MCP 0.8.0 is published with Lookup 0.8.0 and Holder 0.6.0. These methods require Lookup's `muxed_identity_version() == 1`; check package and hosted-service activation separately in [release status](/reference/release-status). `reverse_lookup` and `wallet_names` accept the complete M address for verified names. M wallet profiles return no holder holdings.
+`reverse_lookup` and `wallet_names` accept the complete M address for verified display names. These reads require Lookup's `muxed_identity_version() == 1`. M wallet profiles return `names: null` and `holdings: null`; a route is not a name holder.
 
 Local mode adds two explicit tools:
 

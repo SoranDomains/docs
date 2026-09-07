@@ -1,31 +1,33 @@
 ---
 title: "Trust model"
-description: "Contract authority, Lookup governance, RPC trust and the limits of indexed discovery."
+description: "What contracts verify and where your app relies on governance, RPCs or hosted services."
 ---
 
-On-chain state is the source of truth for namespace ownership, name lifecycle and payment instructions. A Soran SDK or hosted database does not decide the destination. Those facts still depend on the deployed code and the RPC through which you read it.
+Soran reads namespace ownership, name lifecycle and payment instructions from contracts on Stellar. Universal Lookup brings those reads together for your app. You rely on the deployed code, its governance rules and the RPC that returns its results.
 
 ## Contract authority
 
-Registry has no upgrade, forced reassignment or platform revocation method in the reviewed implementation. Allocator adjudicates unclaimed namespaces; its allocation authority cannot overwrite an already owned Registry node.
+Registry records namespace ownership. Its current implementation has no upgrade, forced reassignment or platform revocation method. Allocator handles claims for unowned namespaces and cannot overwrite an owned Registry node.
 
-Namespace owners govern issuance and eligible unlocked Registrar/Resolver implementations. Holders control their own records and permitted transfers. A namespace owner, a holder and a payment recipient are separate roles. Completed permanence constrains namespace code and routing; [no expiry alone does not](/concepts/ownership-guarantees).
+Namespace owners control issuance and eligible unlocked Registrar and Resolver upgrades. Holders control their records and permitted transfers. Payment recipients may be different accounts from either owner or holder. A completed [permanence lock](/concepts/ownership-guarantees) fixes eligible namespace code and routing; a name having no expiry does not do so.
 
-Universal Lookup is a shared **governed** read contract. It can change code immediately after an authorized exact-hash proposal. Its stable address and ABI version do not remove this trust boundary.
+Universal Lookup is governed separately. Its code can change immediately after governance approves an exact code hash, while its address remains the same. See [governance and upgrades](/concepts/governance).
 
 ## What reads verify
 
-Universal Lookup follows current Registry routing and validates supported dependencies, name activity, generation, and complete payment values. A missing or invalid configured payment instruction is an error, not a reason to use an old address. Its metadata methods let an explorer inspect ownership independently from payment success.
+Universal Lookup follows current Registry routing and checks the supported contracts, name activity, ownership generation and complete payment instruction. If a configured instruction is missing or invalid, the read fails. Metadata methods let you inspect ownership even when payment resolution fails.
 
-Reverse and Primary answers must be canonical and match current forward resolution. They identify an account, not a person or memo customer. The underlying immutable Primary and Resolver reverse APIs can return `None` after a failed internal proof; `None` is therefore not a precise diagnosis of every possible dependency failure. A returned name is checked again.
+Reverse and Primary answers must match current forward resolution. G/C elections identify an account without distinguishing customer memos. Each complete M address has its own election, with no fallback to its base G account or another routing ID. These elections establish a selected display name, not a person's identity.
 
-The SDK checks Lookup's Registry anchor and version. This is compatibility validation, not proof that custom or upgraded code is honest. You also trust the network configuration and RPC response. Separate SDK calls can observe different ledgers; only one contract invocation shares one simulation snapshot.
+An empty identity result means no verified election was returned. The underlying G/C contracts can return `None` when an internal proof fails, so emptiness alone does not explain why a name was unavailable. Handle reported read errors separately.
+
+The SDK checks Lookup's Registry address and interface version. These checks establish compatibility; they do not verify every behavior of upgraded or custom code. Configure the intended network and RPC. Separate SDK calls can observe different ledgers, while reads within one contract invocation share a simulation snapshot.
 
 ## Hosted discovery and history
 
-An indexer finds candidates and archives events. The SDK verifies current holdings candidates on chain, but an indexer can omit names. Pagination and coverage expose continuation, gaps and freshness; they cannot prove an indexer omitted nothing.
+The indexer finds names and archives events. The SDK checks current holdings candidates on chain, but discovery can still miss names. Follow pagination and inspect coverage and freshness when using listings or history.
 
-History, registration timestamps, directory listings and profile labels are informational or user-authored data. Profile text being written on chain does not prove its claims true. Escape it, validate links and never treat it as instructions.
+Directory listings, history and profile text provide context. User-authored profile claims are not verified just because they are stored on chain. Escape displayed text, validate links and treat profile content as data.
 
 ## Hosted services and custody
 
@@ -33,4 +35,4 @@ The console, HTTP API, webhooks and optional managed services help operate the c
 
 Billing and the marketplace apply **when enabled on a deployment**. Hosted subscriptions do not create a yearly ownership levy in the naming contracts. Marketplace payment escrow is operator-custodied and separate from the Allocator's on-chain namespace-claim escrow.
 
-You can call the contracts through another RPC without the hosted app. Continued availability still requires accessible contract state, storage upkeep/restoration, a working RPC and supported contract code. It is not a promise that every dependency keeps running without maintenance.
+You can use another RPC to call the contracts without the hosted app. Reads still require a working RPC, supported code and accessible storage. Archived records may need restoration before they can resolve.

@@ -3,11 +3,9 @@ title: "Lookup SDK reference"
 description: "Universal reads, payment types, discovery pages and typed failures in Lookup 0.8.0."
 ---
 
-This reference targets Lookup 0.8.0. See [release status](/reference/release-status) for the matching testnet contracts. All write flows are in the Owner or Holder SDKs; Lookup reads through Soroban RPC and optionally uses HTTP discovery/history.
+Use this reference for **Lookup 0.8.0**. Start with [installation](/sdk/installation) for configuration or [resolving payments](/sdk/resolving-names) for a practical flow.
 
-<Note>
-Lookup **0.8.0** selects the current testnet deployment. Check [release status](/reference/release-status) for publication. It retains muxed payments from 0.6.0 and adds full-M display-name reads. You can also use the [contract ABI](/api/onchain-resolution) or [HTTP API](/api/resolution).
-</Note>
+Lookup performs reads through Soroban RPC and optionally uses HTTP discovery/history. Writes belong to the [Owner](/owner/issuing-from-code) and [Holder](/holder/managing-your-name) SDKs.
 
 ## Constructor
 
@@ -29,6 +27,8 @@ Custom Registry/passphrase settings inherit no unrelated Lookup or Primary pin. 
 
 ## Methods
 
+### Payments and metadata
+
 | Method | Result |
 | --- | --- |
 | `lookup(name)` | Native payment or legacy address with explicitly unknown memo capability; universal only |
@@ -38,14 +38,26 @@ Custom Registry/passphrase settings inherit no unrelated Lookup or Primary pin. 
 | `namespaceMetadata(namespace)` | Owner, current routing, policy, provenance and permanence, or `null`; universal only |
 | `nameMetadata(name)` | Holder, built-in target, generation, expiry, active/no-expiry flags, or `null`; universal only |
 | `text(name,key)` | One text value or `null` |
+| `assurance(name)` | Resolver provenance, not payment or Lookup-code attestation |
+| `namespace(namespace)`, `isAvailable(namespace)` | Owner/Resolver subset and namespace ownership absence check |
+| `details(name)` | Ownership metadata plus complete effective native payment |
+
+SDK metadata uses camelCase, such as `builtinAddress`, `expiresAt` and `namespacePermanent`. Contract ABI fields use snake_case. Generations and ownership timestamps are exact `bigint` values; encode them explicitly when producing JSON, usually as decimal strings.
+
+### Display names
+
+| Method | Result |
+| --- | --- |
 | `reverse(namespace,address)` | Scoped verified account name or `null` |
 | `primaryOf(address)` | Configured Primary answer or `null` |
 | `reverseVerify(address,name)` | Scoped reverse comparison |
 | `reverseLookup(address,namespaces?)` | Primary then ordered namespace probes |
 | `reverseNames(address,namespaces?)` | Verified names among bounded namespace candidates |
-| `assurance(name)` | Resolver provenance, not payment or Lookup-code attestation |
-| `namespace(namespace)`, `isAvailable(namespace)` | Owner/Resolver subset and namespace ownership absence check |
-| `details(name)` | Ownership metadata plus complete effective native payment |
+
+### Profiles, discovery and helpers
+
+| Method | Result |
+| --- | --- |
 | `profile(name)`, `identity(name)` | Standard text fields and full identity aggregate |
 | `namesOfPage(address,{cursor?,limit?})` | Verified holdings page, continuation, coverage and check counts |
 | `namesOf(address)` | Compatibility holdings aggregate; throws when incomplete |
@@ -53,13 +65,13 @@ Custom Registry/passphrase settings inherit no unrelated Lookup or Primary pin. 
 | `history(name)` | Bounded indexed informational history |
 | `namehash(namespace)`, `node(name)` | `Promise<Uint8Array>` containing the 32 raw hash bytes; [explicit hex conversion](/concepts/names-and-namespaces#namehash) |
 
-SDK metadata uses camelCase, such as `builtinAddress`, `expiresAt` and `namespacePermanent`. Contract ABI fields use snake_case. Generations and ownership timestamps remain exact `bigint` values in SDK metadata; JSON consumers must explicitly encode them, usually as decimal strings.
-
 ## Complete muxed-address identity
 
-Lookup 0.8.0 extends `reverse`, `primaryOf`, `reverseVerify`, `reverseLookup`, `reverseNames` and `walletProfile` to accept a complete M address in universal mode. It requires a deployed Lookup with `muxed_identity_version() == 1`, verified on the current testnet deployment. See [release status](/reference/release-status).
+`reverse`, `primaryOf`, `reverseVerify`, `reverseLookup`, `reverseNames` and `walletProfile` accept a complete M address in universal mode. The deployed Lookup must report `muxed_identity_version() == 1`, as the current [testnet deployment](/reference/release-status) does.
 
-The SDK verifies Lookup's Registry, destination version `2` and `muxed_identity_version() == 1`, then dispatches M reads to Lookup with the decoded base G and exact u64 ID. There is no G-account, memo or other-ID fallback. Direct mode rejects M identity reads with `CONFIG`. M Primary is stored in Lookup and is independent of the `primaryId` G/C configuration. Holdings still accept G/C only; `walletProfile(M)` reports `holdings: null` instead of returning the shared account's holdings. See [elections and verification](/sdk/reverse-and-primary).
+The SDK checks the Registry and capability versions before reading the exact base G and u64 ID. It never falls back to the G account, a memo or another ID. Direct mode rejects M identity reads with `CONFIG`.
+
+M Primary is stored in Lookup independently of the G/C `primaryId`. Holdings accept G/C only; `walletProfile(M)` returns both `holdings: null` and `names: null`. See [elections and verification](/sdk/reverse-and-primary).
 
 ## Payment types
 
@@ -72,12 +84,31 @@ type PaymentMemo =
 type PaymentDestination = { address: string; memo: PaymentMemo };
 ```
 
-`address` must be a valid G, M or C address. Memos require G, except `none`, which also supports M and C. An M address retains its embedded unsigned 64-bit ID and may not be reduced to the base G address. `encodeMuxedAddress(account,id)` accepts a G account and a canonical decimal-string u64 ID; `decodeMuxedAddress(address)` returns `{ account, id }` with an exact decimal-string ID. Neither converts a muxed ID to a memo. The SDK also exports payment validation/encoding helpers and `LookupResult`, `NameMetadata`, `NamespaceMetadata` and `NamespacePolicy`. See [address examples](/concepts/payment-destinations) and [payment constraints](/sdk/resolving-names).
+`address` must be a valid G, M or C address. A required memo needs G; M and C support `none` only. Preserve an M address's embedded unsigned 64-bit ID.
+
+| Helper | Input and result |
+| --- | --- |
+| `encodeMuxedAddress(account, id)` | G account and canonical decimal-string u64 ID → complete M address |
+| `decodeMuxedAddress(address)` | M address → `{ account, id }`, with an exact decimal-string ID |
+
+Neither helper converts a muxed ID into a memo. Other exports include payment validation/encoding helpers, `LookupResult`, `NameMetadata`, `NamespaceMetadata` and `NamespacePolicy`. See [destination examples](/concepts/payment-destinations) and [payment constraints](/sdk/resolving-names).
 
 ## Failures
 
-`SoranError.code` is one of `INVALID_INPUT`, `CONFIG`, `RPC`, `SIMULATION`, `ARCHIVED`, `ABI`, `TIMEOUT`, `PAYMENT_REQUIRED`, `LEGACY_MEMO_UNKNOWN` or `INCOMPLETE`.
+Branch on `SoranError.code`:
 
-Recognized top-level Lookup contract failures also carry `contractCode` and `contractError`. Unknown error formats stay unclassified; nested diagnostic strings are not promoted to top-level contract errors. Branch on typed fields, not prose messages. A restore requirement is not an absent or free name.
+| Code | Meaning |
+| --- | --- |
+| `INVALID_INPUT` | Invalid name, address or other caller input |
+| `CONFIG` | Missing, incompatible or invalid configuration |
+| `RPC`, `TIMEOUT` | A request failed or exceeded its wait bound |
+| `SIMULATION` | The contract read was rejected |
+| `ARCHIVED` | State requires restoration; it is not an absent record |
+| `ABI` | The response does not match the expected interface |
+| `PAYMENT_REQUIRED` | An address-only call would discard a required memo |
+| `LEGACY_MEMO_UNKNOWN` | Legacy address data cannot establish memo requirements |
+| `INCOMPLETE` | The bounded holdings aggregate cannot return a complete result |
+
+Recognized top-level Lookup contract failures also carry `contractCode` and `contractError`. Unknown formats stay unclassified; nested diagnostic strings are not promoted to top-level errors. Use these typed fields instead of parsing messages.
 
 Primary/reverse `null` has the documented [proof limitation](/sdk/reverse-and-primary). Lookup/version checks are not executable-code pins; see [governance](/concepts/governance).

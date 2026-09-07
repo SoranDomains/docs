@@ -3,7 +3,7 @@ title: "Identity and discovery"
 description: "Read profiles and verified holdings pages with explicit continuation and coverage."
 ---
 
-Identity views combine on-chain metadata with optional indexed discovery. Keep their sources visible.
+Build a name profile from on-chain records, or discover the names held by an address. Discovery and history need a configured `hintUrl`; the SDK checks discovered holdings against current chain state.
 
 ## Holdings pages
 
@@ -16,7 +16,11 @@ if (page.hasMore) {
 }
 ```
 
-`hintUrl` supplies candidate names. The SDK verifies each candidate's current holder and activity through Universal Lookup in universal mode. Each page checks at most 100 candidates with bounded concurrency. A failed check is counted separately from a proven stale or nonheld candidate.
+1. Request a page for a G or C holder address. The default limit is 40; you can request 1–100 candidates.
+2. Render the verified `names` and keep the page's verification and coverage information.
+3. When `hasMore` is true, pass `nextCursor` to the next request.
+
+The indexer supplies candidates. In universal mode, the SDK verifies each candidate's current holder and activity through Lookup. A failed check is counted separately from a proven stale or nonheld candidate.
 
 | Field | Meaning |
 | --- | --- |
@@ -25,7 +29,9 @@ if (page.hasMore) {
 | `coverage` | Indexer's processed/head ledgers and known gaps, or `null` |
 | `complete` | Final page, indexer reports complete coverage, and no candidate verification failures |
 
-Coverage is the indexer's report, not proof against omission. `namesOf(address)` is a compatibility aggregate of up to 1,000 candidates and throws `INCOMPLETE` for partial results. `walletProfile.names` is its first verified page; continue using `walletProfile.holdings` instead of assuming it contains every name.
+Coverage is the indexer's report; it cannot prove that the indexer omitted nothing. `complete` describes this page's completion conditions, not an independent proof of every holding.
+
+`namesOf(address)` aggregates up to 1,000 candidates and throws `INCOMPLETE` for partial results. Use `namesOfPage` when your interface needs to display partial results or continue beyond that bound.
 
 ## Profiles
 
@@ -37,14 +43,33 @@ import { PROFILE_KEYS } from "@sorandomains/lookup";
 const profile = await soran.profile("alice.nova");
 ```
 
-Values are current-generation holder-authored text, not verified real-world claims. Escape them and validate URL schemes before linking. Arbitrary text uses `text(name,key)`; keys are not globally enumerable. Lookup keys are nonempty Soroban Symbols up to 32 bytes and returned text is bounded to 4,096 UTF-8 bytes. Oversized historical text errors rather than being truncated.
+Values are text published by the current generation's holder. They are not verified real-world claims. Escape them for display and validate URL schemes before creating links.
+
+Use `text(name, key)` for other keys. Keys are not globally enumerable. They must be nonempty Soroban Symbols of at most 32 bytes. Lookup returns at most 4,096 UTF-8 bytes per value; oversized historical text throws instead of being truncated.
 
 ## Aggregates and history
 
-`identity(name)` combines details, profile and optional display-name enrichments. Details and profile fail closed; the holder/recipient/namespace-owner display-name enrichments can degrade to `null`. `walletProfile(address)` combines Primary, scoped reverse candidates, a holdings page and profile.
+| Method | What it combines | Failure and coverage behavior |
+| --- | --- | --- |
+| `identity(name)` | Name details, profile and holder/recipient/namespace-owner display names | Details and profile failures throw. Optional display-name enrichments can become `null`. |
+| `walletProfile(address)` | Primary, scoped reverse names, the first holdings page and Primary's profile | Continue holdings with `holdings.nextCursor`. It does not return every holding. |
 
-An M payment destination remains complete in payment fields. With the [muxed identity extension](/sdk/reverse-and-primary), recipient enrichment and `walletProfile(mAddress)` can read the exact M route's elected names. They do not substitute the base G account. `walletProfile` returns `holdings: null` and an empty `names` list for M: a routing ID is not a name holder. `namesOf` and `namesOfPage` continue to require G/C holder addresses; holder and namespace-owner identity also use their G/C accounts. Check [release status](/reference/release-status) before using the extension.
+### Address type and holdings
+
+`walletProfile(mAddress)` reads display names elected for that exact M route through the [muxed identity extension](/sdk/reverse-and-primary). It preserves the complete M address and does not substitute the base G account.
+
+| Input and configuration | `walletProfile.names` | `walletProfile.holdings` |
+| --- | --- | --- |
+| G/C address with `hintUrl` | First page's verified names | First `NamesPage` |
+| G/C address without `hintUrl` | `null` | `null` |
+| M address | `null` | `null` |
+
+An M routing ID is not a name holder. `namesOf` and `namesOfPage` accept G/C holder addresses only. Holder and namespace-owner identity also use their G/C accounts.
 
 These aggregates perform several reads. They are not one atomic ledger snapshot. `details` checks for inconsistent generation/routing across its reads, but application code must still treat results as point-in-time data.
 
-`history(name)` is a bounded indexed timeline with transaction and ledger references. Contract state has expiry timestamps, but it does not store a complete registration history. Chain-event timestamps are distinct from indexer ingestion time, and legacy issuance metadata can be unknown. Use the HTTP [history and events cursors](/api/events) for durable pagination rather than assuming a bounded SDK history result is exhaustive.
+### Read history
+
+`history(name)` returns up to 100 indexed events with transaction and ledger references. Use the HTTP [history and events cursors](/api/events) for durable pagination.
+
+History is informational. Contract state stores expiry timestamps, but it does not store a complete registration timeline. Event time differs from indexer ingestion time, and historical issuance metadata can be unknown.

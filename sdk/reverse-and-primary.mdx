@@ -3,15 +3,11 @@ title: "Reverse and Primary names"
 description: "Verify elected account and complete muxed-address display names through Universal Lookup."
 ---
 
-A forward lookup starts with a name. A reverse lookup starts with an address and asks for a currently verified display name.
+A reverse lookup turns an address into a verified display name. Use `reverse` for one namespace, or `primaryOf` for the address's preferred name across namespaces.
 
 Use the five [live wallet examples](/live-examples#check-address-to-name-lookup) to test both directions. Each has an elected Nova reverse name and Primary name; the hello-world contract example is forward-only.
 
-Universal Lookup exposes namespace-scoped and cross-namespace display-name reads. For G/C addresses, it uses `reverse(namespace,address)` and `primary_name(address)`. The muxed identity extension adds separate reads keyed by the complete base G account and muxed ID.
-
-<Note>
-Muxed reverse and Primary support is live on testnet with Lookup SDK 0.8.0 and `muxed_identity_version() == 1`. Lookup was upgraded at its existing address on 7 September 2026; older packages need an explicit update. See [release status](/reference/release-status) for the verified code hash and package versions.
-</Note>
+Lookup 0.8.0 supports G/C account identities and complete M-address identities. M reads require universal mode and a Lookup with `muxed_identity_version() == 1`; the current [testnet deployment](/reference/release-status) provides it.
 
 ```ts
 const scoped = await soran.reverse("nova", address);
@@ -22,13 +18,17 @@ const candidates = await soran.reverseNames(address, ["nova", "acme"]);
 
 ## How verification works
 
-A returned name must be canonical, active, in the expected namespace and forward-resolve to the requested address with current generation and routing. A required memo is allowed in this account identity proof. It remains part of the separate payment instruction.
+A returned name must be canonical and active. Its current generation and routing must forward-resolve to the requested address in the expected namespace. A required memo is allowed in a G account identity proof and remains part of the separate payment instruction.
 
 **G/C Primary and reverse identify an account.** They do not identify an individual customer or subaccount behind a pooled exchange address. A customer's name and memo should not be presented as the identity of everyone using that address.
 
-A muxed lookup asks about the **complete M destination**. The same G account with ID `"0"`, ID `"420"` and ID `"18446744073709551615"` has three separate elections. None falls back to the G account, another ID, or a G-plus-memo route. A name that now pays to M cannot serve as a forward proof for the base G account.
+### Muxed identities use the complete address
 
-The underlying G account authorizes each M election. If an exchange controls that account, the exchange must sign; a deposit customer cannot elect a name merely because the exchange gave them an M address. This proves an account-authorized display name for a payment route, not a person's real-world identity. A separate transaction memo is not part of M identity.
+A muxed lookup asks about the **complete M destination**. The same G account with IDs `"0"`, `"420"` and `"18446744073709551615"` has three separate elections. None falls back to the G account, another ID or G plus memo.
+
+A name that pays to M cannot serve as a forward proof for the base G account.
+
+The underlying G account authorizes each M election. If an exchange controls it, the exchange must sign. A deposit customer cannot elect a name merely because they received an M address. The election proves an account-authorized name for a payment route, not a person's real-world identity.
 
 ```ts
 import { encodeMuxedAddress } from "@sorandomains/lookup";
@@ -37,14 +37,14 @@ const account = "GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ";
 const m0 = encodeMuxedAddress(account, "0");
 const m420 = encodeMuxedAddress(account, "420");
 const mMax = encodeMuxedAddress(account, "18446744073709551615");
-const scoped = await soran.reverse("nova", m420);
-const primary = await soran.primaryOf(m420);
+const muxedReverse = await soran.reverse("nova", m420);
+const muxedPrimary = await soran.primaryOf(m420);
 // m0, m420, mMax and account each identify a different lookup input.
 ```
 
-These example addresses are illustrative; they do not promise an elected name. The SDK decodes the M address and calls `reverse_muxed(namespace, account, id)` or `primary_name_muxed(account, id)` on Universal Lookup. It preserves the ID as an exact u64, never a rounded JavaScript number. Direct mode rejects M identity reads; it cannot emulate them by probing the namespace Resolver.
+These addresses illustrate distinct inputs; an election is not guaranteed. The SDK decodes M and calls Lookup's `reverse_muxed` or `primary_name_muxed` with the exact u64 ID. Never convert that ID to a JavaScript number. Direct mode rejects M identity reads.
 
-A Primary record is elected by its address. Holders cannot elect a primary for a destination they do not control merely because they own a name that points there.
+Use the [Holder SDK](/holder/managing-your-name#muxed-display-names) to create elections. Name ownership alone cannot authorize a Primary record for a destination you do not control.
 
 ## Discovery scope
 
@@ -54,10 +54,18 @@ The old HTTP `/v1/reverse/:address` route is a **holder hint**, not the source o
 
 ## Absence and failures
 
-For G/C addresses, a successful `primaryOf` returning `null` means there is no currently verified election returned by Primary. The existing Primary ABI may hide failed dependent proof reads behind `None`, so even this direct method cannot distinguish every absence from every internal failure. Resolver reverse has a similar limitation. A nonempty answer is independently forward-checked.
+### G/C addresses
+
+`primaryOf` returning `null` means Primary returned no currently verified election. The Primary ABI may return `None` after a dependent proof read fails, so `null` cannot distinguish every absence from every internal failure. Resolver reverse has a similar limitation. Nonempty answers are forward-checked.
 
 Lookup-level errors, including missing Primary configuration, still throw. `reverseLookup` and `reverseNames` can recover from a Primary failure by probing namespace candidates; failed namespace probes are not fabricated empty results.
 
-For M addresses, missing elections and proven stale forward matches return `null`. Malformed records, failed capability probes, unavailable dependencies and unsupported ABIs fail; they do not authorize a base-G fallback. The stored Registrar, Resolver and generation must match current routing and the exact M payment. An M Primary must also match the current verified M reverse election in its namespace.
+### M addresses
 
-`primaryId` configures the G/C Primary path. A custom Primary must match the Registry anchor, and in universal mode an explicitly supplied ID must match Lookup's configured Primary. M Primary is stored in Lookup itself and does not depend on this older Primary contract or its pin. Use the [Holder SDK](/holder/managing-your-name#muxed-display-names) for address-authorized elections.
+Missing elections and proven stale matches return `null`. Malformed records, failed capability checks, unavailable dependencies and unsupported interfaces throw. They never trigger a base-G fallback.
+
+The stored Registrar, Resolver and generation must match current routing and the exact M payment. An M Primary must also match its namespace's current verified M reverse election.
+
+### Primary configuration
+
+`primaryId` configures the G/C path. A custom Primary must match the Registry anchor; an explicit ID in universal mode must also match Lookup's configured Primary. M Primary is stored in Lookup and does not depend on this separate contract or pin.

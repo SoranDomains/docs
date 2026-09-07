@@ -3,7 +3,7 @@ title: "Lifecycle and transfers"
 description: "Owner operations, separate namespace transfers and the irreversible permanence lock."
 ---
 
-Use the [configured Owner SDK](/owner/issuing-from-code) for namespace-authorized lifecycle operations. The contracts enforce policy and signing authority.
+Use the [Owner SDK](/owner/issuing-from-code) to renew or reclaim eligible names, transfer your namespace, change its Resolver or make it permanent. These operations require the current namespace owner's authorization, except transfer acceptance, which the proposed new owner signs.
 
 ## Reclaim, renew and treasury
 
@@ -13,17 +13,36 @@ await owner.renew("acme", "alice", 86_400);
 await owner.setTreasury("acme", treasuryAddress);
 ```
 
-Reclaim requires reclaimability. Renewal extends an eligible finite term; zero-term names cannot be renewed as if they had a finite expiry. `setTreasury` controls custody for future reclaims. It does not update the native username claim fee recipient; change that through `configureClaims`. A current name expires only when ledger time is strictly greater than its finite expiry.
+These are separate operations; choose the one you need.
+
+| Method | Effect and limits |
+| --- | --- |
+| `reclaim` | Takes back a name only when namespace policy permits reclaim. |
+| `renew` | Adds the specified positive seconds to `max(now, expiry)`. The result cannot exceed 100 years from execution. Zero-expiry and permanent names cannot be renewed. |
+| `setTreasury` | Changes custody for future reclaims. Change the public username fee recipient separately through `configureClaims`. |
+
+Owner renewal accepts an explicit extension. The [holder renewal flow](/holder/managing-your-name#renew-a-finite-name) instead extends by the immutable policy term and has an early-renewal window. A finite name expires only when ledger time is strictly greater than its expiry.
 
 ## Transfer the namespace
+
+1. The current owner proposes the new owner:
 
 ```ts
 await owner.proposeNamespaceTransfer("acme", newOwnerAddress);
 const pending = await owner.pendingNamespaceTransfer("acme");
-await owner.cancelNamespaceTransfer("acme");
 ```
 
-The recipient uses its own configured `SoranOwner` client to call `acceptNamespaceTransfer("acme")`. Ownership moves on acceptance, not proposal. This Registry transfer is distinct from an individual name's Registrar transfer in the Holder SDK or console Names view. Acceptance advances the ownership epoch and makes prior-owner native claim settings ineffective. The new owner must explicitly configure registration; returning to the former owner does not restore old approval authority. Existing holder renewal and record rights do not depend on re-enabling public claims.
+2. The recipient reviews the proposal and accepts with its own `SoranOwner` client:
+
+```ts
+await recipientOwner.acceptNamespaceTransfer("acme");
+```
+
+Ownership moves on acceptance. To withdraw a pending offer, the current owner calls `owner.cancelNamespaceTransfer("acme")` instead.
+
+Acceptance advances the ownership epoch and disables the previous owner's native claim settings. The new owner must [configure registration](/owner/automatic-claiming#configure-registration); returning to the former owner does not restore old approval authority. Existing holder renewal and record rights remain independent of public-claim enablement.
+
+This transfers the namespace in Registry. To transfer one issued name, use the [Holder SDK](/holder/managing-your-name#name-transfer).
 
 ## Change routing
 
@@ -31,19 +50,23 @@ The recipient uses its own configured `SoranOwner` client to call `acceptNamespa
 await owner.setResolver("acme", resolverAddress);
 ```
 
-On an unlocked namespace the owner can change eligible routing. A different Resolver has different storage; existing address, memo, text and reverse records do not migrate automatically. A strict native payment lookup cannot assume a cleared or incompatible Resolver means a safe built-in memo-free destination. Plan and verify migration before repointing.
+On an unlocked namespace, the owner can select an eligible Resolver. Its storage is separate: address, memo, text and reverse records do not migrate automatically. Prepare and verify those records before changing routing.
+
+Clearing or selecting an incompatible Resolver does not establish a safe default payment destination. Complete payment reads must fail when they cannot verify the instruction.
 
 A permanent Registry Resolver pointer cannot change. Holder records within that fixed Resolver remain mutable.
 
 ## Make the namespace permanent
 
+1. Read `policy`, `isPermanent` and the current routing. A non-reclaimable zero-term policy is still unlocked until the permanence transition completes.
+2. Review the [ownership guarantees](/concepts/ownership-guarantees) and the irreversible effect.
+3. Authorize the transition:
+
 ```ts
 await owner.makePermanent("acme", { confirmIrreversible: true });
 ```
 
-This is an irreversible [contract transition](/concepts/ownership-guarantees), subject to zero-term policy, clean provenance and current wiring checks. It freezes eligible namespace code and routing and disables reclaim. It does not freeze holder-controlled payment records or Universal Lookup governance.
-
-Read `policy`, `isPermanent`, and `nameState` before making lifecycle decisions. A non-reclaimable zero-term policy remains **unlocked** until the required permanence transition has completed.
+The contract requires a zero-term policy, clean provenance and correct current wiring. The transition freezes eligible namespace code and routing and disables reclaim. Holder-controlled payment records and Universal Lookup governance remain mutable.
 
 ## Storage availability
 

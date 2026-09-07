@@ -1,9 +1,9 @@
 ---
 title: "Resolver assurance"
-description: "Understand precisely what locked, attested and untainted Resolver provenance proves."
+description: "Check whether a namespace's Resolver is locked to its original attested implementation."
 ---
 
-`assurance(name)` describes a namespace's Resolver provenance. It does not certify that a payment is safe or that its destination cannot change.
+Use `assurance(name)` to check who can change a namespace's Resolver and whether that Resolver has been upgraded. This helps you assess the implementation behind a payment instruction.
 
 ```ts
 const assurance = await soran.assurance("alice.nova");
@@ -12,17 +12,21 @@ const assurance = await soran.assurance("alice.nova");
 
 | Field | Meaning |
 | --- | --- |
-| `resolverAttested` | Current Resolver pointer matches Registry's attested deployment |
-| `resolverTainted` | Registry records that the attested Resolver has upgraded |
-| `resolverLocked` | Current pointer has been permanently locked |
-| `trustworthy` | Locked, attested and untainted |
+| `resolverAttested` | The current Resolver matches the deployment recorded by Registry. |
+| `resolverTainted` | Registry records an upgrade to that attested Resolver. |
+| `resolverLocked` | The namespace can no longer change its Resolver pointer. |
+| `trustworthy` | All required checks pass: locked, attested and never upgraded. |
 
 Universal mode obtains these facts through Lookup's namespace metadata. Direct compatibility mode reads their Registry equivalents.
 
 ## Limits of the result
 
-Holders may change their address, memo and text even when `trustworthy` is true. A recipient account can belong to an exchange or another party. The result does not establish that a name holder owns the destination account or that a memo identifies a particular person.
+The field name `trustworthy` describes Resolver provenance. It is not a general payment-safety verdict.
 
-It also does not attest Universal Lookup's current executable code or governance. Lookup can be upgraded with no mandatory delay, and your RPC remains a trusted input. Use [namespace metadata](/concepts/ownership-guarantees) for the broader permanence predicate; do not infer all ownership guarantees from this narrower result.
+- **Payment records can change.** Holders may still update their address, memo and text.
+- **Destinations can belong to another party.** A holder can point to an exchange account; assurance does not verify the person behind a memo.
+- **Lookup and RPC remain trust boundaries.** This result does not attest Lookup's current code. Lookup governance can upgrade it without a mandatory delay, and reads depend on your RPC.
 
-For a payment, assess these boundaries, inspect the complete instruction and call `verifyPayment` near confirmation. Never replace a required memo with an address-only convenience read because provenance is locked.
+For the broader namespace permanence check, see [ownership guarantees](/concepts/ownership-guarantees).
+
+For payments, preserve the complete address and memo and call `verifyPayment` near confirmation. A locked Resolver does not remove a required memo or bind a later payment to an earlier lookup.

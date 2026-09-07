@@ -1,33 +1,42 @@
 ---
 title: "Optional marketplace"
-description: "Operator-custodied payment escrow and on-chain namespace transfers."
+description: "Buy or sell a whole namespace when a deployment enables the marketplace."
 ---
 
-The marketplace is available **when enabled on a deployment**. It sells whole namespaces using operator-custodied payment escrow and Registry's two-step ownership transfer. It is separate from the Allocator's on-chain claim-fee escrow.
+The marketplace lets you buy or sell a whole namespace **when enabled on a deployment**. It is disabled on the current testnet setup. Sales use hosted payment escrow and Registry's proposal-and-acceptance transfer process.
 
 ## Custody
 
-The deployment's escrow account holds the buyer's money and seller's bond. The namespace stays with its owner until the proposed recipient accepts its Registry transfer. A displayed sale badge is hosted provenance derived from settlement records, not a new on-chain ownership token or guarantee.
+The operator's escrow account holds the buyer's payment and seller's bond. The seller owns the namespace until the buyer accepts the Registry transfer. This hosted escrow is separate from the Allocator contract's namespace claim-fee escrow.
+
+A sale badge reflects the hosted settlement record. Check Registry for current ownership.
 
 ## Seller flow
 
-1. The namespace owner lists a price. Marketplace fees and bond amounts are operator-set and must be shown before commitment.
-2. The seller funds the required performance bond with the exact supplied memo.
-3. For a buyer, the seller proposes the **namespace Registry transfer** to that buyer's address.
-4. After funded delivery is verified, the settlement service attempts payment to the seller and bond return under its rules.
+1. List your namespace and review the operator-set marketplace fee and required bond.
+2. Fund the performance bond with the supplied payment instructions and exact memo.
+3. Propose the **namespace Registry transfer** to your buyer's address.
+4. After the buyer funds and accepts the transfer, settlement verifies delivery and attempts your payout and eligible bond return.
 
-Console admin/issuer access does not authorize listing as owner. A Name-view individual transfer is not the required namespace transfer. A listing with a funded deposit or delivery in progress cannot simply be withdrawn as if no sale existed.
+Listing requires namespace-owner authority. Console admin or issuer access is insufficient. Use the namespace transfer process; an individual name transfer does not deliver the sale. Funded listings and transfers in progress have restricted withdrawal rules.
 
 ## Buyer flow
 
-Create an intent through the [market API](/api/market), check the live Registry proposal points to your wallet, then send the exact price and hash memo from a self-custody account. Finally, accept the namespace transfer from that wallet.
+1. Create a purchase intent through the [market API](/api/market).
+2. Check that Registry has a live transfer proposal to your wallet.
+3. Send the exact price and hash memo from your self-custody account.
+4. Accept the namespace transfer from that wallet and check settlement status.
 
-Do not pay a generic address returned by a name lookup in place of the exact escrow intent. Refunds go to the payment's source account; paying from an exchange can route a refund to its pooled account without a customer memo.
+Use the escrow intent's payment instructions. Refunds return to the payment's source account, so paying from an exchange can send a refund to its pooled account without your customer memo.
 
 ## Refund and bond policy
 
-Seller cancellation, redirection or delivery elsewhere during a funded sale can entitle the buyer to a refund and seller-bond slash. If the buyer lets a standing offer expire without accepting, the refund policy does not treat that alone as seller breach. Successful delivery releases the price less fee and returns the eligible bond.
+| Outcome | Settlement policy |
+| --- | --- |
+| Verified delivery to the buyer | Release the price minus the marketplace fee; return the eligible seller bond |
+| Seller cancels, redirects or delivers elsewhere during a funded sale | Buyer may receive a refund and the seller's bond, after non-delivery is verified |
+| Buyer lets the offer expire without accepting | Refund the buyer under the expiry rules; this alone does not forfeit the seller's bond |
 
-These are settlement rules implemented by the hosted operator. Payouts can be delayed or parked for review, including small amounts or uncertain chain state. They are not a guarantee of automatic delivery or a fixed refund time. Review the actual deposit/settlement status and [watcher health](/api/status).
+The hosted operator implements these settlement rules. Payouts may be delayed or held for review, including small amounts or uncertain chain state. There is no fixed refund time. Check deposit and settlement status, plus [watcher health](/api/status).
 
 A namespace remains transferable through its contract process without this optional marketplace. If hosted billing is enabled, a buyer may need to re-attest ownership for those services.

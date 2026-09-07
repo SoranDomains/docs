@@ -38,6 +38,10 @@ for (const p of pages) {
     const base = slug(text), count = used.get(base) ?? 0;
     used.set(base,count+1); ids.add(count ? `${base}-${count}` : base);
   }
+  for (const [, id] of body.replace(/```[\s\S]*?```/g, '').matchAll(/<span\s+id="([^"]+)"\s*\/>/g)) {
+    if (ids.has(id)) fail.push(`${relative(root,p)}: duplicate anchor ${id}`);
+    ids.add(id);
+  }
   anchors.set(p,ids);
 }
 let checkedLinks = 0;

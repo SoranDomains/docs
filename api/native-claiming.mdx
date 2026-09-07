@@ -3,27 +3,24 @@ title: "Native username claim API"
 description: "Registrar methods for owner policy, user-authorized claims, receipts, reservations, transfer and renewal."
 ---
 
-<Note>
-This interface is deployed in the **6 September 2026 native-claim release**.
-Use the matching [verified addresses](/reference/release-status). Older deployments
-do not gain these methods automatically. SDK publication and hosted-service
-cutovers are tracked separately on that page.
-</Note>
+This page documents the **on-chain Registrar interface** for claiming a name such as `alice.acme`. For application code, start with the [Owner and Holder SDK walkthrough](/owner/automatic-claiming).
 
-Usernames such as `alice.acme` belong to the namespace Registrar. Universal Lookup
-remains the shared read entry point. A username claim does not call the top-level
-namespace Allocator and does not enter its objection or refund process.
+A username claim issues a name within an existing namespace. It does not use the top-level namespace Allocator or its objection and refund process. [Universal Lookup](/api/onchain-resolution) remains the shared read entry point.
 
-Network execution and storage fees apply separately from any username fee,
-including when the username fee is zero. The Owner 0.7.0 and Holder 0.6.0 SDKs
-default `maxNativeFeeStroops` to `50_000_000n` (5 XLM) for native operations and
-reject a higher estimate before signing. Initial storage rent can exceed that
-limit. An application must review the estimate and explicitly choose any higher
-limit; the limit does not change the on-chain username price.
+A typical integration follows four steps:
 
-The [Owner and Holder SDK walkthrough](/owner/automatic-claiming) shows application
-integration. The [native claim storage reference](/reference/successor-claim-storage)
-defines every new stored value and canonical request type.
+1. Check the namespace's native contracts and claim configuration.
+2. Request a quote for the label and claimant.
+3. Build and authorize the exact claim intent, including its destination and fee.
+4. Submit the transaction and retain its request ID to recover the receipt.
+
+Use the [current deployment addresses](/reference/release-status) and the [stored and request types](/reference/successor-claim-storage) that match them.
+
+## Network fees
+
+Network execution and storage fees are separate from any username price, including a zero price. Owner 0.7.0 and Holder 0.6.0 default `maxNativeFeeStroops` to `50_000_000n` (5 XLM) for native operations. They reject a higher estimate before signing.
+
+Initial storage rent can exceed that limit. Review the estimate before explicitly choosing a higher limit; this does not change the on-chain username price.
 
 ## Capability and bindings
 
@@ -45,13 +42,13 @@ transition. Returning the namespace to a former owner does not restore old claim
 settings. Epoch numbers increase but are not necessarily consecutive for one
 namespace.
 
-An unsupported version or failed read never means Open registration. Installing
-a new SDK does not add native claims to an existing contract. Verify code and
-provenance as well as version answers before relying on the interface.
+Verify code, provenance and version answers before using native claims. A failed or unsupported capability read does not mean public claiming is open.
 
 ## Owner controls
 
-Unless shown otherwise, these methods return `Result<result, Error>`.
+Administrative writes require the current Registry owner. Console operator roles do not replace on-chain authorization. Unless shown otherwise, the methods below return `Result<result, Error>`.
+
+### Read and configure policy
 
 | Registrar method | Arguments | Result |
 | --- | --- | --- |
@@ -59,37 +56,46 @@ Unless shown otherwise, these methods return `Result<result, Error>`.
 | `claim_config` | none | `Option<ClaimConfig>` |
 | `configure_claims` | `settings: ClaimSettings` | `ClaimConfig` |
 | `set_claim_enabled` | `enabled: bool` | `ClaimConfig` |
+
+### Reserve and assign labels
+
+| Registrar method | Arguments | Result |
+| --- | --- | --- |
 | `set_reserved` | `labels: Vec<Bytes>, reserved: bool` | `u32` labels updated |
 | `is_reserved` | `label: Bytes` | `bool` |
 | `issue_reserved` | `label: Bytes, holder: Address` | `BytesN<32>` name node |
 | `issue_reserved_with_destination` | `intent: ReservedIntent` | `ClaimResult` |
+
+### Read usage
+
+| Registrar method | Arguments | Result |
+| --- | --- | --- |
 | `claim_usage` | `holder: Address` | `ClaimUsage` |
 | `approval_usage` | none | `ApprovalUsage` |
 
-Administrative writes require the current Registry owner. Console roles are not
-substitutes for that authorization. Initial configuration is absent: legacy
-manual owner issuance remains available, while public claiming is unavailable.
+### Policy behavior
 
-Configuration chooses Manual or Public mode, enablement, admission, exact fee,
-G treasury and usage limits. It records the current ownership epoch and advances
-both policy and approval-grant epochs. Enabling stale-owner settings is rejected;
-a new owner must explicitly configure them. Pause and re-enable each advance the
-policy and grant epochs. Reservation changes advance the policy version.
+Before configuration, manual owner issuance is available and public claiming is unavailable.
 
-Public mode blocks the legacy `issue` and `issue_batch` routes even while paused.
+Configuration sets the mode (`Manual` or `Public`), enablement, admission rule, fee, G treasury and usage limits. It also records the current ownership epoch: the version of namespace ownership against which the settings were authorized.
+
+A new owner must configure claiming explicitly. Old settings cannot be enabled under a different ownership epoch. Configuration, pause and re-enable advance the policy and approval-grant epochs; reservation changes advance the policy version.
+
+Public mode blocks the manual `issue` and `issue_batch` methods even while paused.
 A public label must use public rules. The explicit reserved path is the
 administrative exception to public username prices and quotas. It still rejects
 an active name and records separate reserved-issuance usage.
 
+### Reservation behavior
+
 Reservation batches are atomic, contain 1–23 distinct canonical labels and reject
 active names when reserving them. Releasing a reservation leaves any holder
-unchanged. An issued reserved name stays reserved until its owner releases the
+unchanged. An issued reserved name stays reserved until the namespace owner releases the
 reservation, including after the name expires.
 
 `issue_reserved` uses owner authorization and the holder's default address. The
 atomic custom-destination variant requires both owner and holder authorization.
-Its first SDK release exposes simple assignment; a separate co-signing integration
-is needed to call the raw atomic reserved method for different owner/holder accounts.
+The Owner SDK exposes simple assignment. Calling the atomic reserved method for different owner and holder accounts requires an integration that collects both authorizations.
 
 ## Claim and recovery
 
@@ -101,12 +107,16 @@ is needed to call the raw atomic reserved method for different owner/holder acco
 | `claim_receipt` | `claimant: Address, request_id: BytesN<32>` | `Option<ClaimReceipt>` |
 | `touch_claim_state` | `holder: Address, request_ids: Vec<BytesN<32>>, labels: Vec<Bytes>` | `u32` existing entries touched |
 
+### Quote
+
 A quote reports availability, reservation, current configuration, ownership epoch,
 record generation/expiry and lifetime usage. It does not reserve the label.
 `available: true` alone does not mean claiming is enabled or that the wallet is
 eligible. Inspect all relevant fields and the current policy.
 
-The first public claim flow uses a **G claimant as holder and fee payer**. The
+### Submit a claim
+
+Public claims use a **G claimant as holder and fee payer**. The
 receiving destination can independently be G without a memo, G with ID/Text/Hash
 memo, M with its muxed ID, or C without a memo. The transaction records future
 receiving instructions; it does not make a payment to that destination.
@@ -118,14 +128,15 @@ any fee directly to the treasury, initializes the destination and writes usage
 and a receipt in one transaction. Any failure rolls back those business effects.
 Network fees are separate.
 
+### Recover a result
+
 A matching existing receipt returns `Replayed` before fresh deadline, policy and
 authorization checks. It does not charge, increment usage, issue another name or
 rewrite a later destination. Reusing a request ID with a different operation or
 intent returns `RequestIdConflict`. Keep request IDs stable only for the same
 immutable intent. Credential nonce/signature renewal does not change that intent.
 
-History is not current ownership. After recovering a receipt, verify the current
-holder and generation through Lookup before associating a name with an app account.
+After recovering a receipt, verify the current holder and generation through Lookup before associating a name with an app account. The receipt records a historical result.
 A missing receipt or interrupted RPC read does not prove that a transaction failed.
 Reconcile the original transaction before replacing it.
 
@@ -158,9 +169,13 @@ an expired or rotated credential is not proof that a previous request never comp
 
 ## Admission rules
 
-Open admission accepts an empty proof and no approver. Allowlist admission verifies
-at most 32 sibling hashes against the configured root. Approval admission requires
-the configured separate G approver and an empty proof.
+| Admission | Requirement |
+| --- | --- |
+| Open | Empty proof; no approver |
+| Allowlist | At most 32 sibling hashes proving membership in the configured root |
+| Approval | Configured separate G approver; empty proof |
+
+### Allowlist proof
 
 The leaf is SHA-256 of this Soroban XDR tuple:
 
@@ -172,11 +187,13 @@ For each sibling, order the two 32-byte hashes lexicographically and compute
 `SHA256(0x01 || smaller || larger)`. Use the final value as the root. This username
 allowlist is separate from the Allocator's top-level namespace reservation proof.
 
+### Wallet and approval limits
+
 Wallet limits count cumulative public claims, including expiry/reissue claims.
 `wallet_limit = 0` means unlimited. They do not count current holdings or prove
 one person. Reserved assignments have their own count.
 
-Approval requires a nonzero cumulative allowance, rate limit, window and lifetime.
+The G approver must differ from the namespace owner, fee recipient and claimant. Approval requires a nonzero cumulative allowance, rate limit, window and lifetime.
 The owner chooses these numbers. The window is at most `31536000` seconds; approval
 lifetime is at most `3600` seconds. Counts survive mode, key, policy and owner
 changes. An active window cannot be reset or shortened by reconfiguration; a longer
@@ -193,11 +210,15 @@ provides more headroom.
 | Resolver `preview_destination` | `name: String, expected_generation: u64` | `DestinationPreview` |
 | Resolver `initialize_destination` | `label: Bytes, holder: Address, generation: u64, destination: PaymentDestination` | `()` |
 
+### Accept a transfer
+
 Transfer acceptance requires the intended recipient. It checks the exact current
 holder, generation, name expiry and pending proposal expiry. It preserves the
 name's expiry, advances the generation and initializes the selected destination
 atomically. A failed destination write leaves the existing holder and proposal
 unchanged. Claim pause, app admission and claim quotas do not gate this operation.
+
+### Renew a name
 
 Holder renewal uses the immutable positive default term. It checks the recorded
 holder, generation and expiry, then extends from `max(now, old_expiry)`. It preserves
@@ -213,6 +234,8 @@ including when inactive. It rejects mismatched generations and invalid configure
 payment records. Ordinary payment resolution still rejects expired names. Preview
 is not a new payment destination or a bypass of live resolution.
 
+### Destination initialization
+
 The initializer is restricted to the bound native Registrar and exact holder
 consent. It accepts only a destination for a generation freshly created by claim,
 reserved assignment or accepted transfer. It derives the node from its bound
@@ -222,7 +245,9 @@ setter, and renewal does not call it.
 
 ## Errors and compatibility
 
-Existing Registrar error codes `1–20` retain their values. New codes are:
+Existing Registrar error codes `1–20` retain their values. The native claim methods add the codes below.
+
+### Configuration and reservations
 
 | Code | Error |
 | --- | --- |
@@ -235,10 +260,20 @@ Existing Registrar error codes `1–20` retain their values. New codes are:
 | 27 | `ReservedName` |
 | 28 | `NameNotReserved` |
 | 29 | `PublicIssuanceRequired` |
+
+### Admission and limits
+
+| Code | Error |
+| --- | --- |
 | 30 | `WalletClaimLimit` |
 | 31 | `InvalidEligibility` |
 | 32 | `ApprovalAllowanceReached` |
 | 33 | `ApprovalRateReached` |
+
+### Request and execution errors
+
+| Code | Error |
+| --- | --- |
 | 34 | `RequestIdConflict` |
 | 35 | `CounterOverflow` |
 | 36 | `InvalidNativeBinding` |
@@ -249,6 +284,8 @@ Existing Registrar error codes `1–20` retain their values. New codes are:
 | 41 | `DestinationInitializationFailed` |
 | 42 | `FeeSettlementFailed` |
 
+### Related contract errors
+
 Registry additionally reports `OwnershipEpochUnavailable` (`29`) and
 `OwnershipEpochOverflow` (`30`). Resolver adds `InitializationContextMismatch`
 (`22`), `DestinationAlreadyInitialized` (`23`) and `GenerationMismatch` (`24`).
@@ -256,6 +293,4 @@ An atomic Registrar call maps a failed initializer to Registrar error `41` and
 aborts the whole operation.
 
 A contract rejection does not authorize changing the destination, dropping a memo,
-opening admission or charging different terms on a retry. Namespace template
-changes require a successor deployment; this reference does not migrate existing
-Registry records or make old contracts permanent.
+opening admission or charging different terms on a retry. A namespace template change requires a new deployment with matching contracts; it does not migrate old Registry records or change ownership guarantees.
