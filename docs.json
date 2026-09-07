@@ -39,6 +39,7 @@
         "pages": [
           "index",
           "quickstart",
+          "live-examples",
           "reference/release-status"
         ]
       },
