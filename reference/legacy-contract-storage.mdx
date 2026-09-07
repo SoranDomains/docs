@@ -4,23 +4,12 @@ description: "Raw ledger keys, stored types, payment encodings and storage lifet
 ---
 
 <Note>
-This is the historical storage schema for the native-muxed deployment verified on
-5 September 2026 at ledger **4,521,644**. Use its
-[deployment record](https://raw.githubusercontent.com/SoranDomains/docs/main/reference/deployments/testnet-2026-09-05-native-muxed.json)
-to select the matching contracts. This page does not describe native username
-claim storage. See the [native claim storage reference](/reference/successor-claim-storage)
-for that separate schema.
+Historical reference for the **5 September 2026 native-muxed testnet deployment**. For new integrations, use the [current contract storage](/reference/contract-storage) and [native claim storage](/reference/successor-claim-storage) references.
 </Note>
 
-This reference describes the native-muxed deployment verified on **5 September 2026 at ledger 4,521,644**. Match the contract's current Wasm hash to the [public deployment manifest](/reference/deployments/testnet-2026-09-05-native-muxed.json) before decoding storage with this schema. An upgrade can change an upgradeable contract's implementation while keeping its address.
+Use this page when inspecting records in the historical contracts listed below. The schema was verified at ledger **4,521,644**. Match the contract's Wasm hash to the [historical deployment record](https://raw.githubusercontent.com/SoranDomains/docs/main/reference/deployments/testnet-2026-09-05-native-muxed.json) before decoding; an upgradeable contract can keep its address while changing implementation.
 
-Use [Universal Lookup](/api/onchain-resolution#on-chain-resolution) for authoritative name and payment answers. Raw ledger entries are useful for explorers, storage tools and independent inspection. They are not a substitute for the contracts' ownership, generation, routing and payment checks.
-
-<Note>
-The native-claim successor has a separate [storage reference](/reference/successor-claim-storage).
-It is not deployed at the addresses below. This page continues to describe the
-verified native-muxed deployment.
-</Note>
+The raw keys and stored types below support explorers and storage inspection. For a validated answer, call the matching deployment's Lookup contract. Raw records do not perform ownership, generation, routing or payment checks.
 
 ## Deployment scope
 
@@ -33,7 +22,7 @@ verified native-muxed deployment.
 | Primary | `CCSORANJZOR5ZYTI4KAW34ESAQFMJAO4NKMTIVOVJOI2VDKCDK3RICXZ` | Immutable; no stored schema-version key |
 | Lookup | `CDSORANKG77YZITKWCLWGPKLB2R3HPTP4D6KKZZ7X3R5HLXLMNOTGCDD` | `version() = 2`; `destination_version() = 2` |
 
-Registrar and Resolver are namespace-specific. The other four contracts are shared. For another namespace, discover its current Registrar and Resolver through Lookup/Registry; do not use nova's pair. See [release status](/reference/release-status) for the verification timestamp, deployment transactions and historical deployments.
+Registrar and Resolver are namespace-specific; the other four contracts are shared within this historical deployment. For another namespace, discover its Registrar and Resolver through this Registry or Lookup. The same label in a different Registry is a separate namespace.
 
 ## Ledger and XDR conventions
 
@@ -54,7 +43,15 @@ The tables use Rust-style types to describe the stored schema. These names are n
 | Enum `ClaimState::Announced` | `SCV_VEC [Symbol("Announced")]`, not an integer ordinal |
 | Enum `PaymentMemo::Id(420)` | `SCV_VEC [Symbol("Id"), U64(420)]` |
 
-All application storage in these six contracts is **instance** or **persistent** storage. None uses temporary storage. Persistent application entries use a `LedgerKey::ContractData` containing the contract address, encoded `DataKey`, and persistent durability. Instance keys live inside the `storage` map of the contract's single `SCContractInstance`; they are not separate persistent entries named `Config`. The instance ledger key uses `SCV_LEDGER_KEY_CONTRACT_INSTANCE`. Contract Wasm is a separate contract-code ledger entry. [Stellar storage reference](https://docs.rs/soroban-sdk/26.1.0/soroban_sdk/storage/struct.Storage.html)
+### Storage locations
+
+All application storage in these six contracts is **instance** or **persistent** storage. None uses temporary storage.
+
+Persistent application entries use a `LedgerKey::ContractData` containing the contract address, encoded `DataKey`, and persistent durability.
+
+Instance keys live inside the `storage` map of the contract's single `SCContractInstance`; they are not separate persistent entries named `Config`. The instance ledger key uses `SCV_LEDGER_KEY_CONTRACT_INSTANCE`. Contract Wasm is a separate contract-code ledger entry. [Stellar storage reference](https://docs.rs/soroban-sdk/26.1.0/soroban_sdk/storage/struct.Storage.html)
+
+### Name hashes
 
 Names use canonical lowercase ASCII labels: 1–63 bytes from `a-z`, `0-9`, and an internal `-`. Let `H` mean SHA-256 and `zero32` mean 32 zero bytes:
 
@@ -95,9 +92,15 @@ enum ResolverStatus { Clean, Tainted }
 struct Pending { to: Address, expires: u64 }
 ```
 
-`Clean` and `Tainted` are single-symbol vectors. There are no current `RegistrarTainted` or `ResolverTainted` storage keys: both statuses are fields of `Record`. Ordinary owner/pointer updates preserve them. `Tainted` marks provenance ineligible for permanence, including an upgrade or post-hoc Registrar attestation; restoring an earlier Wasm hash does not clear it. A fresh `Clean` field does not prove a contract has been attested. Resolver attestation and the current resolver pointer must be distinguished.
+### Provenance and authority
+
+`Clean` and `Tainted` are single-symbol vectors. There are no current `RegistrarTainted` or `ResolverTainted` storage keys: both statuses are fields of `Record`. Ordinary owner/pointer updates preserve them.
+
+`Tainted` marks provenance ineligible for permanence, including an upgrade or post-hoc Registrar attestation; restoring an earlier Wasm hash does not clear it. A fresh `Clean` field does not prove a contract has been attested. Resolver attestation and the current resolver pointer must be distinguished.
 
 The reservation Merkle root is stored, but the complete label list and allocation witnesses are not. Namespace deployment salts and vanity-search candidates are not stored application records. Salt version `1` is a code-defined namespace-and-role binding rule, not a `DataKey` or storage-schema version.
+
+### Registry maintenance
 
 Namespace transfer proposals expire after `604800` seconds. A keeper can call `touch_node(ns_node)` to extend the namespace record and existing Registrar, Resolver and ResolverLock entries. It does not extend `Pending` or the Registry instance; `keep_alive()` covers the instance and code. A raw missing owner entry does not authorize reallocation: the contract also checks related state.
 
@@ -105,21 +108,38 @@ Namespace transfer proposals expire after `604800` seconds. A keeper can call `t
 
 Use `label_hash = H(label_bytes)` in this section. Objections and upfront claim fees use separate accounting, even when their configured token happens to be the same asset.
 
+### Configuration
+
 | Key | Storage | Value | Meaning |
 | --- | --- | --- | --- |
 | `DataKey::Config` | Instance | `Config` | Registry, governance, claim-window, bond and age settings |
-| `DataKey::Claim(label_hash)` | Persistent | `Claim` | Current/latest claim for the label; not an append-only claim history |
-| `DataKey::Objection(label_hash)` | Legacy, unused | No current value schema | Declared for compatibility; this implementation neither reads nor writes it |
 | `DataKey::PendingUpgrade` | Instance | `PendingUpgrade` | Proposed Wasm and earliest execution timestamp |
-| `DataKey::ReopenEta(label_hash)` | Persistent | `(u64, u64)` | `(eta, rejected_at)` for the current rejected claim |
-| `DataKey::Credit(address)` | Persistent | `i128`, absent means `0` | Undelivered objection-bond settlement credit in `Config.token` |
-| `DataKey::Owed` | Instance | `i128`, absent means `0` | Aggregate outstanding bond-settlement credits |
-| `DataKey::LockedBonds` | Instance | `i128`, absent means `0` | Live objection bonds plus any slashed bond amount that could not be burned |
 | `DataKey::SchemaVersion` | Instance | `u32` (`4`) | Explicit storage compatibility gate |
+
+### Claim and claimant history
+
+| Key | Storage | Value | Meaning |
+| --- | --- | --- | --- |
+| `DataKey::Claim(label_hash)` | Persistent | `Claim` | Current/latest claim for the label; not an append-only claim history |
+| `DataKey::ReopenEta(label_hash)` | Persistent | `(u64, u64)` | `(eta, rejected_at)` for the current rejected claim |
 | `DataKey::ParkedAge(label_hash, claimant)` | Persistent | `u64`, absent means `0` | Banked announced-time budget across prior claims by this claimant |
 | `DataKey::RejectedLock(label_hash, claimant)` | Persistent | `u64` | Rejection timestamp/epoch for that claimant; survives a replacement claim |
 | `DataKey::ObjCount(label_hash)` | Persistent | `u32`, absent means `0` | Dismissed/timed-out objection cycles in the current claim epoch |
 | `DataKey::ClaimantReopenEta(label_hash, claimant)` | Persistent | `(u64, u64)` | `(eta, rejected_at)` for one claimant's historical rejection |
+
+### Objection bonds
+
+| Key | Storage | Value | Meaning |
+| --- | --- | --- | --- |
+| `DataKey::Objection(label_hash)` | Legacy, unused | No current value schema | Declared for compatibility; this implementation neither reads nor writes it |
+| `DataKey::Credit(address)` | Persistent | `i128`, absent means `0` | Undelivered objection-bond settlement credit in `Config.token` |
+| `DataKey::Owed` | Instance | `i128`, absent means `0` | Aggregate outstanding bond-settlement credits |
+| `DataKey::LockedBonds` | Instance | `i128`, absent means `0` | Live objection bonds plus any slashed bond amount that could not be burned |
+
+### Namespace claim fees
+
+| Key | Storage | Value | Meaning |
+| --- | --- | --- | --- |
 | `DataKey::FeePolicy` | Instance | `ClaimFeePolicy` | One-time configured upfront fee policy |
 | `DataKey::FeeReceipt(label_hash)` | Persistent | `ClaimFeeReceipt` | Latest claim's fee escrow/settlement snapshot |
 | `DataKey::LockedFees` | Instance | `i128`, absent means `0` | Unsettled upfront claim fees |
@@ -161,11 +181,15 @@ struct ClaimFeeReceipt {
 enum FeeOutcome { Held, Awarded, Rejected, Withdrawn, Expired, Stuck }
 ```
 
-`ClaimState` and `FeeOutcome` use their **named** variants, not `0`, `1`, or other numeric state IDs. Objection fields are meaningful while `state = Objected`; do not interpret leftover numeric `obj_*` fields as an active objection after settlement. `announced_at` can be adjusted when a frozen window resumes, so it is not always the original submission timestamp. `rejected_at = 0` means no recorded rejection timestamp in that field.
+### Interpret claim and fee state
+
+`ClaimState` and `FeeOutcome` use their **named** variants, not `0`, `1`, or other numeric state IDs. Objection fields are meaningful while `state = Objected`; do not interpret leftover numeric `obj_*` fields as an active objection after settlement.
+
+`announced_at` can be adjusted when a frozen window resumes, so it is not always the original submission timestamp. `rejected_at = 0` means no recorded rejection timestamp in that field.
 
 There are no `Expired` or `Stuck` ClaimState variants: those exits store `Withdrawn` in the claim while recording `Expired` or `Stuck` in the fee receipt. Missing Config, SchemaVersion or required FeePolicy is an error, unlike an intentionally absent optional claim. `time_remaining = 0` alone does not prove that a claim can execute.
 
-Fee amounts and credits are signed 128-bit integers in the configured token's smallest units, with nonnegative accounting invariants. Decimals are token metadata, not part of these records. The current fee is `50000000000` stroops, or **5,000 testnet XLM**. Receipt outcomes have these refund entitlements:
+Fee amounts and credits are signed 128-bit integers in the configured token's smallest units, with nonnegative accounting invariants. Decimals are token metadata, not part of these records. This deployment was configured with `50000000000` stroops, or **5,000 testnet XLM**. Receipt outcomes have these refund entitlements:
 
 | Fee outcome | Claimant refund | Fee recipient |
 | --- | --- | --- |
@@ -176,13 +200,17 @@ Fee amounts and credits are signed 128-bit integers in the configured token's sm
 
 The equivalent refund basis points are `0`, `10000`, and `8000`; those numbers describe policy arithmetic, not the stored enum encoding. `refund_amount` and `treasury_amount` describe entitlements, including any undelivered pull-credit. A settled receipt does not by itself prove that every transfer was delivered. A later claim can overwrite the label's old Claim/FeeReceipt; use confirmed events for history.
 
+### Claim timing and maintenance
+
 `ObjCount` is capped at `3` objection cycles per claim epoch. The configured live-time budget and per-claimant `ParkedAge` survive different transitions from the per-label cycle counter. Rejection locks and claimant-specific reopen proposals are separate from the label's latest claim. Reopen tuples bind a proposal to its precise rejection timestamp; a historical reopen does not necessarily free the label.
 
 `Config.window` is bounded to `86400`–`3153600000` seconds. `max_claim_age` is at most `3153600000` and must exceed the window by at least `3600` seconds. Rejection cooldown, objection timeout and the minimum banked concession budget each use `2592000` seconds. Those are timing/budget rules, not TTLs or automatic deletion deadlines. Claim basis accounting requires `sum(entry.len() + 8) <= 4096`, including the per-element overhead; an objection basis is at most `4096` raw bytes.
 
 `touch_claim(label)` extends the existing Claim, legacy ReopenEta, FeeReceipt and ObjCount plus the instance/code. It does not enumerate claimant-keyed history or all payee credits. `touch_reopen_for(label, claimant)` maintains that claimant's proposal and matching rejection lock plus the instance/code; `touch_fee_credit(address)` maintains that fee credit plus the instance/code. There is no general enumeration of every persistent key. Known keys can also be maintained through Stellar's ledger-entry TTL operations.
 
-Schema `4` requires fee receipts for claims. Schema `3` had no claim-fee receipt requirement; schema `2` used a single `u64` ReopenEta value rather than the two-element tuple; legacy schema `1` had no SchemaVersion entry and different Claim/Config layouts. The current deployment was created fresh. There is no general raw-storage migration method: an upgrade must preserve the existing schema or implement a separately reviewed migration. Changing a version getter or stored version number does not convert old values. Allocator upgrade proposals retain their own configured claim-window delay; Lookup's zero delay does not change this rule.
+### Earlier Allocator schemas
+
+Schema `4` requires fee receipts for claims. Schema `3` had no claim-fee receipt requirement; schema `2` used a single `u64` ReopenEta value rather than the two-element tuple; legacy schema `1` had no SchemaVersion entry and different Claim/Config layouts. This historical deployment was created fresh. There is no general raw-storage migration method: an upgrade must preserve the existing schema or implement a separately reviewed migration. Changing a version getter or stored version number does not convert old values. Allocator upgrade proposals retain their own configured claim-window delay; Lookup's zero delay does not change this rule.
 
 ## Registrar
 
@@ -223,11 +251,19 @@ struct PendingTransfer {
 }
 ```
 
+### Holder, destination and generation
+
 `Config.owner` is the constructor-time owner; current namespace authority follows `Registry.owner_of(namespace_node)`. `treasury_set_by` identifies who configured the treasury. After namespace ownership changes, a treasury set by a previous owner is not the current owner's authorized reclaim destination.
 
-`Name.address` is a built-in G/C destination, not a complete native payment instruction. The namespace Resolver may supply an explicit destination and memo. `expires_at = 0` means no ownership expiry; it does not make a reclaimable namespace permanent. With a finite expiry, the name expires when ledger time is **greater than** `expires_at`. Storage TTL is independent.
+`Name.address` is a built-in G/C destination, not a complete native payment instruction. The namespace Resolver may supply an explicit destination and memo.
 
-Generation starts at `0` for first issuance and increases on reissue, accepted transfer and reclaim. A holder address update or renewal does not change it. Resolver entries from another generation stop being current even if still present in the ledger. A transfer proposal carries both `from` and `generation`; its acceptance deadline is `604800` seconds after proposal. Acceptance changes holder and built-in address to the recipient and increments generation.
+`expires_at = 0` means no ownership expiry; it does not make a reclaimable namespace permanent. With a finite expiry, the name expires when ledger time is **greater than** `expires_at`. Storage TTL is independent.
+
+Generation starts at `0` for first issuance and increases on reissue, accepted transfer and reclaim. A holder address update or renewal does not change it. Resolver entries from another generation stop being current even if still present in the ledger.
+
+A transfer proposal carries both `from` and `generation`; its acceptance deadline is `604800` seconds after proposal. Acceptance changes holder and built-in address to the recipient and increments generation.
+
+### Policy and Registrar maintenance
 
 Policy terms are either `0` or `86400`–`3153600000` seconds. `trade_fee_bps` is `0`–`10000`; it is a basis-point field, not proof that a marketplace feature is enabled. Making a namespace permanent is one-way, requires no-expiry terms, disables reclaim and freezes Registrar upgrades.
 
@@ -290,9 +326,13 @@ An untouched generation can resolve its current effective address with no memo. 
 
 ### Profiles, reverse names and maintenance
 
-Profile keys are symbols of 1–32 letters, digits or underscores. Values are public strings. Retraction writes an empty string; it does not delete the ledger entry or erase history. Standard profile readers treat empty values as unset. `AddrRec` and `TextRec` are current only when their generation matches the Registrar's current active name.
+Profile keys are symbols of 1–32 letters, digits or underscores. Values are public strings. Retraction writes an empty string; it does not delete the ledger entry or erase history. Standard profile readers treat empty values as unset.
 
-Reverse records contain plaintext `label.namespace`, its node and generation. A raw reverse entry is only a declaration: verified reads also check the current generation and forward match. Legacy reverse records without the `name` string, or with a differently typed `name`, are not current `RevRec` values; holders must set a valid declaration again. The older two-field Resolver Config is likewise not the current three-field layout. This deployment was created fresh; do not assume an older Resolver can adopt it through a Wasm swap alone.
+`AddrRec` and `TextRec` are current only when their generation matches the Registrar's current active name.
+
+Reverse records contain plaintext `label.namespace`, its node and generation. A raw reverse entry is only a declaration: verified reads also check the current generation and forward match.
+
+Older reverse records without the `name` string, or with a differently typed `name`, are not current `RevRec` values; holders must set a valid declaration again. The older two-field Resolver Config is likewise not the current three-field layout. An older Resolver with a different layout cannot adopt this schema through a Wasm swap alone.
 
 `put` extends the modified persistent record and instance/code. `keep_alive()` maintains instance/code. `touch_node(node)`, `touch_text(node, key)` and `touch_reverse(address)` extend their existing entry plus instance/code. `touch_payment(name)` covers the current-generation marker, address, payment text and instance/code together; maintaining the address alone does not maintain its payment metadata. None of these changes ownership or payment content.
 
@@ -333,7 +373,7 @@ Lookup stores **no per-name answers, payment records, reverse records or cached 
 
 `version()` and `destination_version()` are code-defined getters; neither has a stored DataKey. ABI 2 selects complete `Direct`/`Muxed` destinations. A successful native Resolver payment-version `1` response uses its direct-payment interface; version `2` requires destination-version `2`. Failed or unknown capability responses do not justify a legacy fallback. The old Address-returning methods cannot represent a muxed ID and refuse that result.
 
-All Lookup configuration and pending-upgrade data share the instance lifetime. `keep_alive()` extends instance/code. The current upgrade delay is `0`: governance still proposes an exact Wasm hash, and execution checks that proposal. Code replacement does not automatically convert the stored Config or other instance values.
+All Lookup configuration and pending-upgrade data share the instance lifetime. `keep_alive()` extends instance/code. This Lookup deployment uses an upgrade delay of `0`: governance still proposes an exact Wasm hash, and execution checks that proposal. Code replacement does not automatically convert the stored Config or other instance values.
 
 ## TTL and restoration
 
@@ -348,21 +388,26 @@ threshold = min(2_500_000, saturating_sub(extend_to, 1))
 
 Lookup uses `threshold = min(2_500_000, max_ttl)` and `extend_to = min(3_000_000, max_ttl)`. These are ledger targets, not a promised number of days. A bump only extends an entry below its threshold; it can be a no-op for an already-long TTL. Instance extension checks the instance and Wasm-code TTLs separately. [Instance TTL semantics](https://docs.rs/soroban-sdk/26.1.0/soroban_sdk/storage/struct.Instance.html#method.extend_ttl)
 
-Persistent entries and contract instances can archive and later be restored. Archival does not establish that a namespace is unowned, a name has expired, a rejection/credit never existed, or a payment needs no memo. A raw `getLedgerEntries` result that omits a key is not a sufficient payment or ownership decision. A transaction accessing archived persistent data must include the required restoration work or fail; RPC simulation can identify what is needed. Restoration costs and subsequent TTL extension are distinct from name-renewal or claim fees. [Stellar state archival](https://developers.stellar.org/docs/learn/fundamentals/contract-development/storage/state-archival)
+Persistent entries and contract instances can archive and later be restored. Archival does not establish that a namespace is unowned, a name has expired, a rejection/credit never existed, or a payment needs no memo.
+
+A raw `getLedgerEntries` result that omits a key is not a sufficient payment or ownership decision. A transaction accessing archived persistent data must include the required restoration work or fail; RPC simulation can identify what is needed. Restoration costs and subsequent TTL extension are distinct from name-renewal or claim fees. [Stellar state archival](https://developers.stellar.org/docs/learn/fundamentals/contract-development/storage/state-archival)
+
+### Recheck after restoration
 
 Use the relevant contract read after restoration to recheck current meaning. Restoring an old-generation payment or a stale primary declaration does not make it current. Do not translate an RPC failure, archived entry or malformed ScVal into `None`, `false`, zero credit, or a memo-free G address.
 
 ## Read raw keys with Stellar RPC
 
-This read-only Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.6.0`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It does not sign, submit, restore, or construct a payment. Replace the example name with an actually issued name.
+This read-only Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.8.0` with the explicit historical deployment preset. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It does not sign, submit, restore, or construct a payment. Replace the example name with an actually issued name.
 
 ```typescript
 import { Address, nativeToScVal, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";
-import { Soran, DEPLOYMENTS, parseName } from "@sorandomains/lookup";
+import { Soran, LEGACY_DEPLOYMENTS, parseName } from "@sorandomains/lookup";
 
-const deployment = DEPLOYMENTS.testnet;
+const deployment = LEGACY_DEPLOYMENTS.testnet20260905;
 const client = new Soran({
-  network: "testnet", resolutionMode: "universal",
+  ...deployment,
+  resolutionMode: "universal",
   resolverCacheTtlMs: 0, timeoutMs: 15000,
 });
 const server = new rpc.Server(deployment.rpcUrl, { timeout: 20 });
@@ -415,6 +460,8 @@ for (const [label, ledgerKey] of Object.entries(keys)) {
 ```
 
 The helper `key("Text", …, symbol("payment"))` uses a symbol for the reserved key. Replacing it with a string, using the namespace hash instead of the name node, or querying the marker with a previous generation addresses a different ledger key. `scValToNative` is a decoder, not a schema validator or payment verifier. Keep the `TextRec.value` and matching `AddrRec`/generation together when inspecting them, and use `resolvePayment` for the validated payment answer.
+
+### Inspect instance data
 
 To inspect instance data instead, fetch its special footprint and decode each internal key/value pair:
 

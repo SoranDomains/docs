@@ -3,9 +3,9 @@ title: "Quickstart"
 description: "Read and recheck complete address-and-memo instructions through Universal Lookup."
 ---
 
-<Note>
-This quickstart targets Lookup **0.8.0** and Stellar SDK 17. Its testnet preset uses the current native-claim deployment shown below. Check [release status](/reference/release-status) for package publication and hosted cutover verification. Muxed payment support remains available through the [contract ABI](/api/onchain-resolution) and [HTTP payment endpoint](/api/resolution).
-</Note>
+Resolve a Soran name into its complete payment instructions, then recheck them before sending. Reading requires no wallet or signing key.
+
+This guide uses **Lookup 0.8.0**, Stellar SDK 17 and the current [testnet deployment](/reference/release-status).
 
 ## Configure one shared reader
 
@@ -29,27 +29,31 @@ const soran = new Soran({
 });
 ```
 
-Universal mode is the default. Its contract validates current namespace routing on chain. Missing Lookup configuration throws `CONFIG`; it does not silently read a Resolver directly.
+Universal Lookup is the default shared reader. It checks the namespace's current on-chain routing and finds its Resolver for you. A missing Lookup configuration throws `CONFIG`.
 
 ## Read the whole payment instruction
 
-Use the [live testnet examples](/live-examples) to try every supported destination type in Nova Whois or with the SDK. The gallery includes memo-free G, G with ID/text/hash memos, full M and a callable hello-world C contract.
+Start with a [live testnet name](/live-examples). Read its address and memo together:
 
 ```ts
 const payment = await soran.resolvePayment("Alice.Nova");
-// payment = { address: "G..., M... or C...", memo: { type: "none" } }
-// or memo: { type: "id", value: "123456" }, text, or hash
+console.log(payment.address, payment.memo);
 
+// Display both fields for review, then recheck near confirmation.
 if (!(await soran.verifyPayment("alice.nova", payment))) {
   throw new Error("Payment instructions changed; review them again");
 }
 ```
 
-Preserve **both** fields when constructing the payment. No memo is needed for `memo.type === "none"`. For a required memo, include its exact type and value or refuse the payment. IDs are decimal strings; never convert them to JavaScript numbers.
+Preserve **both fields** when constructing the payment. If the memo type is `id`, `text` or `hash`, include its exact type and value. Refuse to send if your payment flow cannot carry it. Memo IDs are decimal strings; never convert them to JavaScript numbers.
 
-A `G...` address can use a classic Stellar payment. A `C...` address requires an appropriate contract/token transfer flow and supports only memo `none` in this ABI. Also honor the recipient account's memo-required setting. A transaction has only one classic memo: split payments needing different memos.
+| Address | How to use it |
+| --- | --- |
+| `G...` account | Use a classic Stellar payment and the returned memo, if any. |
+| `M...` muxed account | Use the full M address in a compatible payment flow. Its embedded ID remains part of the destination; the memo is `none`. |
+| `C...` contract | Use the appropriate contract/token transfer flow. The memo is `none`. |
 
-Muxed `M...` addresses are supported with memo `none`; their embedded IDs remain part of the full returned address. Use the complete M address in a compatible payment flow. Do not strip it to G or convert its ID into a transaction memo. See [supported addresses and complete examples](/concepts/payment-destinations).
+A Soran memo of `none` does not override an account's memo-required setting. A classic transaction has only one memo, so split payments that need different memos. Never strip an M address to G or turn its embedded ID into a transaction memo. See [payment destination examples](/concepts/payment-destinations).
 
 A successful read is a point-in-time answer. Rechecking catches stale client data; it cannot prevent a later record change before a separate payment settles.
 
@@ -58,10 +62,10 @@ A successful read is a point-in-time answer. Rechecking catches stale client dat
 ```ts
 const name = await soran.nameMetadata("alice.nova");
 const namespace = await soran.namespaceMetadata("nova");
-const displayName = await soran.primaryOf(senderAddress);
+const displayName = name ? await soran.primaryOf(name.holder) : null;
 ```
 
-`name.holder` and `name.builtinAddress` are ownership metadata, not necessarily the effective payment address. Use the complete payment result for payments. Primary and reverse names identify an account, not a customer memo on a pooled exchange account.
+`nameMetadata` can return `null`. When a record exists, `holder` identifies its owner and `builtinAddress` is its Registrar target. Either can differ from the effective payment address. Primary and reverse names identify an account; they do not identify an individual customer memo on a pooled exchange account.
 
 Use [namespace assurance](/sdk/assurance) to assess Resolver provenance. It does not freeze holder records or remove Lookup governance and RPC trust.
 

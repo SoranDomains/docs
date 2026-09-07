@@ -1,26 +1,61 @@
 ---
 title: "Directory and namespace discovery"
-description: "Bounded indexed discovery, billing filters and explicit continuation."
+description: "Find indexed namespaces and holder candidates with pagination and coverage."
 ---
 
-The directory is a hosted discovery feature. It suggests names held by an address and namespace candidates; it does not prove current ownership, reverse identity or payment instructions.
+Use these routes to discover namespaces and names. Results come from the index; verify current ownership, identity and payment instructions through [current reads](/api/resolution).
+
+## Find namespaces
+
+```http
+GET /v1/namespaces?limit=100
+GET /v1/namespaces?cursor={opaque-cursor}&limit=100
+```
+
+Returns `namespaces`, `nextCursor`, `hasMore`, `truncated` and `coverage`. Each namespace includes:
+
+| Field | Meaning |
+| --- | --- |
+| `label` | Namespace label |
+| `displayName` | Hosted display name |
+| `policy` | Indexed ownership policy |
+| `activated` | Whether the index has a Registrar for this namespace |
+| `awardedAt` | Award time, or `null` |
+
+Results are ordered by namespace label. `limit` is 1–100 and defaults to 100. `activated` is an indexed setup indicator; it does not verify that every dependent contract is currently available.
+
+## Find holder candidates
 
 ```http
 GET /v1/directory/reverse/{address}?limit=20
-GET /v1/directory/namespaces?limit=100
-GET /v1/namespaces?limit=100
 ```
 
-The reverse directory accepts G and C addresses and defaults to 20 entries. Limits are 1–100. Namespace pages default to 100. Continue with the returned `nextCursor`; cursors are opaque and scoped to the endpoint/filter. Responses expose `hasMore`, `truncated` and coverage.
+Accepts G or C holder addresses and defaults to 20 entries. The response includes `address`, `source: "holder_hint"`, `verified: false`, `filtered`, `entries` and pagination/coverage fields.
 
-Reverse entries contain `name`, `namespace` and `namespaceDisplay`. Namespace directory entries contain label and hosted presentation metadata, such as display name and logo. Treat uploaded presentation values as untrusted content.
+Each entry contains `name`, `namespace` and `namespaceDisplay`. Entries are ordered by name ID. These names are holder candidates, not elected reverse names. Use [scoped reverse or Primary](/api/resolution#verified-reverse-and-primary-names) for display identity.
+
+## Read the hosted directory
+
+```http
+GET /v1/directory/namespaces?limit=100
+```
+
+Returns `filtered`, `namespaces` and pagination/coverage fields. Each namespace contains `label`, `displayName` and a nullable `logo`. Treat uploaded display names and logos as untrusted presentation content.
+
+This route defaults to 100 entries, ordered by label. It can apply the subscription filter described below; `/v1/namespaces` does not apply that filter.
 
 ## Billing filter
 
-When billing enforcement is enabled on a deployment, directory discovery may include only namespaces with an active subscription. The response's `filtered` boolean describes that policy filter.
+When billing enforcement is enabled on a deployment, directory routes may include only namespaces with an active subscription. `filtered: true` means that policy filter was applied.
 
-`filtered: false` means no subscription filter was applied. It **does not** mean all namespaces fit on the current page, all history was indexed or the result cannot omit anything. Follow continuation and inspect coverage either way.
+`filtered: false` means no subscription filter was applied. Either result can still be paginated or have incomplete indexing coverage.
 
-Directory presence does not gate on-chain forward reads. If you know a name, resolve it directly rather than requiring that it appear in a hosted directory. Hosted service expiry does not revoke the namespace.
+Directory presence does not gate on-chain forward resolution. If you know a name, resolve it directly. Hosted service expiry does not revoke a namespace.
 
-For holder verification use [holdings pages](/api/resolution#holdings-pages) and current name metadata. For account display identity use on-chain reverse/Primary, not holder membership.
+## Pagination and errors
+
+All three routes accept a `limit` from 1 to 100. Pass `nextCursor` back as `cursor` until `hasMore` is false, using the same endpoint and filters. Cursors are opaque and scoped to the query. Inspect `coverage` even after reaching the last page.
+
+Invalid pagination returns `400 bad_cursor` or `400 bad_pagination`. The reverse directory returns `400 invalid_account` for an invalid address or an M address.
+
+For holdings with indexed lifecycle details, use [holdings pages](/api/resolution#holdings-pages). Verify their current holder and activity through Lookup metadata.

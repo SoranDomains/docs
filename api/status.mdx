@@ -1,7 +1,9 @@
 ---
-title: "Status & allocations"
-description: "Component status, cached ledger observations and estimated namespace claim countdowns."
+title: "Status and allocations"
+description: "Read service measurements and follow recent namespace claims."
 ---
+
+Use `/v1/status` to assess the hosted service and `/v1/allocations` to display recent namespace claims. Both include a cached observed ledger; it is not proof that every displayed record is current.
 
 ## Status
 
@@ -9,7 +11,7 @@ description: "Component status, cached ledger observations and estimated namespa
 GET /v1/status
 ```
 
-The endpoint checks database access, reports the API's last observed RPC ledger and compares stored indexer progress with that cached head. The example below illustrates its shape; it is not the current service status.
+Returns `ledger` and a `components` array. This example illustrates the shape rather than current service status:
 
 ```json
 {
@@ -22,7 +24,7 @@ The endpoint checks database access, reports the API's last observed RPC ledger 
       "state": "operational",
       "ledger": 55122999,
       "lag": 2,
-      "processedAt": "2026-08-24T10:15:04.000Z",
+      "processedAt": "2026-09-07T10:15:04.000Z",
       "deadLetters": 0
     }
   ]
@@ -31,27 +33,34 @@ The endpoint checks database access, reports the API's last observed RPC ledger 
 
 ### Component semantics
 
-- **Database** — `operational` or `down`.
-- **Stellar RPC** — `operational` when the API has a nonzero cached ledger observation, `down` before one is available. Failed refreshes retain the last successful value, so this flag alone does not prove current RPC reachability or a fresh head.
-- **Indexer** — `lag` compares its processed ledger with the API's cached head, clamped to zero; `processedAt` is when it last wrote progress. It is `operational` when it has progress less than 120 seconds old and the known lag is below 200 ledgers. `deadLetters` counts unresolved indexing failures separately. An operational state does not establish complete history; inspect `/v1/coverage`, its freshness and explicit gaps.
+| Component | How to interpret it |
+| --- | --- |
+| Database | `operational` if the database check succeeds; otherwise `down` |
+| Stellar RPC | `operational` after a nonzero ledger observation exists; otherwise `down` |
+| Indexer | Reports stored progress, freshness and lag against the cached ledger |
+
+The RPC flag can remain operational after refresh failures because the API keeps its last successful observation. It does not prove current RPC reachability.
+
+Indexer fields provide more detail:
+
+- `ledger` is the last processed ledger.
+- `lag` is the difference from the cached head, clamped to zero; it is `null` when the comparison is unavailable.
+- `processedAt` is the last progress write time, or `null` before progress exists.
+- `deadLetters` counts unresolved indexing failures.
+
+The indexer is `operational` when it has nonzero progress less than 120 seconds old and its known lag is below 200 ledgers. If lag is unavailable, freshness and progress still determine that state. An operational result does not prove complete history. Inspect [`/v1/coverage`](/api/events#public-event-archive) for freshness and gaps.
 
 ### Extra components, when enabled
 
-Deployments with billing or the marketplace enabled report their payment watchers with the same discipline — a stalled watcher must look stalled, never like "no payments today":
+When billing or the marketplace is enabled on a deployment, the response can include `Billing watcher` or `Escrow watcher`.
 
-```json
-{ "name": "Billing watcher", "state": "operational", "cursorAgeSeconds": 12, "quarantined": 0 }
-```
+| Field | Meaning |
+| --- | --- |
+| `cursorAgeSeconds` | Time since the last successful poll, including an empty poll; `null` before the first poll |
+| `quarantined` | Billing payments that require operator action |
+| `parkedPayouts` | Marketplace payouts awaiting operator action |
 
-```json
-{ "name": "Escrow watcher", "state": "operational", "cursorAgeSeconds": 9, "parkedPayouts": 0 }
-```
-
-- `cursorAgeSeconds` — time since the watcher last completed a poll (it heartbeats even on empty polls); a growing age means the watcher is `lagging` or dead, and a watcher that has never run reports `unknown` rather than `operational`.
-- `quarantined` — billing payments needing operator action (e.g. refunds).
-- `parkedPayouts` — escrow payouts that could not be paid out. Any parked payout marks the escrow watcher `degraded` regardless of freshness.
-
-States you may see across components: `operational`, `lagging`, `degraded`, `down`, `unknown`.
+A stale watcher reports `lagging`; one that has not run reports `unknown`. Any parked payout makes the escrow watcher `degraded`. Across all components, possible states are `operational`, `lagging`, `degraded`, `down` and `unknown`.
 
 ## Allocation queue
 
@@ -59,45 +68,33 @@ States you may see across components: `operational`, `lagging`, `degraded`, `dow
 GET /v1/allocations
 ```
 
-The public queue behind [namespace claiming](/concepts/claiming-a-namespace) groups recent claims in the announced, objected and awarded states. It includes an **estimated countdown** based on indexed announcement/window data and the server's clock. The queue is drawn from the most recent 200 claims; withdrawn and rejected claims are not shown.
+Returns `ledger` and three arrays drawn from the most recent 200 indexed claims:
 
-```json
-{
-  "ledger": 55123001,
-  "pending": [
-    {
-      "id": "alloc_…",
-      "namespace": "acme",
-      "claimant": "Acme Corp",
-      "claimantAccount": "GACME…",
-      "state": "announced",
-      "basis": ["trademark"],
-      "claimantResponse": null,
-      "evidence": [{ "label": "USPTO filing", "url": "https://…" }],
-      "announcedLedger": 55100000,
-      "deadline": "2026-08-27T09:00:00.000Z",
-      "remainingSeconds": 259140,
-      "elapsed": false,
-      "awardedAt": null,
-      "objections": []
-    }
-  ],
-  "objected": [],
-  "awarded": []
-}
-```
+| Array | Claims included |
+| --- | --- |
+| `pending` | Announced claims in the claim window |
+| `objected` | Claims with an active objection |
+| `awarded` | Completed awards |
 
-- `pending` / `objected` / `awarded` — claims in the announced window, claims under an active objection, and completed awards.
-- `basis` — an **array** of the claim's asserted basis kinds (e.g. `["trademark", "dns", "first_use"]`); `evidence` — an **array of labeled links**, each a `{ "label", "url" }` object.
-- `deadline`, `remainingSeconds`, `elapsed` — an estimated claim-window countdown computed at response time. `remainingSeconds` is rounded to the nearest second. `elapsed: true` does not establish on-chain readiness: the contract uses ledger time and checks the claim's current state.
-- `objections` — **live** objections only (dismissed or timed-out objections are resolved on chain and don't display as active disputes). Each carries the objector's name, the basis, and the objection bond in XLM:
+Withdrawn and rejected claims are not shown. This is a bounded queue, with no pagination cursor.
 
-```json
-{ "objector": "Other Corp", "basis": "prior-use", "bondXlm": "100.0000000" }
-```
+### Claim fields
 
-Poll this endpoint to build claim-tracking UIs. Its `ledger` is a cached observed head, not proof every displayed claim was processed through that ledger. Check indexer status and coverage; confirm claim and fee state on chain before signing.
+Each claim includes `id`, `namespace`, `claimant`, `claimantAccount`, `state`, `announcedLedger`, `awardedAt` and the following evidence fields:
 
-The queue is not a fee receipt or complete settlement archive. Use the [claim fee API](/api/claim-fees) for escrow policy, outcome and recoverable credit. The fresh deployment uses 5,000 testnet XLM for public namespace claims; objection bonds are separate. Removing Lookup upgrade delay does not remove the claim window.
+| Field | Shape |
+| --- | --- |
+| `basis` | Array of asserted basis kinds, such as `["trademark", "dns"]` |
+| `claimantResponse` | Claimant response, or `null` |
+| `evidence` | Array of `{ "label", "url" }` links |
+| `objections` | Active objections with `objector`, `basis` and decimal-string `bondXlm` |
 
-See [release status](/reference/release-status) for which setup is deployed.
+Resolved objections are excluded from `objections`. Uploaded claims and evidence are assertions by their authors.
+
+### Countdown fields
+
+`deadline`, `remainingSeconds` and `elapsed` are estimates computed from indexed announcement/window data and the server's clock. `remainingSeconds` is rounded to the nearest second.
+
+Use them to display progress. Before signing an award or other claim action, check the current contract state: `elapsed: true` alone does not establish readiness because the contract uses ledger time and checks the claim state.
+
+The queue does not include fee settlement history. Use the [claim fee API](/api/claim-fees) for the current quote, receipt and recoverable credit. Objection bonds are separate from namespace claim fees.

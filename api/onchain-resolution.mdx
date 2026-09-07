@@ -1,34 +1,85 @@
 ---
 title: "Universal Lookup contract"
-description: "A shared on-chain ABI for wallets, explorers and other contracts across all namespaces."
+description: "Resolve names, payment instructions and elected display names directly through Soroban RPC."
 ---
 
 ## On-chain resolution
 
-Read **Universal Lookup** for the authoritative contract result. It follows current Registry routing and invokes each namespace's supported contracts. You do not need a Soran SDK or Soran HTTP API to use it.
+Call **Universal Lookup** to resolve any Soran name. It follows the Registry to the namespace's current contracts and checks the result. You can use this ABI directly, without a Soran SDK or HTTP API.
 
-<Note>
-The addresses below are the native-claim **6 September 2026 testnet deployment**. Lookup was upgraded at the same address on **7 September at 08:37 UTC** to add muxed identity version `1`. Its Resolver and Lookup use ABI 2; Registry retains namespace-and-role-bound salt version 1. Use the IDs together; the earlier deployments remain separate. The examples target Stellar SDK 17 and Lookup ABI version 2. Native Registrar claiming and Resolver initialization add their separate version-1 interfaces; ordinary payment reads keep ABI 2.
-</Note>
+For payments, call `resolve_destination(name)`. It returns the complete destination, including a memo or muxed routing ID when needed. The example below uses **Stellar SDK 17** and the current **testnet** deployment.
 
 ## Shared testnet contracts
 
-| Contract | Address | Integration role |
-| --- | --- | --- |
-| **Universal Lookup** | `CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA` | Shared read entry point for every namespace |
-| Registry | `CBSORANPM664QXYMYRZKLQDQE2TXFSK4GBMC6EIRSRTAUZRZCRZRFNMK` | Namespace ownership and routing; verify this Lookup anchor |
-| Primary | `CASORAN755O3GCQTRAHKDXLLCSDLNKAQWAP6MWABRSFVSHLJOEKAC7AB` | Account-level Primary selection; read through Lookup |
-| Allocator | `CCSORANYFHUJUWETEQ7UWIDN4JTPV7NN5G6YUSSBZI57X7EQWVA63VMJ` | Namespace claims and fee escrow |
+```text Universal Lookup wrap
+CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA
+```
 
-Connect to `https://soroban-testnet.stellar.org` with passphrase `Test SDF Network ; September 2015`. Mainnet is not deployed. [Release status](/reference/release-status) includes deployment transactions, exact code hashes, fees and package availability.
+Lookup discovers each namespace's Registrar and Resolver. You do not need Nova's contracts in a global integration configuration.
 
-Wallets and explorers call **Universal Lookup**. It discovers the current Registrar and Resolver for the requested namespace through the Registry. Namespace-specific contracts, including the [Nova example contracts](/reference/release-status#nova-namespace-contracts), belong in a deployment reference rather than an integration's global address list.
+<Accordion title="Other shared contract addresses">
+  **Registry:** namespace ownership and routing.
+  ```text wrap
+  CBSORANPM664QXYMYRZKLQDQE2TXFSK4GBMC6EIRSRTAUZRZCRZRFNMK
+  ```
+  **Primary:** G/C cross-namespace display-name elections.
+  ```text wrap
+  CASORAN755O3GCQTRAHKDXLLCSDLNKAQWAP6MWABRSFVSHLJOEKAC7AB
+  ```
+  **Allocator:** namespace applications and fee escrow.
+  ```text wrap
+  CCSORANYFHUJUWETEQ7UWIDN4JTPV7NN5G6YUSSBZI57X7EQWVA63VMJ
+  ```
+</Accordion>
 
-The constructor is `(registry: Address, governance: Address, legacy: Option<LegacyCodeHashes>, primary: Option<Address>)`. `LegacyCodeHashes` contains exact Registrar and Resolver Wasm hashes. The optional Primary must be an active Wasm contract with the same Registry anchor. These anchors are fixed by the current implementation; governed code replacement remains possible. This deployment configures `legacy = None`; it does not provide a route to a previous Registry.
+Use the IDs together. [Testnet configuration](/reference/release-status) lists the network, fees, package versions and deployment manifest. Mainnet is not available yet.
+
+## Read through Soroban RPC
+
+This unsigned example checks the Registry anchor and ABI, then reads `alice.nova`. It does not submit a transaction or make a payment. Use an active name from the [live examples](/live-examples), or one you have issued.
+
+```ts
+import {
+  Account, Contract, TransactionBuilder, rpc, nativeToScVal, scValToNative,
+} from "@stellar/stellar-sdk";
+
+const deployment = {
+  lookupId: "CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA",
+  registryId: "CBSORANPM664QXYMYRZKLQDQE2TXFSK4GBMC6EIRSRTAUZRZCRZRFNMK",
+  rpcUrl: "https://soroban-testnet.stellar.org",
+  passphrase: "Test SDF Network ; September 2015",
+};
+
+async function view(contractId: string, fn: string, args: ReturnType<typeof nativeToScVal>[] = []) {
+  const server = new rpc.Server(deployment.rpcUrl);
+  const tx = new TransactionBuilder(
+    new Account("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF", "0"),
+    { fee: "100", networkPassphrase: deployment.passphrase },
+  ).addOperation(new Contract(contractId).call(fn, ...args)).setTimeout(30).build();
+  const sim = await server.simulateTransaction(tx, undefined, undefined, false);
+  if (rpc.Api.isSimulationRestore(sim)) throw new Error("Contract state needs restoration");
+  if (!rpc.Api.isSimulationSuccess(sim) || !sim.result) throw new Error("Read failed");
+  return scValToNative(sim.result.retval);
+}
+
+if (await view(deployment.lookupId, "registry") !== deployment.registryId) {
+  throw new Error("Wrong Registry anchor");
+}
+if (await view(deployment.lookupId, "version") !== 2) throw new Error("Unsupported ABI");
+if (await view(deployment.lookupId, "destination_version") !== 2) throw new Error("Unsupported destination ABI");
+const raw = await view(deployment.lookupId, "resolve_destination", [
+  nativeToScVal("alice.nova", { type: "string" }),
+]);
+console.dir(raw, { depth: null });
+// Strictly decode Direct(Payment) or Muxed({ account, id }) before use.
+// Preserve the memo or muxed ID exactly; never collapse Muxed to an account-only answer.
+```
+
+Check for required restoration before treating a simulation as successful. The Registry and version checks establish compatibility; they do not pin the executable code hash. Each call may use a different ledger, but one `resolve_destination` call checks its dependent records within the same simulation.
 
 ## Forward result
 
-`resolve_v2(name:String) -> ResolutionV2` takes a canonical lowercase name and returns:
+`resolve_destination(name:String) -> PaymentDestination` returns a direct G/C payment or a muxed destination. Use `resolve_v2(name:String) -> ResolutionV2` when you also need the name, routing contracts and ownership generation:
 
 ```text
 ResolutionV2 {
@@ -52,11 +103,19 @@ The original `resolve(name) -> Resolution` and `resolve_payment(name) -> Payment
 
 Canonical names contain exactly two 1–63-byte labels of lowercase ASCII letters/digits/interior hyphens. Classic G destinations permit None, unsigned 64-bit ID, 1–28 UTF-8 byte text or 32-byte hash. Contract C destinations support None only. Muxed destinations require a G base and a u64 ID, with no separate memo in this ABI. See [address types and complete examples](/concepts/payment-destinations).
 
-The Registrar-only `initialize_destination` method atomically establishes a fresh generation’s complete payment destination during native claiming or recipient acceptance. It requires the bound Registrar and holder authorization, verifies current native bindings and refuses an already configured generation. It is not an unrestricted initializer. See the [native claim ABI](/api/native-claiming).
+### Writing payment instructions
 
-The native Resolver exposes `payment_version() == 2`, `destination_version() == 2`, `resolve_destination(name)` and holder-authorized `set_muxed(name,holder,account,id)`. Its existing `set_payment` method remains the atomic G/C-and-memo writer. The muxed base, ID, address record and configuration marker are updated in one transaction and bound to the current ownership generation.
+The namespace Resolver stores payment instructions. `set_payment` writes a G/C destination and its optional memo atomically; `set_muxed` writes the base G account and exact routing ID atomically. Both require holder authorization and bind records to the current ownership generation.
 
-Lookup supports a successful native Resolver version `1` using its V1 payment method, and version `2` using its V2 method after checking `destination_version() == 2`. Unknown versions, failed capability reads and failed V2 results are errors; they never trigger a V1 fallback.
+During a native claim or recipient acceptance, the bound Registrar calls `initialize_destination` with holder authorization. It refuses an already configured generation. See the [native claim ABI](/api/native-claiming) for those write flows.
+
+### Compatibility
+
+Lookup accepts native Resolver payment version `1` through its direct-payment method. Version `2` also requires destination version `2`. Unknown versions or failed reads return an error; they do not trigger a downgrade.
+
+## Decoding results
+
+Soroban `contracttype` structs encode as field-symbol maps. Enum variants encode as vectors such as `[None]`, `[Id, u64]` or `[Direct, Payment]`, `[Muxed, { account, id }]` or `[NativePayment, PaymentDestination]`; symbols are not strings in XDR. Preserve u64 precision as bigint or decimal strings. Validate shape, variant arity, addresses and memo bounds after decoding. The [SDK](/sdk/reference) supplies strict decoders if you choose to use it.
 
 ## Other read methods
 
@@ -92,19 +151,21 @@ NameMetadata {
 }
 ```
 
-Metadata is not a payment fallback. `builtin_address` can differ from effective Resolver instructions. Finite expiry occurs when ledger time is strictly greater than `expires_at`; zero means no ownership deadline. A name's metadata can remain available with `active=false` after expiry.
+### Interpreting metadata
+
+Use metadata for ownership and profile views, not as a payment fallback. `builtin_address` can differ from effective Resolver instructions. Finite expiry occurs when ledger time is strictly greater than `expires_at`; zero means no ownership deadline. A name's metadata can remain available with `active=false` after expiry.
 
 `text` accepts a nonempty Symbol of at most 32 bytes and returns at most 4,096 UTF-8 bytes; larger historical values return `ReadTooLarge`. The raw `payment` text key is not a replacement for typed payment reads.
 
-The existing G/C `reverse` and `primary_name` results receive a current forward check, including required memos as valid account routes. A muxed payment does not prove base-G identity and is rejected by those paths. Their underlying contracts may collapse absent/stale/failed proof into None; a returned None does not diagnose every downstream failure. The dedicated M methods below preserve the complete route. See [identity limits](/sdk/reverse-and-primary).
+### G/C display names
+
+The G/C `reverse` and `primary_name` results receive a current forward check, including required memos as valid account routes. A muxed payment does not prove base-G identity and is rejected by those paths. Their underlying contracts may collapse absent/stale/failed proof into None; a returned None does not diagnose every downstream failure. The dedicated M methods below preserve the complete route. See [identity limits](/sdk/reverse-and-primary).
 
 ## Muxed identity extension
 
-<Note>
-This additive interface is live on testnet, verified at ledger **4,549,326**. Require a successful `muxed_identity_version() == 1` probe before using it and check [release status](/reference/release-status) for the current Wasm hash. `version()` and `destination_version()` remain `2`; their existing value alone does not prove muxed identity support. All listed contract addresses remain unchanged.
-</Note>
+Require `muxed_identity_version() == 1` before using these methods. The ordinary Lookup and destination versions remain `2`; they do not by themselves establish M identity support.
 
-The same Universal Lookup contract stores opt-in elections for a **base G account plus its exact u64 ID**. It does not copy the name's payment record: every returned election is checked against the current namespace routing and complete payment destination. Existing G/C elections continue using the namespace Resolver and immutable Primary contract.
+Universal Lookup stores opt-in display names for a **base G account plus its exact u64 ID**. Each read checks the current name, namespace routing and complete M payment destination. G/C elections remain in the Resolver and Primary contracts.
 
 | Method | Result / authorization |
 | --- | --- |
@@ -120,16 +181,20 @@ The same Universal Lookup contract stores opt-in elections for a **base G accoun
 
 All setters, clears and touches return `Result<(), Error>`. The argument named `account` must be a classic G account. A M address is decoded into that G account and `id`; it is not passed as `Address`. The base G account authorizes all selection and clearing arguments. If a custodian controls G, that custodian signs; a deposit customer cannot authorize it merely by holding a name or receiving an M address.
 
+### When an election is valid
+
 A reverse election snapshots the name, Registrar, Resolver and ownership generation. A valid read requires an active name, unchanged snapshot, current Registry pointers and `NativePayment(Muxed { account, id })` matching **both** input fields. `Direct(G, Memo::Id(id))` is a different destination and never satisfies this proof. IDs `0` and `18446744073709551615` are valid and distinct. There is no fallback to G, a different ID, a memo record, a legacy payment or another namespace.
 
 Primary additionally requires the same currently valid M reverse snapshot. A missing or proven stale election returns `None`. Invalid stored records, unsupported capabilities, unavailable dependencies and malformed payments fail. Clearing reverse stops the old Primary from verifying while its required election is absent. Touch methods maintain existing storage; they do not elect names or validate stale proof. See [storage and lifetime](/reference/contract-storage#muxed-identity-storage).
 
-For an unsigned read using the `view` helper below:
+### Read an M display name
+
+Continue the RPC example above with its `view` helper and `deployment` configuration:
 
 ```ts
-import { Address, MuxedAccount, nativeToScVal } from "@stellar/stellar-sdk";
+import { Address, MuxedAccount } from "@stellar/stellar-sdk";
 
-const fullAddress = "MA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUAAAAAAAAAABUTGI4";
+const fullAddress = "MDHHA2WBSH4ZKIAWALPY4KVOC57ZUT6W6HWS3JBUQ4KFJRT6US4MWAAAAAAAAAAAFKV2W"; // mux.nova
 const muxed = MuxedAccount.fromAddress(fullAddress, "0");
 const account = new Address(muxed.baseAccount().accountId()).toScVal();
 const id = nativeToScVal(BigInt(muxed.id()), { type: "u64" });
@@ -142,76 +207,51 @@ const name = await view(deployment.lookupId, "reverse_muxed", [
 const primary = await view(deployment.lookupId, "primary_name_muxed", [account, id]);
 ```
 
-Use the same Registry and destination-version checks as the full example below. Decode the returned `Option<String>` strictly and verify any nonempty name against the full requested M destination. For writes, construct a transaction with `set_reverse_muxed(account,id,name)` or `set_primary_muxed(account,id,name)`, obtain the base G account's authorization, and submit it. A read simulation does not save an election. The [Holder SDK](/holder/managing-your-name#muxed-display-names) supplies these write flows.
-
-## Read through Soroban RPC
-
-Each `view` call makes an unsigned read simulation. This example pins the deployed testnet configuration, checks the Lookup anchor and ABI, then requests the address and optional memo together. Replace `alice.nova` with an active, issued name; example names are not promised to exist.
-
-```ts
-import {
-  Account, Contract, TransactionBuilder, rpc, nativeToScVal, scValToNative,
-} from "@stellar/stellar-sdk";
-
-const deployment = {
-  lookupId: "CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA",
-  registryId: "CBSORANPM664QXYMYRZKLQDQE2TXFSK4GBMC6EIRSRTAUZRZCRZRFNMK",
-  rpcUrl: "https://soroban-testnet.stellar.org",
-  passphrase: "Test SDF Network ; September 2015",
-};
-
-async function view(contractId: string, fn: string, args: ReturnType<typeof nativeToScVal>[] = []) {
-  const server = new rpc.Server(deployment.rpcUrl);
-  const tx = new TransactionBuilder(
-    new Account("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF", "0"),
-    { fee: "100", networkPassphrase: deployment.passphrase },
-  ).addOperation(new Contract(contractId).call(fn, ...args)).setTimeout(30).build();
-  const sim = await server.simulateTransaction(tx, undefined, undefined, false);
-  if (rpc.Api.isSimulationRestore(sim)) throw new Error("Contract state needs restoration");
-  if (!rpc.Api.isSimulationSuccess(sim) || !sim.result) throw new Error("Read failed");
-  return scValToNative(sim.result.retval);
-}
-
-if (await view(deployment.lookupId, "registry") !== deployment.registryId) {
-  throw new Error("Wrong Registry anchor");
-}
-if (await view(deployment.lookupId, "version") !== 2) throw new Error("Unsupported ABI");
-if (await view(deployment.lookupId, "destination_version") !== 2) throw new Error("Unsupported destination ABI");
-const raw = await view(deployment.lookupId, "resolve_destination", [
-  nativeToScVal("alice.nova", { type: "string" }),
-]);
-// Strictly decode Direct(Payment) or Muxed({ account, id }) before use.
-// Preserve the memo or muxed ID exactly; never collapse Muxed to an account-only answer.
-```
-
-Restore detection must precede the success check. Anchor/version reads are compatibility checks, not a code hash pin. Each `view` call can run at a different ledger; one `resolve_destination` invocation obtains its dependent answer within one simulation snapshot.
-
-Soroban `contracttype` structs encode as field-symbol maps. Enum variants encode as vectors such as `[None]`, `[Id, u64]` or `[Direct, Payment]`, `[Muxed, { account, id }]` or `[NativePayment, PaymentDestination]`; symbols are not strings in XDR. Preserve u64 precision as bigint or decimal strings. Validate shape, variant arity, addresses and memo bounds after decoding. The [SDK](/sdk/reference) supplies strict decoders if you choose to use it.
+Decode the returned `Option<String>` strictly and verify any nonempty name against the full requested M destination. For writes, construct a transaction with `set_reverse_muxed(account,id,name)` or `set_primary_muxed(account,id,name)`, obtain the base G account's authorization, and submit it. A read simulation does not save an election. The [Holder SDK](/holder/managing-your-name#muxed-display-names) supplies these write flows.
 
 ## Numeric errors
 
-| Code | Error | Code | Error |
-| --- | --- | --- | --- |
-| 1 | InvalidRegistry | 12 | LegacyMemoUnknown |
-| 2 | InvalidGovernance | 13 | MemoRequired |
-| 3 | NotInitialized | 14 | UpgradePending |
-| 4 | MalformedName | 15 | NoPendingUpgrade |
-| 5 | NamespaceNotFound | 16 | UpgradeNotReady |
-| 6 | RegistrarMissing | 17 | UpgradeHashMismatch |
-| 7 | NameInactive | 18 | TimestampOverflow (reserved) |
-| 8 | ContextMismatch | 19 | PrimaryNotConfigured |
-| 9 | UnsupportedImplementation | 20 | InvalidPrimary |
-| 10 | DependencyUnavailable | 21 | ReadTooLarge |
-| 11 | InvalidPayment | 22 | MuxedDestination |
-| 23 | InvalidMuxedAccount | 24 | MuxedForwardMismatch |
-| 25 | NotMuxedDisplayName | 26 | InvalidMuxedRecord |
+Errors preserve their numeric ABI. Codes `23`–`26` belong to the muxed identity extension.
 
-Errors `23`–`26` belong to the muxed identity extension.
+| Code | Error |
+| --- | --- |
+| 1 | `InvalidRegistry` |
+| 2 | `InvalidGovernance` |
+| 3 | `NotInitialized` |
+| 4 | `MalformedName` |
+| 5 | `NamespaceNotFound` |
+| 6 | `RegistrarMissing` |
+| 7 | `NameInactive` |
+| 8 | `ContextMismatch` |
+| 9 | `UnsupportedImplementation` |
+| 10 | `DependencyUnavailable` |
+| 11 | `InvalidPayment` |
+| 12 | `LegacyMemoUnknown` |
+| 13 | `MemoRequired` |
+| 14 | `UpgradePending` |
+| 15 | `NoPendingUpgrade` |
+| 16 | `UpgradeNotReady` |
+| 17 | `UpgradeHashMismatch` |
+| 18 | `TimestampOverflow (reserved)` |
+| 19 | `PrimaryNotConfigured` |
+| 20 | `InvalidPrimary` |
+| 21 | `ReadTooLarge` |
+| 22 | `MuxedDestination` |
+| 23 | `InvalidMuxedAccount` |
+| 24 | `MuxedForwardMismatch` |
+| 25 | `NotMuxedDisplayName` |
+| 26 | `InvalidMuxedRecord` |
 
-Dependency failure never means a memo-free result. Unsupported methods on an older Lookup must not trigger a silent direct-read fallback.
+A dependency failure never means a memo-free result. Unsupported methods must not trigger a silent direct-read fallback.
 
 ## Raw state and discovery
 
-Raw ledger entries are useful for indexing but bypass contract validation. Separate reads can mix generations or routing, and missing live entries may be archived rather than unowned. Use typed contract methods for payment answers and [versioned events](/api/events) for discovery. Historical data can be displayed as history, not silently promoted to a current destination.
+Raw ledger entries support indexing and inspection, but they bypass contract validation. Separate reads may mix generations or routing; an entry missing from live state may be archived. Use typed contract methods for payment answers and [events](/api/events) for discovery.
 
-Lookup stores configuration, including fixed Registry and optional Primary anchors. The muxed identity extension adds persistent M election snapshots. It does not duplicate the namespace's payment or memo records; valid answers require live forward proof. [Governance](/concepts/governance) can change its executable code without a mandatory delay.
+Lookup stores configuration and exact-M election snapshots. Payment and memo records remain in each namespace's Resolver. See the [complete storage reference](/reference/contract-storage).
+
+### Constructor and upgrades
+
+The constructor takes `(registry: Address, governance: Address, legacy: Option<LegacyCodeHashes>, primary: Option<Address>)`. `LegacyCodeHashes` contains exact Registrar and Resolver Wasm hashes. An optional Primary must be an active Wasm contract anchored to the same Registry.
+
+The current deployment sets `legacy = None`; it does not route to a previous Registry. The current implementation fixes its anchors, but governance can replace its code without a mandatory delay. See [governance](/concepts/governance).

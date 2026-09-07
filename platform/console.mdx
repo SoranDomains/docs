@@ -1,15 +1,15 @@
 ---
 title: "The console"
-description: "Wallet sign-in, operator roles and separate contract signing authority."
+description: "Manage a namespace, set up username registration and invite your team."
 ---
 
-The console at [soran.domains](https://soran.domains) provides namespace management, issuance, team access and webhooks. The native-claim release adds on-chain username registration controls; [release status](/reference/release-status) records its hosted cutover separately from the 6 September contract verification. Billing and marketplace features appear **when enabled on a deployment**; both are disabled on this testnet setup.
+Use the console at [soran.domains](https://soran.domains) to manage your namespace, issue names, configure username registration and invite your team. The current deployment runs on Stellar testnet. Billing and marketplace features appear **when enabled on a deployment**; both are disabled on this setup.
 
 ## Wallet sign-in
 
-The console requests a short-lived, one-time wallet-signature challenge. It is designed for authentication and is not submitted as a network transaction. Verify the application and network context before signing. Authentication proves control of the signing account; namespace authorization is checked separately.
+Connect your wallet and sign the short-lived, one-time sign-in challenge. It authenticates your account and is not submitted as a network transaction. Check the app and network shown in your wallet before signing.
 
-Your session includes namespaces you own on chain or operate through a console invitation. Switching namespaces re-scopes access. Signing out invalidates the server session.
+You can then select a namespace you own on chain or operate through a console invitation. Switching namespaces changes your access scope. Signing out ends the server session.
 
 ## Operator roles
 
@@ -19,46 +19,40 @@ Your session includes namespaces you own on chain or operate through a console i
 | Admin | Operational controls except team/permanence and other owner-bound actions |
 | Issuer | Issuance-focused access; does not grant reclaim authority |
 
-Console roles do not grant new smart-contract powers. On a self-custody namespace, issuance and namespace lifecycle operations still need the owner's signature. A holder's records and individual transfer need holder authority. Reverse/Primary for a destination require that destination's authorization.
+Console roles control access to the interface. Self-custody owner operations still require the owner's signature; holder record changes and individual transfers require holder authority. A destination account authorizes its own reverse and Primary elections.
 
 ## Custody modes
 
 **Self-custody:** your wallet is the on-chain owner and signs prepared transactions. The server does not hold the signing authority for your namespace.
 
-**Platform-operated:** the deployment's operating key owns/signs for the namespace, and permitted console actions use that signer. This is a different custody arrangement; inspect it before relying on a claim of wallet-only control.
+**Platform-operated:** the deployment's operating key owns and signs for the namespace. Permitted console actions use that signer. The mode depends on the on-chain owner key, not the namespace label.
 
 ## Common flows
 
-- **Issuance:** prepare a branded Registrar address, authorize activation and issue names under its policy. [Address preparation](/platform/issuing-names#automatic-branded-contract-addresses) shows progress and supports cancellation before signing.
-- **Names:** inspect current ownership, edit authorized records and manage individual name transfers.
-- **Team:** invite/remove wallet-address operators.
-- **Developers:** manage optional HTTP integrations and [webhooks](/platform/webhooks).
-- **Billing/Market:** hosted commercial features when enabled.
+| Console area | Use it to |
+| --- | --- |
+| **Issuance** | [Activate your namespace and issue names](/platform/issuing-names) |
+| **Username registration** | Set who can claim usernames in your app and what they pay |
+| **Names** | Inspect ownership, edit authorized records and transfer individual names |
+| **Team** | Invite or remove wallet-address operators |
+| **Developers** | Manage HTTP integrations and [webhooks](/platform/webhooks) |
+| **Billing / Market** | Use optional commercial features when enabled on a deployment |
 
-The namespace claim flow displays the upfront XLM quote and refund terms, and checks its exact contract authorization before signing. Account/memo writes use an atomic native Resolver operation. The app's refund-credit control reads and prepares recovery of undelivered claim-fee payouts.
+The namespace claim flow shows the upfront fee and refund terms before signing. If a claim-fee payout could not be delivered, the refund-credit control lets you inspect and retry it. Payment record changes store the address and memo together in the native Resolver.
 
 A transfer in the Names view is an **individual name transfer**. A whole namespace moves through Registry's separate proposal/acceptance process, described in [Owner lifecycle](/owner/lifecycle-and-transfers).
 
-After an uncertain submission, inspect the transaction outcome before retrying. A successful simulation is not final inclusion.
+After an interrupted submission, check the transaction outcome before retrying. A successful simulation does not confirm the transaction.
 
 ## Username registration
 
-Select your namespace and open **Username registration**. Connect the current
-namespace owner wallet. Read the live contract state, then choose Manual or Public
-mode, open/invitation/app-approved eligibility, username price and G treasury,
-wallet quota and any explicit approval budgets. Configure and enable registration
-before offering it in your own app signup. Console team membership does not replace
-the owner’s on-chain signature.
+1. Open **Username registration** and connect the current namespace owner's wallet.
+2. Choose Manual or Public mode. For Public mode, choose open registration, invitations or app-approved eligibility.
+3. Set the username price, receiving G treasury and wallet quota. App-approved registration also needs an approval account and explicit approval budgets.
+4. Reserve administrative labels, review the live settings and enable registration.
 
-Reserve administrative labels before opening claims. The reserved assignment flow
-can issue them without exposing them through a temporary release. Public mode
-blocks ordinary owner issuance even while claims are paused.
+Use reserved assignment to issue an administrative label while keeping it reserved. Public mode blocks ordinary owner issuance even while claims are paused.
 
-The maximum network fee defaults to 5 XLM and is separate from the username price.
-Review the estimate before explicitly raising it for storage rent or other network
-costs. A rejected estimate stops before wallet signing. After an interrupted
-submission, use **Check transaction** before making another change; the saved hash
-is a public recovery reference, not a private signing key.
+The maximum network fee starts at 5 XLM per transaction, separate from the username price. This is a ceiling, not the amount charged. Review an estimate before raising the limit for storage rent or other network costs. If a submission is interrupted, use **Check transaction** before making another change.
 
-Apps integrate through the [Owner and Holder SDKs](/owner/automatic-claiming); a
-user is not required to visit the Soran console to claim during signup.
+Connect the [Owner and Holder SDKs](/owner/automatic-claiming) to your app's own signup or account settings. Your users can claim there without visiting the Soran console.

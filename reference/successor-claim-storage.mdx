@@ -3,22 +3,17 @@ title: "Native claim storage"
 description: "Versioned storage additions and canonical types for the native username claim deployment."
 ---
 
-<Note>
-This is the native-claim schema deployed on **6 September 2026**, verified at ledger
-**4,534,629**. Read it with the [complete current contract reference](/reference/contract-storage).
-The [previous native-muxed schema](/reference/legacy-contract-storage) applies only
-to its matching historical deployment.
-</Note>
+Use this reference to decode native username claim state and construct the exact on-chain request types. Read it alongside the [complete current contract storage reference](/reference/contract-storage), which covers the shared Registry, Allocator, Registrar, Resolver, Primary and Lookup storage.
 
-The native-claim release adds native Registrar claims, owner reservations, request receipts,
-recipient destination initialization and holder renewal. It keeps the existing
-namespace-specific Registrar/Resolver arrangement and Universal Lookup read path.
-See the [native API](/api/native-claiming) and [application walkthrough](/owner/automatic-claiming).
+For application integration, start with the [native claim interface](/api/native-claiming) or [SDK walkthrough](/owner/automatic-claiming). The [historical native-muxed schema](/reference/legacy-contract-storage) applies only to its own deployment.
 
-Use a verified deployment's code hashes and schema together. A method returning a
-familiar version is not proof that its code or storage has remained unchanged.
-The new Registry uses an immutable native-claim template pair; it does not rewrite
-the previous Registry or automatically migrate old namespace records.
+This page distinguishes three kinds of data:
+
+- **Stored keys:** Registry ownership epochs and Registrar configuration, reservations, usage and receipts.
+- **Request types:** the complete intent authorized for a claim, reserved assignment, transfer or renewal.
+- **Return values:** quotes and destination previews, which are not additional stored records.
+
+Match the code hashes and contract addresses in the [current deployment](/reference/release-status). A version getter alone does not establish storage compatibility. The current Registry's immutable template pair does not migrate earlier Registry records.
 
 ## Encoding conventions
 
@@ -73,9 +68,11 @@ transfer proposals keep their original meanings.
 
 ## Registrar keys
 
-The legacy `DataKey::Config`, `Name(node)` and `PendingTransfer(node)` shapes remain
+The existing `DataKey::Config`, `Name(node)` and `PendingTransfer(node)` shapes remain
 unchanged. In particular, the name still stores holder, built-in address, expiry
-and ownership generation. New state uses a separate `ClaimKey` enum:
+and ownership generation. Claim state uses a separate `ClaimKey` enum:
+
+### Instance policy and counters
 
 | Key | Storage | Value | Fresh absence |
 | --- | --- | --- | --- |
@@ -83,6 +80,11 @@ and ownership generation. New state uses a separate `ClaimKey` enum:
 | `ClaimKey::PolicyVersionV1` | Instance | `u64` | `0`, before any configuration or reservation change |
 | `ClaimKey::GrantEpochV1` | Instance | `u64` | `0`, before any configuration or enable/pause change |
 | `ClaimKey::ApprovalUsageV1` | Instance | `ApprovalUsage` | All fields `0`, before any approved claim |
+
+### Persistent claim records
+
+| Key | Storage | Value | Fresh absence |
+| --- | --- | --- | --- |
 | `ClaimKey::ReservedV1(name_node)` | Persistent | `bool` | Never reserved; an explicit release stores `false` |
 | `ClaimKey::UsageV1(holder)` | Persistent | `ClaimUsage` | Both fields `0`, before that holder's first public/reserved issue |
 | `ClaimKey::ReceiptV1(holder, request_id)` | Persistent | `ClaimReceipt` | No committed operation under this ID |
@@ -99,6 +101,8 @@ integer schema-version record. No new application state uses temporary storage;
 native authorization nonce entries belong to the Soroban runtime separately.
 
 ### Configuration and usage types
+
+These types define `ConfigV1`, `UsageV1` and `ApprovalUsageV1`.
 
 ```rust
 enum ClaimMode {
@@ -134,7 +138,11 @@ struct ClaimConfig {
     policy_version: u64,
     grant_epoch: u64,
 }
+```
 
+Usage records contain cumulative counts and the current approval window:
+
+```rust
 struct ClaimUsage {
     public_claims: u64,
     reserved_issues: u64,
@@ -149,8 +157,7 @@ struct ApprovalUsage {
 
 `fee_token` must be the current network's native XLM asset contract. `fee_amount`
 is nonnegative; `0` means free. `fee_recipient` must be G. Approval mode requires
-a separate G account and nonzero explicit allowance, rate limit, window and
-lifetime. Outside Approval mode, all four approval-specific numeric settings are
+a G approver distinct from the namespace owner, fee recipient and claimant, plus nonzero explicit allowance, rate limit, window and lifetime. Outside Approval mode, all four approval-specific numeric settings are
 zero. `wallet_limit = 0` means unlimited cumulative public claims.
 
 Configuration stamps the current owner epoch. Configure and enable/pause operations
@@ -170,7 +177,9 @@ absolute lifetime ceiling, not a balance automatically replenished by rotation.
 
 ## Request types
 
-The payment types keep the deployed native-muxed representation:
+### Payment destination
+
+These types represent the complete receiving instructions included in an intent:
 
 ```rust
 enum PaymentMemo {
@@ -200,7 +209,9 @@ enum PaymentDestination {
 base account and an exact `u64` ID. It does not carry a transaction memo. The
 public SDK displays a canonical M string with `memo: { type: "none" }`.
 
-The complete operation intent is the authorization and idempotency boundary:
+### Shared request context
+
+Every intent includes the same network, contract, request-ID and execution-window context:
 
 ```rust
 struct RequestContext {
@@ -212,7 +223,13 @@ struct RequestContext {
     valid_after: u64,
     deadline: u64,
 }
+```
 
+### Public claim
+
+A public claim binds the label, claimant, destination, current policy and exact fee.
+
+```rust
 struct ClaimIntent {
     context: RequestContext,
     label: Bytes,
@@ -229,7 +246,13 @@ struct ClaimIntent {
     fee_amount: i128,
     fee_recipient: Address,
 }
+```
 
+### Reserved assignment
+
+A reserved assignment binds its holder and destination without a username fee.
+
+```rust
 struct ReservedIntent {
     context: RequestContext,
     label: Bytes,
@@ -242,7 +265,13 @@ struct ReservedIntent {
     owner_epoch: u64,
     policy_version: u64,
 }
+```
 
+### Transfer acceptance
+
+Transfer acceptance binds the current proposal and the recipient’s chosen destination.
+
+```rust
 struct TransferIntent {
     context: RequestContext,
     label: Bytes,
@@ -254,7 +283,13 @@ struct TransferIntent {
     destination: PaymentDestination,
     resolver: Address,
 }
+```
 
+### Holder renewal
+
+Renewal binds the current name record and the permitted range for its new expiry.
+
+```rust
 struct RenewIntent {
     context: RequestContext,
     label: Bytes,
@@ -284,6 +319,10 @@ execution time, so the signed range accommodates the reviewed timing window.
 
 ## Quote and receipt types
 
+### Quote
+
+A quote is a read result, not a reservation or additional stored key.
+
 ```rust
 enum ClaimConfigState {
     Unconfigured,
@@ -311,7 +350,13 @@ struct ClaimQuote {
     usage: ClaimUsage,
     approval_usage: ApprovalUsage,
 }
+```
 
+### Receipt and result
+
+`ClaimReceipt` is stored under `ReceiptV1`; `ClaimResult` wraps it in an operation response.
+
+```rust
 enum ClaimOperation {
     Claim,
     Reserved,
@@ -370,9 +415,7 @@ and `fee_recipient = None`; `fee_token` still identifies native XLM.
 
 ## Resolver behavior
 
-The native-claim release adds `initialization_version() = 1`, restricted
-`initialize_destination` and `preview_destination`. It adds no storage key and
-does not change the deployed payment version `2` or its record encodings.
+The Resolver exposes `initialization_version() = 1`, restricted `initialize_destination` and `preview_destination`. These methods use the existing payment-version-2 record encodings and add no storage keys.
 
 Initialization writes the existing generation-bound `Addr(node)`,
 `Text(node, Symbol("payment"))` and `PaymentConfigured(node, generation)` records
@@ -385,6 +428,8 @@ holder must consent. The Registrar creates the generation internally; callers
 cannot use this helper as an arbitrary generation or owner-setting API. The
 initializer does not call back into the active Registrar. It writes no reverse
 or Primary identity automatically.
+
+### Destination preview
 
 Preview returns a read-only value, not another stored record:
 
@@ -411,31 +456,27 @@ reservation, usage entry or name must restore or fail. An application must not
 replace an unavailable read with zero usage, an unreserved label or a fresh
 request. No admin action deletes usage or receipts to reset these values.
 
-Registrar bumps use the existing threshold/target of `2,500,000`/`3,000,000`
-ledgers, clamped to the network maximum. Policy/configuration writes bump the
-instance. Receipt, usage and reservation writes bump their persistent entries.
-Name writes retain their name-plus-instance bump. Keeping entries live costs
+### Maintaining stored entries
+
+Registrar TTL extensions use a threshold of `2,500,000` ledgers and a target of `3,000,000` ledgers, clamped to the network maximum. Policy and configuration writes extend the instance lifetime. Receipt, usage and reservation writes extend their persistent entries. Name writes extend the name entry and instance. Keeping entries live costs
 network resources even when there is no username renewal fee.
 
-`touch_claim_state(holder, request_ids, labels)` is permissionless. It bumps the
-instance, that holder's existing usage and the supplied existing receipt and
-reservation entries. The combined supplied request/label count is at most `23`;
+`touch_claim_state(holder, request_ids, labels)` is permissionless. It extends the instance, that holder's existing usage and the supplied existing receipt and reservation entries. The combined supplied request/label count is at most `23`;
 the return count excludes the instance. It skips keys that were never created.
 It does not enumerate every wallet, request or reservation. Keep a discovery list
 or use indexed events to select entries; verify values against the contracts.
 
-| New event topics | Data |
+### Events
+
+| Event topics | Data |
 | --- | --- |
 | `(Symbol("claimcfg"))` | `ClaimConfig` |
 | `(Symbol("reserved"), name_node)` | `(label, reserved, policy_version)` |
 | `(Symbol("claim_v1"), namespace_node, holder)` | `(request_id, ClaimReceipt)` |
 
-Legacy `issued`, `transfer`, `renewed` and `name_v1` lifecycle events remain.
+The existing `issued`, `transfer`, `renewed` and `name_v1` lifecycle events remain.
 The renewed payload remains `(label, name_node, new_expiry)`. Destination writes
 retain the native Resolver payment events. Replaying a receipt emits no new claim
 event because it performs no business mutation.
 
-Allocator, Primary and Lookup receive no claim-specific storage additions in this
-release. Use one deployment’s matching contract anchors. Previous contract records
-and namespace escrow liabilities remain attached to their original contracts;
-new deployment does not rewrite them.
+Native username claims add no storage keys to Allocator, Primary or Lookup. Earlier deployments retain their own records and namespace escrow liabilities.

@@ -3,30 +3,47 @@ title: "Managing your name"
 description: "Publish an atomic on-chain address and optional memo, profile records and account display names."
 ---
 
-The Holder SDK writes payment and name records to the current namespace contracts. Universal Lookup is the shared read entry point and, with the muxed identity extension, stores M display-name elections. These examples target Holder 0.6.0 with Stellar SDK 17. See [release status](/reference/release-status) for the matching testnet contracts.
+Use **Holder 0.6.0** to manage names you hold: change receiving details, publish a profile, elect display names, transfer a name or renew an eligible lease.
 
-<Note>
-Use published Holder **0.6.0** for native claims and receipt recovery. It verifies Registrar attestation and deployed code against sufficiently recent RPC ledger context before accepting receipt results. It adds full-M display-name elections, retains the receipt-verification checks introduced in 0.5.1, native claims and lifecycle flows from 0.5.0, and M payment writes from 0.4.0. Contract pins are unchanged; see [release status](/reference/release-status).
-</Note>
+## Connect your wallet
+
+```bash
+npm install @sorandomains/holder@0.6.0 @stellar/stellar-sdk@^17
+```
 
 ```ts
-import { SoranHolder } from "@sorandomains/holder";
+import { SoranHolder, type TxSigner } from "@sorandomains/holder";
+
+declare const walletSigner: TxSigner;
+declare const deployment: {
+  registryId: string;
+  lookupId: string;
+  primaryId: string;
+  rpcUrl: string;
+  passphrase: string;
+};
+
 const me = new SoranHolder({
   signer: walletSigner,
   registryId: deployment.registryId,
+  lookupId: deployment.lookupId,
   primaryId: deployment.primaryId,
   rpcUrl: deployment.rpcUrl,
   passphrase: deployment.passphrase,
 });
 ```
 
-`walletSigner` implements `publicKey()` and `signTransaction(xdr, options)`. A backend can use the package's `keypairSigner` with a securely supplied secret. Never put signing keys in frontend configuration.
+Use one matching [deployment configuration](/reference/release-status). `walletSigner` implements `publicKey()` and `signTransaction(xdr, options)`. A backend can use `keypairSigner` with a securely supplied secret. Keep signing keys out of frontend configuration.
 
-This `TxSigner` flow uses a classic G account as the transaction source. C support as a payment recipient or contract holder does not provide arbitrary contract-wallet signing through this adapter. A contract-owned name needs a compatible contract authorization integration; M destinations are payment routes, not signer identities.
+This adapter uses a classic G transaction-source account. A contract-owned name needs a compatible contract authorization integration. M destinations are payment routes, not signer identities.
 
 ## Claim a username
 
-Use `claimQuote`, `createClaimIntent` and `claim` for native registration. The quote includes the owner’s price, treasury, admission rules and exact versioned terms. The user reviews and authorizes both ownership and the full receiving destination; issuance, fee, route and receipt commit together. See the [complete signup and recovery examples](/owner/automatic-claiming#claim-from-your-application). This is separate from applying for a top-level namespace.
+1. Read `claimQuote` for the current price, receiving treasury, admission rules and ownership terms.
+2. Build a request with `createClaimIntent` and review the complete receiving destination.
+3. Authorize `claim`. Issuance, fee, destination and receipt succeed together.
+
+See the [signup and recovery examples](/owner/automatic-claiming#claim-from-your-application). Claiming `alice.nova` is separate from applying for the top-level namespace `nova`.
 
 ## Address and memo together
 
@@ -43,11 +60,19 @@ await me.setPayment("alice.nova", {
 });
 ```
 
-The native Resolver updates the address and memo atomically on chain. No separate payment contract or database stores these instructions. Memos are optional: untouched ordinary records resolve with `none`. A configured instruction that is missing or invalid fails rather than reverting to an ordinary address.
+The native Resolver updates both fields atomically on chain. Memos are optional: ordinary records without a configured instruction resolve with `none`. After configuration, missing or invalid payment state fails instead of reverting to an ordinary address.
 
-`setRecord(name,address)` is the address-only native Resolver convenience for memo-free records. A required memo or muxed destination must be changed through `setPayment`; the contract refuses an address-only write that would discard its routing information. `setAddress(name,address)` changes the Registrar's built-in target, which may be overridden by current Resolver instructions; the SDK requires a current direct memo-free payment before preparing this convenience operation; muxed destinations must use `setPayment`. Use `resolvePayment` to read the effective pair.
+### Choose the right write method
 
-G destinations support None, ID, text and hash memos; M and C support None only. Pass the full M address to `setPayment`; the SDK submits `set_muxed` with its exact base G account and u64 ID. It never substitutes a transaction memo. The Holder SDK checks exact [payment constraints](/sdk/resolving-names). See [complete examples for each address and memo type](/concepts/payment-destinations).
+| Method | Use and limits |
+| --- | --- |
+| `setPayment(name, destination)` | Set the complete G/M/C destination and memo. Use this for required memos and M routes. |
+| `setRecord(name, address)` | Update a memo-free Resolver address. The contract refuses a write that would discard a required memo or M routing ID. |
+| `setAddress(name, address)` | Change the Registrar's built-in target, which Resolver instructions may override. The SDK first requires a current direct memo-free payment. |
+
+Read the effective address and memo with [Lookup's `resolvePayment`](/sdk/resolving-names).
+
+G supports `none`, `id`, `text` and `hash` memos. M and C support `none` only. Pass the full M address to `setPayment`; its exact base G and u64 ID are stored through `set_muxed`. The ID never becomes a transaction memo. See [destination examples](/concepts/payment-destinations) and [exact constraints](/sdk/resolving-names).
 
 ## Profile records
 
@@ -60,7 +85,9 @@ await me.setText("alice.nova", "description", "My profile");
 await me.clearText("alice.nova", "description");
 ```
 
-`setProfile` submits one transaction per key sequentially; a partial failure can leave earlier keys written. Ordinary text is overwrite-only, and `clearText` writes an empty value. Standard profile readers treat that as unset. Do not clear a payment memo through arbitrary text; use `setPayment`.
+`setProfile` submits one transaction per key, in order. If a later key fails, earlier writes remain in place.
+
+`clearText` writes an empty value; it does not delete the stored record. Standard profile readers treat empty text as unset. Payment memos must be changed through `setPayment`, not text records.
 
 ## Account display names
 
@@ -69,26 +96,17 @@ await me.setReverse("alice.nova");
 await me.setPrimary("alice.nova");
 ```
 
-Reverse and Primary writes require the address's authorization and a current forward match. Name ownership alone does not authorize identity writes for someone else's destination account. The Primary Registry anchor is checked before signing; custom deployments need matching configuration.
+Reverse and Primary writes require the address's authorization and a current forward match. Owning a name that pays to someone else's account does not let you elect that account's identity. The SDK checks Primary's Registry anchor before signing.
 
-`clearReverse(namespace)` and `clearPrimary()` remove G/C elected display records. These account elections do not distinguish individual customer memos. Changing a payment destination to M can make a previous G/C reverse or Primary selection stop verifying. Use the dedicated M methods below to elect a name for the complete muxed address.
+Use `clearReverse(namespace)` and `clearPrimary()` to remove account elections. G/C elections do not distinguish customer memos on a shared account. Changing the payment destination to M can invalidate a previous G/C election; use the M methods below for that exact route.
 
 ## Muxed display names
 
-<Note>
-Holder 0.6.0 is published; the testnet Lookup reports `muxed_identity_version() == 1`. Existing G/C election methods and all contract addresses remain unchanged. See [release status](/reference/release-status) for verification.
-</Note>
+M elections require a configured `lookupId` and Lookup capability `muxed_identity_version() == 1`, available on the current testnet deployment. A custom Registry or passphrase does not inherit an unrelated Lookup pin.
 
-Configure `lookupId` alongside the matching Registry and network. The testnet preset supplies it; a custom Registry or passphrase does not inherit an unrelated Lookup pin. The signer must control the **base G account** of the M address. A customer who only receives an exchange deposit address cannot sign for the exchange.
+The signer must control the **base G account**. A customer who receives an exchange deposit M address cannot sign for the exchange.
 
 ```ts
-const me = new SoranHolder({
-  signer: walletSigner,
-  registryId: deployment.registryId,
-  lookupId: deployment.lookupId,
-  rpcUrl: deployment.rpcUrl,
-  passphrase: deployment.passphrase,
-});
 const muxedAddress =
   "MA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUAAAAAAAAAABUTGI4";
 
@@ -98,32 +116,56 @@ await me.setReverseMuxed("customer420.nova", muxedAddress);
 await me.setPrimaryMuxed("customer420.nova", muxedAddress);
 ```
 
-Each call is a separate wallet-authorized transaction. If the first succeeds and the second is cancelled, the namespace reverse selection remains valid. Review replacement of an existing selection: changing or clearing the reverse means a Primary using the old reverse no longer verifies while that mismatch persists. Claiming or publishing a destination does not elect these names automatically.
+1. Make the active name resolve to the exact M address with `setPayment`.
+2. Elect the namespace reverse name with `setReverseMuxed`.
+3. Optionally elect that same verified reverse name as Primary with `setPrimaryMuxed`.
+
+Each call is a separate transaction. If Primary is cancelled, the successful reverse election remains. Changing or clearing reverse can stop a Primary using the old election from verifying. Claiming a name or publishing a destination does not elect display names automatically.
 
 ```ts
 await me.clearReverseMuxed("nova", muxedAddress);
 await me.clearPrimaryMuxed(muxedAddress);
 ```
 
-These four methods call Universal Lookup. They bind the name or namespace, base G and exact u64 ID in the authorization. They do not edit payment instructions or strip the M address to G. ID `"0"` is distinct from the base G account. A transferred or reissued name has a new generation and needs a fresh election.
+The four M election methods write to Universal Lookup. Authorization binds the name or namespace, base G and exact u64 ID. They leave payment instructions unchanged. ID `"0"` is distinct from the base G account. A transfer or reissue advances generation and requires a fresh election.
 
 Operators can maintain existing elections with the contract's permissionless `touch_reverse_muxed` and `touch_primary_muxed` calls. A touch does not create an election or make stale proof valid. See the [contract ABI](/api/onchain-resolution#muxed-identity-extension) and [stored records](/reference/contract-storage#muxed-identity-storage).
 
 ## Name transfer
 
+The current holder proposes a transfer:
+
 ```ts
 await me.proposeNameTransfer("alice.nova", recipientAddress);
 const pending = await me.pendingNameTransfer("alice.nova");
-await me.cancelNameTransfer("alice.nova");
 ```
 
-The intended recipient can use `acceptNameTransferWithDestination` with a reviewed `TransferIntent` to accept and initialize a complete G/M/C destination atomically. It binds the pending proposal, sender, recipient, generation and expiry, preserves the name’s expiry and advances generation. The older `acceptNameTransfer` method selects the recipient’s ordinary default route; it does not copy the previous holder’s memo or muxed destination. Policy and activity gates apply to both. Transferring a name is separate from transferring its entire namespace.
+The intended recipient then accepts with its own Holder client:
+
+| Method | Receiving details after acceptance |
+| --- | --- |
+| `acceptNameTransferWithDestination(intent)` | Atomically installs the reviewed G/M/C destination from a `TransferIntent`. |
+| `acceptNameTransfer(name)` | Uses the recipient's ordinary default route. The sender's memo or M destination is not copied. |
+
+The explicit intent binds the pending proposal, sender, recipient, generation and expiry. Acceptance preserves the name's expiry and advances generation. Namespace transfer policy and name activity gates apply.
+
+To withdraw a pending proposal, call `me.cancelNameTransfer("alice.nova")` instead. Transferring one name is separate from [transferring its namespace](/owner/lifecycle-and-transfers#transfer-the-namespace).
 
 ## Renew a finite name
 
-`renewalPreview(name)` returns the exact generation and stored destination, including `active:false` for an expired name. It does not make an expired name resolve for live payments. Use `renewName` with a canonical `RenewIntent` binding the holder, generation, existing expiry, immutable term and accepted new-expiry bounds.
+Read `renewalPreview(name)` before authorizing renewal. It returns the exact generation and stored destination, including `active: false` for an expired name. This preview does not make an expired name resolve for payments.
 
-Renewal is independent of public-claim pause, app eligibility and namespace ownership epochs. It has no separate username renewal fee; network/storage costs still apply. It is allowed only within the last `min(30 days, term)` of a finite lease or after expiry until reissuance wins. It extends by one immutable term from `max(now, expiry)` and cannot exceed 100 years from execution time. Zero-term names and stale/reissued generations are ineligible. Owner reclaim rights remain subject to the namespace policy.
+Use `renewName` with a `RenewIntent` binding the holder, generation, existing expiry, immutable term and accepted new-expiry bounds.
+
+| Rule | Holder renewal behavior |
+| --- | --- |
+| Earliest renewal | Last `min(30 days, term)` of a finite lease |
+| After expiry | Allowed only while the recorded generation has not been reissued; no guaranteed grace period |
+| Extension | One immutable term from `max(now, expiry)`, no more than 100 years from execution |
+| Fees | No separate username renewal fee; network/storage costs apply |
+| Independence | Public-claim pause, app eligibility and namespace ownership epochs do not block renewal |
+
+Zero-term names and stale generations are ineligible. Renewal preserves generation and reactivates its stored receiving instructions. Owner reclaim rights still follow namespace policy.
 
 See the [exact lifecycle ABI](/api/native-claiming#transfer-and-renewal) before constructing a transfer or renewal intent.
 

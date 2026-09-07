@@ -1,43 +1,35 @@
 ---
-title: "What is Soran"
-description: "On-chain namespaces, names and payment instructions on Stellar."
+title: "What is Soran?"
+description: "Use readable names for Stellar wallets, payment instructions and smart contracts."
 ---
 
-Soran is the **Soroban Registry for Assigned Names**. A business owns a namespace such as `yourbrand` and issues names such as `alice.yourbrand`. A name can carry a Stellar destination, an optional payment memo and holder-authored profile records.
+Soran turns a name such as `alice.yourbrand` into a Stellar payment destination. An organization claims a **namespace** such as `yourbrand`, then lets people claim names in its own app using rules stored on chain.
 
-<Note>
-These docs describe native username claiming and the testnet contracts verified at 12:12 UTC on 6 September 2026. Username registration can be embedded in your own app signup using owner-configured on-chain rules. G, M and C receiving destinations and optional G memos remain on chain. SDK examples identify their matching versions; [release status](/reference/release-status) tracks package publication and hosted cutovers separately. Use its verified addresses together.
-</Note>
+A name can resolve to a classic **G account**, a **G account with a memo**, a **muxed M address**, or a **C contract address**. The address and any required routing information stay together on chain. Try [the live examples](/live-examples) to see each type.
+
+<CardGroup cols={2}>
+  <Card title="Resolve a name" icon="magnifying-glass" href="/quickstart">Get a complete payment destination with the Lookup SDK.</Card>
+  <Card title="Offer usernames in your app" icon="building" href="/owner/automatic-claiming">Set claim rules, reserve names and choose a username price.</Card>
+  <Card title="Manage a name you hold" icon="wallet" href="/holder/managing-your-name">Change payment details, choose a display name or transfer a name.</Card>
+  <Card title="Call the contracts directly" icon="code" href="/api/onchain-resolution">Use the on-chain ABI without a Soran SDK or HTTP API.</Card>
+</CardGroup>
 
 ## One on-chain read entry point
 
-Wallets, explorers and other contracts read **Universal Lookup**. It follows the Registry to each namespace's current Registrar and Resolver and can return a complete address-and-memo payment instruction. The SDK wraps that contract; you can use its ABI directly without a Soran SDK or database.
+Wallets, explorers and apps read **Universal Lookup**. It finds the namespace's current Registrar and Resolver through the Registry, then returns the validated result. The SDK wraps this contract; a Soran database is not required for resolution.
 
-| Contract | Responsibility |
-| --- | --- |
-| Registry | Namespace ownership, routing and permanence attestations; no upgrade entry point |
-| Allocator | Public namespace claims, objections and upfront fee escrow |
-| Registrar | A namespace's issuance, holders, policy, generations, expiry and transfers |
-| Resolver | A namespace's on-chain addresses, optional memos, text and scoped reverse names |
-| Primary | An address's elected cross-namespace display name |
-| Universal Lookup | Shared on-chain read entry point, with governed code upgrades |
-
-Namespace ownership, a name's holder and its payment recipient are separate roles. An exchange deposit name can resolve to the exchange's account plus a customer memo without making that account the name holder.
-
-Payment destinations support classic G accounts, G accounts with ID/text/hash memos, muxed M addresses, and C contract addresses. M and C destinations use no separate memo; an M address preserves its embedded ID. See [address types and examples](/concepts/payment-destinations).
+The **namespace owner** sets issuance rules. The **holder** owns a name under those rules. The **recipient** receives payments. These can be different people: for example, you can hold a name that points to an exchange account with your deposit memo.
 
 ## Claim once, then issue names
 
-Public namespace claims pay an upfront fee into the Allocator and pass through a public objection window. The fresh testnet release charges 5,000 XLM, with the receiving wallet published in the deployment record. The proposed mainnet fee is 5,000 USDC, with no mainnet deployment claimed. [Claim outcomes](/concepts/claiming-a-namespace) determine payment or refund.
+A public namespace application costs **5,000 XLM on testnet**, paid upfront into escrow. It passes through a public objection window before it can be awarded. [The outcome determines the payment or refund](/concepts/claiming-a-namespace).
 
-That claim fee applies to the **namespace**, not each name issued under it. Current issuance contracts add no Soran per-name claim fee or mandatory annual renewal charge. Stellar transaction and storage costs still apply. A namespace owner may operate a timed or commercial service under its disclosed policy. Optional hosted billing and marketplace features are separate.
+Username claims are separate. The namespace owner can offer free claims or set a flat XLM price paid to their treasury. Once enabled, the contract processes eligible claims without a separate owner approval for each person. Optional eligibility rules can restrict claims to the organization's users.
 
 ## Read the ownership policy
 
-A name can be reclaimable, finite-term, or protected by a completed permanence lock. A zero expiry alone is not proof of permanence. Even permanent names need storage upkeep, and their holders can change their records. [Ownership guarantees](/concepts/ownership-guarantees) explains the exact boundaries.
+Soran has no mandatory annual ownership fee. Each namespace's policy determines whether names can expire, be reclaimed or become permanent. Network and storage costs still apply.
 
-<CardGroup cols={3}>
-  <Card title="Wallets and apps" icon="wallet" href="/quickstart">Read complete payment instructions through Universal Lookup.</Card>
-  <Card title="Namespace owners" icon="building" href="/concepts/claiming-a-namespace">Understand claiming, escrow and issuance.</Card>
-  <Card title="Explorers" icon="server" href="/api/onchain-resolution">Use the contract ABI and versioned events directly.</Card>
-</CardGroup>
+A zero expiry does not by itself mean a name is permanent. [Ownership guarantees](/concepts/ownership-guarantees) explains what holders can rely on, and what owners can change.
+
+Start with the [current testnet addresses and package versions](/reference/release-status). Mainnet is not available yet.

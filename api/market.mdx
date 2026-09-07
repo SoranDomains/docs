@@ -1,31 +1,58 @@
 ---
 title: "Marketplace API"
-description: "Optional hosted escrow intents, listings and settlement history."
+description: "Browse optional namespace listings, prepare a purchase and read sale history."
 ---
 
-These routes apply **when the marketplace is enabled on a deployment**. Disabled deployments return `409 market_disabled`. Marketplace money is held by an operator-controlled account, not the Allocator claim-fee contract.
+These routes are available **when the marketplace is enabled on a deployment**. Otherwise they return `409 market_disabled`.
+
+The marketplace uses an operator-controlled escrow account. Read the [marketplace guide](/platform/marketplace) before paying; its settlement process is separate from Allocator namespace claim fees.
 
 ## Listings and intent
 
+### Browse listings
+
 ```http
 GET /v1/market/listings
-POST /v1/market/listings/{id}/intent
-Content-Type: application/json
-
-{ "account": "G...buyer-account..." }
 ```
 
-Listings are bounded to 100 and include namespace, node, XLM price, fee basis points and escrow account. Read actual amounts rather than hard-coding examples. The buyer must be a valid classic account; the intent route is rate-limited.
+Returns the escrow account in the top-level `escrow` field and up to 100 active `listings`, newest first. Each listing contains `id`, `namespace`, `node`, `priceXlm`, `feeBps` and `listedAt`. This endpoint has no pagination cursor.
 
-An intent supplies its ID/expiry and exact payment instructions: native asset, amount, escrow destination and unique hash memo. Intents are idempotent for the same listing/buyer until expiration; a no-longer-active listing fails. A transient `intent_conflict` may require retrying the intent request, not paying twice.
+### Prepare a purchase
 
-Before sending money, verify a current Registry namespace transfer proposal from the seller to the buyer. Send the full amount in one payment from a self-custody account and retain the intent memo. The buyer then accepts the namespace transfer with its own authorization.
+```http
+POST /v1/market/listings/{id}/intent
+Content-Type: application/json
+```
+
+```json
+{ "account": "YOUR_G_ACCOUNT" }
+```
+
+Replace `YOUR_G_ACCOUNT` with a valid classic G account you control. The response contains:
+
+| Object | Fields |
+| --- | --- |
+| `intent` | `id`, `expiresAt` |
+| `pay` | `to`, `asset: "native"`, `amountXlm`, `memoType: "hash"`, `memoHash`, `note` |
+| `settlement` | Namespace `node`, `seller` and ordered `steps` |
+
+Use the exact amount, destination and hash memo returned in `pay`. The same listing/buyer pair receives the same unexpired intent. Creating an intent does not pay for or transfer the namespace.
+
+Complete the purchase in this order:
+
+1. Verify a current Registry namespace transfer proposal from the seller to your account.
+2. Send the full amount in one native XLM payment with the intent's hash memo.
+3. Accept the namespace transfer with your own authorization.
+
+Use a self-custody sending account: refunds return to the account that sent the payment.
+
+Invalid buyer addresses return `400 invalid_account`. Unavailable listings and intent conflicts return `409` with an `error` code. The intent route is rate-limited. If it returns `intent_conflict`, retry the request; do not send another payment to resolve the conflict.
 
 ## Settlement and refunds
 
-Successful verified delivery releases sale proceeds minus the displayed fee and returns an eligible bond. Seller non-delivery during a funded sale can refund the buyer and slash the bond under the rules in the [marketplace guide](/platform/marketplace). Buyer non-acceptance of a standing proposal is handled separately.
+Verified delivery releases the sale proceeds minus the displayed fee and returns an eligible seller bond. Seller non-delivery during a funded sale can refund the buyer and slash the bond. A buyer's failure to accept a standing proposal follows a separate outcome. See the [settlement rules](/platform/marketplace).
 
-Underpayments and overpayment surpluses follow refund rules rather than accumulating into an arbitrary new price. Refund destinations are the sending accounts. Small or uncertain payouts may be parked for operator review. Do not promise guaranteed automatic refund timing or that operator custody removes risk.
+Partial payments do not accumulate toward the price. Underpayments and overpayment surpluses follow refund rules. Small or uncertain payouts may require operator review, so refund timing is not guaranteed.
 
 ## Sale history
 
@@ -33,6 +60,8 @@ Underpayments and overpayment surpluses follow refund rules rather than accumula
 GET /v1/market/history/{node}
 ```
 
-`node` is the namespace's 64-character hex namehash. The endpoint returns up to 50 recent hosted settlement records with namespace, price, seller, buyer, settlement time and badge identifier. Wash-flagged sales are excluded. This is informational hosted provenance, not an on-chain certificate or complete global sale history.
+Use the namespace's 64-character hex namehash as `node`. The response contains the normalized `node` and up to 50 recent `sales`, newest first. Each sale includes `namespace`, `priceXlm`, `seller`, `buyer`, `settledAt` and `badge`.
 
-Selling/listing uses authenticated owner-only console flows. Registry ownership and current transfer state remain authoritative.
+Invalid hashes return `400 invalid_node`. Sales flagged as wash trading are excluded. These hosted records are informational provenance and may not cover every sale.
+
+Selling and listing use authenticated owner-only console flows. Registry ownership and current transfer state remain authoritative.

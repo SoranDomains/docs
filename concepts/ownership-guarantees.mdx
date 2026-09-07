@@ -1,26 +1,26 @@
 ---
 title: "Ownership guarantees"
-description: "Distinguish no expiry, reclaimability, permanence and mutable payment records."
+description: "Understand what a holder owns and what a permanent namespace protects."
 ---
 
-A namespace's on-chain policy describes reclaimability, transfers, trading and default term. Read both policy and provenance before displaying an ownership guarantee.
+A name's ownership rules come from its namespace. Before accepting a name, check whether the owner can reclaim it, whether it expires and whether the namespace has completed its permanent lock.
 
 | State | Meaning |
 | --- | --- |
 | Reclaimable | The namespace owner can reclaim names under the contract policy |
 | Finite-term | A name expires when ledger time is strictly greater than its nonzero `expires_at` |
-| No expiry | `expires_at == 0`; this alone does not freeze code or routing |
-| Permanent | The namespace completed the Registry-verified permanence lock with eligible Registrar and Resolver provenance |
+| No expiry | `expires_at == 0`; there is no ownership deadline |
+| Permanent | Registry verified and locked the namespace's eligible Registrar and Resolver, preventing owner reclaim and later code or routing changes |
 
-These properties are not always mutually exclusive before permanence: for example, a reclaimable namespace can issue names without an expiry date. Do not turn `expires_at == 0` into a permanent badge.
+These properties can overlap. A reclaimable name can have no expiry date, for example. **No expiry does not mean permanent:** the owner may still have reclaim or upgrade powers.
 
 ## `make_permanent`: the one-way door
 
-An eligible namespace owner can irreversibly make the namespace permanent. The contract transition disables reclaimability, freezes the relevant Registrar/Resolver implementation paths and locks the Registry's Resolver pointer atomically. A failed eligibility check leaves the state unchanged.
+An eligible namespace owner calls `make_permanent` to give up those powers irreversibly. The transaction disables reclaimability, freezes the Registrar and Resolver code, and locks Registry's Resolver pointer together. If an eligibility check fails, none of these changes takes effect.
 
-Eligibility depends on the Registry's originally pinned code and deployment attestations, neither contract having been tainted by an upgrade, correct current wiring, and a zero default term. A finite-term policy is not made permanent by hiding its expiry. Restoring an original Wasm after an upgrade does not erase taint.
+Registry checks that both contracts were deployed from its pinned code, remain correctly connected and have never been upgraded. The Registrar must also have a zero default term. A finite-term namespace cannot pass this transition, and restoring original code after an upgrade does not restore eligibility.
 
-Before the lock, eligible owner-governed contracts can still be upgraded. A policy advertised by changeable code is not the same guarantee as a completed permanent lock.
+Until this lock succeeds, eligible contracts remain under owner upgrade control.
 
 ## Verify the full namespace state
 
@@ -33,10 +33,10 @@ const name = await soran.nameMetadata("alice.nova");
 // Inspect name?.active, name?.noExpiry and name?.namespacePermanent separately.
 ```
 
-The narrower [`assurance()`](/sdk/assurance) result concerns Resolver provenance. It does not certify every part of ownership or the Universal Lookup implementation itself.
+Use namespace and name metadata to display ownership status. [`assurance()`](/sdk/assurance) has a narrower purpose: it checks Resolver provenance, not the full ownership guarantee or Lookup's own code.
 
 ## What permanence does not freeze
 
-Holders can still update their own addresses, memos and profile records. Permitted holder transfers remain possible. A permanent Resolver's code and pointer being fixed does not make its answers immutable.
+Holders can still update their payment addresses, memos and profiles. They can also transfer names where the policy permits. Permanence fixes the rules and routing; it does not freeze holder-controlled records.
 
-Storage TTL still requires upkeep or restoration. Universal Lookup remains governed independently and can be upgraded without a mandatory delay. Integrators must assess that [governance boundary](/concepts/governance), the current code and the RPC they use.
+Storage still needs upkeep or restoration. Universal Lookup has its own [governance rules](/concepts/governance) and can be upgraded without a mandatory delay, even for reads of permanent namespaces.

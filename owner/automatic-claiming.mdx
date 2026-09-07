@@ -3,26 +3,20 @@ title: "Automatic username claiming"
 description: "Configure on-chain username registration, pricing, receiving wallets and reservations for your application."
 ---
 
-<Note>
-Automatic claiming is deployed in the **6 September 2026 native-claim contracts**.
-The examples target Owner 0.7.0 and Holder 0.6.0; their publication and hosted console
-cutover are tracked independently in [release status](/reference/release-status).
-Older namespaces remain owner-only unless they use a compatible native-claim deployment.
-</Note>
+Let users claim a username during signup or in account settings, inside your own application. You configure registration once; each user authorizes their own name, receiving details and fee.
 
-You build username registration inside your own application using the SDKs. Your
-users can choose a username during signup or later in account settings. You do not
-need to embed a Soran interface or send every user to soran.domains.
+This guide uses **Owner 0.7.0** and **Holder 0.6.0** with the [native-claim testnet deployment](/reference/release-status). Older contracts need compatible native-claim support; updating a frontend alone does not add it.
 
-The Owner SDK configures the namespace. The Holder SDK lets each user authorize
-their own claim and manage their name. The Lookup SDK reads the resulting records
-through Universal Lookup. An optional open-source claim application can provide a
-separate public interface under your control.
+1. [Configure registration](#owner-sdk-example) with the Owner SDK.
+2. [Build the signup flow](#claim-from-your-application) with the Holder SDK.
+3. [Recover interrupted requests](#recover-before-replacing-a-request) before retrying.
+4. [Add app approval](#add-app-approval-only-when-needed) only if your membership rules require it.
+
+Use Lookup to read the resulting records. You can build the interface yourself or run the optional open-source claim application.
 
 ## Configure registration
 
-Claiming starts disabled. The namespace owner signs an on-chain configuration
-transaction before users can claim. The updated console provides these controls after its release cutover. A console update does not activate native claims on older contracts.
+Claiming starts disabled. The current on-chain namespace owner signs the configuration before users can claim. A console team role alone does not grant that authority.
 
 Choose the following settings:
 
@@ -37,36 +31,33 @@ Choose the following settings:
 | Claims per wallet | The cumulative allowance for each claiming holder address |
 | Reserved usernames | Labels you want to keep out of ordinary registration |
 
-The receiving wallet may differ from the wallet that owns the namespace. Only the
-current on-chain namespace owner can publish these settings. A console team role
-alone does not grant contract signing authority.
+The receiving wallet may differ from the namespace owner's wallet. In Public mode, ordinary owner `issue` and `issueBatch` calls are blocked even while claims are paused. Reserved assignment is the explicit exception.
 
 ## Where username fees go
 
-The namespace's Registrar stores the configured fee and receiving wallet on chain.
-When someone claims a name, the app reads those settings and shows the exact amount
-before requesting authorization.
+The Registrar stores the fee and receiving wallet on chain. Show the exact amount before asking the user to authorize it.
 
-The claim transaction transfers the username fee directly from the claimant to
-the configured treasury. It also issues the name and initializes the user's complete
-receiving details. These effects either succeed together or roll back together.
-There is no separate treasury withdrawal step for this fee.
+One successful claim transaction:
+
+- Transfers the username fee from the claimant directly to the configured treasury.
+- Issues the name to the claimant.
+- Stores the user's complete receiving destination and the operation receipt.
+
+These effects succeed together or roll back together. The treasury does not need a separate withdrawal step.
 
 If the claim fails, its username fee transfer does not settle. Stellar network fees
 are separate and may still apply. A confirmed claim is not an escrowed application
 awaiting manual owner approval.
 
-Free registration means a zero username fee, not a free network transaction.
-Contract execution and storage rent still cost XLM. Initial contract storage rent
-can be substantially higher than later actions, and storage upkeep can incur
-additional costs. Always review the current transaction estimate.
+### Username price and network costs
+
+Free registration means a zero username fee. Contract execution and storage rent still cost XLM, and initial storage rent can be higher than later actions. Review the current transaction estimate.
 
 Owner 0.7.0 and Holder 0.6.0 default to a **5 XLM network-fee limit** for
 native claim operations. This limit is separate from the namespace's username
 price; it is not the amount charged. An estimate above the limit is rejected before
 wallet signing. Applications can explicitly set `maxNativeFeeStroops` after their
-user reviews the estimate. The updated owner console also exposes this separate
-limit. Do not automatically raise it or assume an earlier estimate remains valid.
+user reviews the estimate. Do not automatically raise it or assume an earlier estimate remains valid.
 
 The owner can update the fee or treasury with another on-chain settings transaction.
 A pending claim using older settings cannot silently charge a different price.
@@ -74,27 +65,21 @@ Reconcile the original receipt and transaction before preparing a replacement.
 If the original did not apply and can no longer apply, create a new request ID
 and obtain the user's authorization for the changed terms.
 
-This username fee is separate from Soran's **5,000 testnet XLM namespace application
-fee**. The namespace application's objection, withdrawal and refund rules do not
-become the username claim's pricing or refund policy. See [namespace claiming](/concepts/claiming-a-namespace).
+Username prices are separate from the [namespace application fee and refund rules](/concepts/claiming-a-namespace).
 
 ## Open or restricted registration
 
-Open registration allows any wallet satisfying the on-chain rules to claim. It
-needs no backend eligibility key. Charging a fee does not change that: a paid
-namespace can still offer open registration.
+| Admission mode | Who can claim | Backend approval needed? |
+| --- | --- | --- |
+| Open | Any wallet meeting the on-chain rules | No, including paid registration |
+| Invitation list | Wallets with a proof for the configured list | No per-claim signature |
+| App-approved | Wallets admitted by your account service | Yes, a scoped eligibility signature; the user still authorizes the claim |
 
-An invitation list suits a known set of eligible wallets. An organization that
-needs to admit newly eligible app accounts can choose optional app-approved
-registration. Its account service provides a scoped approval, and the user still
-authorizes the claim. This is automatic backend approval, not a request for the
-human namespace owner to sign each signup.
+App approval is automatic backend admission. The human namespace owner does not sign every signup.
 
-App-approved registration requires an explicitly configured approval account,
-approval lifetime and namespace-wide admission allowances. The total allowance is a cumulative ceiling. Raising it requires an owner-authorized
-change; key rotation, mode changes and ownership transfer do not reset usage.
-The rate limit also retains its active window across these changes. A wallet quota is not proof of one
-private app account or one person.
+App-approved registration requires a dedicated approval account and explicit lifetime and allowance limits. The total allowance is cumulative; raising it requires the owner's authorization. Key rotation, mode changes and ownership transfer do not reset usage or the active rate-limit window.
+
+A wallet quota does not prove one private app account or one person.
 
 The app determines whether its account qualifies; the contract checks its approval
 and the claim rules. Membership is checked when the approval is issued. Logout,
@@ -104,17 +89,11 @@ and account rules.
 
 ## Reserve usernames
 
-Reserve labels before opening registration, or reserve additional available labels
-later. A reserved, unassigned label has no holder and does not resolve.
+1. Reserve available labels with `reserveNames`, before or after opening registration. A reserved, unassigned label has no holder and does not resolve.
+2. Assign a reserved name with `assignReserved`. You do not need to release it first. This owner-authorized action bypasses ordinary username fees and claim quotas; network costs apply.
+3. Use `releaseReservations` when you want a label to follow normal claim availability again. Assignment alone leaves its reservation in place.
 
-Use the dedicated owner-authorized assignment action to issue a reserved username.
-You do not need to briefly release it and expose it to other claimants. Reserved
-assignment is the declared administrative exception to ordinary username fees and
-claim quotas; network costs still apply.
-
-Releasing a reservation makes the label subject to normal claim availability. It
-does not revoke an already issued name. Reservations also do not disable an
-existing holder's permitted payment updates, transfer or renewal.
+Releasing a reservation does not revoke an issued name. Reservations do not block existing holders' permitted payment updates, transfers or renewals.
 
 ## User signup and receiving details
 
@@ -125,11 +104,7 @@ existing holder's permitted payment updates, transfer or renewal.
 5. Your app verifies the confirmed receipt and current holder before associating
    the name with the existing app account.
 
-Receiving details can be a classic **G address without a memo**, **G with a supported
-memo**, a **muxed M address**, or a **C contract destination**. A required memo or
-muxed routing ID stays part of the complete on-chain destination. Supporting a
-receiving address does not mean every wallet type can sign claims. The initial
-signer flow uses a supported G transaction-source account. See [payment destination examples](/concepts/payment-destinations).
+Users can receive at a G address with or without a supported memo, a complete M address, or a C contract. A required memo or embedded M ID stays part of the destination. The SDK claim signer still uses a G transaction-source account. See [destination examples](/concepts/payment-destinations).
 
 Signing in again does not claim another name or charge again. An existing holder
 can link their name without making another paid claim. Keep a stable internal app
@@ -151,10 +126,13 @@ permitted contract operations.
 
 ## Owner SDK example
 
-These examples target **Owner 0.7.0 and Holder 0.6.0**. Check their publication
-status before installing them. Supply the [verified native-claim Registry](/reference/release-status)
-explicitly; an older deployment cannot provide this interface.
-The `acme` namespace below is illustrative.
+Install the matching packages:
+
+```bash
+npm install @sorandomains/owner@0.7.0 @sorandomains/holder@0.6.0 @stellar/stellar-sdk@^17
+```
+
+Supply the [native-claim deployment](/reference/release-status) explicitly. The illustrative namespace `acme` must be one your operator wallet owns.
 
 ```ts
 import { SoranOwner, type TxSigner } from "@sorandomains/owner";
@@ -200,17 +178,11 @@ A nonzero `feeAmount` is the owner-selected number of XLM base units; one XLM is
 is a separate transaction; preserve its hash and reconcile an uncertain result
 before repeating it.
 
-`owner.pauseClaims(namespace)` pauses new public claims. It does not revoke issued
-names. In Public mode, ordinary legacy `issue` and `issueBatch` calls are blocked;
-reserved assignment is the explicit exception. Switching back to Manual mode is
-an owner-authorized policy change, not an immutable fairness guarantee.
+`owner.pauseClaims(namespace)` pauses new public claims without revoking issued names. The owner can also switch back to Manual mode; Public allocation is not an immutable fairness guarantee.
 
-Reservation batches contain 1–23 distinct canonical labels and succeed or fail
-as a group. `owner.assignReserved(namespace, label, holderG)` assigns a reserved
-name using the holder's default receiving address. Its reservation remains until
-`releaseReservations` is called. A custom initial destination needs the holder's
-consent: the raw contract has an atomic co-authorized method, while this SDK's
-simple assignment method leaves a later `setPayment` to that holder.
+Reservation batches contain 1–23 distinct canonical labels and succeed or fail as a group.
+
+`assignReserved(namespace, label, holderG)` uses the holder's default receiving address. A custom destination needs that holder's consent: the SDK's simple method leaves a later `setPayment` to the holder. The [contract API](/api/native-claiming) also exposes an atomic assignment with both parties' authorization.
 
 ## Claim from your application
 
@@ -314,14 +286,13 @@ if (receipt) {
 }
 ```
 
-Holder 0.6.0 checks the Registry’s Registrar attestation and deployed code after
-each receipt read or transaction confirmation, using RPC ledger context at least
-as recent as that result. The check applies to both a receipt and a null result.
-Missing, older or mismatched context stops recovery; retain the original request
-and transaction hash. These checks trust your configured RPC to report its state
-and ledger honestly. Later owner, policy or Resolver changes alone do not erase
-a historical receipt; an upgraded or tainted Registrar cannot provide trusted
-receipt history.
+### What recovery verifies
+
+Holder 0.6.0 checks Registrar attestation and deployed code after each receipt read or transaction confirmation. It requires RPC ledger context at least as recent as the result, including for a `null` receipt.
+
+Missing, older or mismatched context stops recovery. Retain the original request and transaction hash. These checks depend on your configured RPC reporting state and ledgers honestly.
+
+Later owner, policy or Resolver changes alone do not erase historical receipts. An upgraded or tainted Registrar cannot provide trusted receipt history.
 
 A null receipt does not prove failure. The original transaction may still be
 pending. A successful receipt does not prove current ownership. Read the current
@@ -383,13 +354,18 @@ scoped native authorization entry, pass it as
 still authorizes the transaction. The approver entry contains only the exact
 Registrar claim intent and no fee-transfer authorization.
 
-Configure all four approval limits explicitly: cumulative allowance, claims per
-window, window length and approval lifetime. No budget is selected for you. The
-contract's window maximum is one year, and its approval lifetime maximum is one
-hour; the SDK additionally bounds approval credentials to at most 60 future ledgers.
-A compromised approver can admit attacker-controlled wallets within those limits.
-It cannot use that admission signature to debit another user's wallet, alter an
-existing holder's payment route or undo a completed permanent claim.
+### Bound the approval service
+
+Configure all four limits explicitly; the SDK does not choose them for you:
+
+| Limit | Meaning |
+| --- | --- |
+| `approvalAllowance` | Cumulative admission ceiling |
+| `approvalRateLimit` | Maximum admissions in a window |
+| `approvalWindowSecs` | Window length, at most one year |
+| `approvalTtlSecs` | Approval lifetime, at most one hour |
+
+The SDK also limits approval credentials to 60 future ledgers. A compromised approver can admit attacker-controlled wallets within those budgets. Its admission signature cannot debit another user's wallet, change an existing holder's payment route or undo a completed permanent claim.
 
 For a stable invitation cohort, use `buildClaimAllowlist` and publish its complete
 root through `configureClaims`. Keep the complete wallet list and distribute each
@@ -403,18 +379,9 @@ Payment updates and permitted transfers do not need the app approval service.
 `acceptNameTransferWithDestination` lets a recipient accept and initialize their
 chosen receiving details in one transaction, preserving the name's expiry.
 
-Finite-term holders use `renewName` with their exact generation, existing expiry,
-fixed policy term and reviewed new-expiry bounds. There is no separate username
-renewal fee. Renewal is independent of new-claim pause, reservations and app
-approval. The earliest renewal window is the shorter of 30 days or one policy
-term before expiry. The resulting lease must also remain within 100 years of the
-execution time, so that limit can postpone renewal for very long terms.
+Finite-term holders can [renew their name](/holder/managing-your-name#renew-a-finite-name) without a separate username renewal fee. Renewal is independent of claim pause, reservations and app approval, but still follows the immutable term, generation and lease limits.
 
-An expired name may be renewed by its recorded holder only until someone reissues
-it. There is no guaranteed grace period. Renewal preserves the generation and
-reactivates its previous receiving instructions; `renewalPreview(name)` shows that
-exact-generation destination before authorization. A zero-expiry or permanent name
-has no finite term to renew. Existing policy-based owner reclaim rights remain.
+There is no guaranteed grace period after expiry: renewal remains possible only until reissuance. `renewalPreview` shows the stored destination that renewal will reactivate. Zero-term names cannot renew, and policy-based owner reclaim rights remain.
 
 See the [native contract API](/api/native-claiming) and
 [native claim storage reference](/reference/successor-claim-storage) for exact types,

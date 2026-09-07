@@ -90,7 +90,6 @@
         "pages": [
           "api/overview",
           "api/resolution",
-          "api/onchain-resolution",
           "api/events",
           "api/claim-fees",
           "api/directory",
@@ -111,9 +110,15 @@
       {
         "group": "Contract reference",
         "pages": [
+          "api/onchain-resolution",
           "reference/contract-storage",
           "api/native-claiming",
-          "reference/successor-claim-storage",
+          "reference/successor-claim-storage"
+        ]
+      },
+      {
+        "group": "Historical reference",
+        "pages": [
           "reference/legacy-contract-storage"
         ]
       }

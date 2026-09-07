@@ -3,7 +3,7 @@ title: "Try live examples"
 description: "Resolve real testnet names for G accounts, memos, muxed destinations and a hello-world contract."
 ---
 
-Open [Nova Whois](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/whois) and select a name from the example gallery. These names have real records in Soran's current Stellar testnet deployment. You can read them without connecting a wallet.
+Try [Nova Whois](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/whois) to see Soran resolve real names on Stellar testnet. Choose an example from the gallery to inspect its address, memo or muxed routing ID. You do not need to connect a wallet.
 
 | Name | Destination | Memo or routing ID |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ Open [Nova Whois](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/whois)
 | `alice.nova` | Classic G account | Text memo `hello` |
 | `echo.nova` | Classic G account | Hash memo containing the 32-byte SHA-256 digest of `hello` |
 
-These are demonstration destinations, not deposit instructions. The [public example manifest](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/examples/manifest.json) contains their complete addresses and memo values. It is a dated snapshot: read the current on-chain records when testing. Testnet resets, record changes and storage expiry can affect availability.
+Use these names for demonstrations, not deposits. The [example manifest](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/examples/manifest.json) lists their complete values as a dated snapshot. Read them live when testing; records can change, storage can expire and testnet can reset.
 
 ## Read all destination types
 
@@ -42,7 +42,7 @@ for (const name of [
 }
 ```
 
-`resolvePayment` returns the effective address and memo together through Universal Lookup. For `robert.nova`, the verified example instruction is:
+`resolvePayment` returns the current address and memo together through Universal Lookup. The configured `robert.nova` example is:
 
 ```json
 {
@@ -64,11 +64,11 @@ Routing ID: 42
 Separate memo: none
 ```
 
-The routing ID identifies a route under the G account. It is part of the M address, not a separate balance, signing account or transaction memo. Use the full M address in a compatible payment flow. Dropping the ID changes the destination; replacing it with G plus Memo ID `42` is not the same instruction. See [muxed accounts](/concepts/payment-destinations#muxed-accounts-what-is-and-is-not-supported).
+Routing ID `42` is part of this M address. Keep the full M address in a compatible payment flow; removing the ID changes the destination. A G address plus Memo ID `42` is a different instruction. The route has no separate balance or signing account. See [muxed accounts](/concepts/payment-destinations#muxed-accounts-what-is-and-is-not-supported).
 
 ## Check address-to-name lookup
 
-The five wallet examples have both a Nova reverse selection and a Primary selection. Copy their returned destination into Whois's address-to-name search, or run:
+The five wallet examples are configured with both a Nova reverse selection and a Primary selection. Copy a returned destination into Whois's address-to-name search, or run:
 
 ```js
 const muxedPayment = await soran.resolvePayment("mux.nova");
@@ -78,15 +78,15 @@ console.log(await soran.primaryOf(muxedPayment.address));       // "mux.nova"
 
 Use this with the configured `soran` instance above. The complete M address selects its exact routing ID; its underlying G account and other IDs have independent elections. G elections identify the account without distinguishing separate customer memos.
 
-Claiming a name establishes name-to-destination resolution. Address-to-name lookup requires an additional election authorized by the destination account. It does not list every name a wallet owns. An empty result means no currently verified election was returned. Read failures must be handled separately. See [reverse and Primary semantics](/sdk/reverse-and-primary).
+Claiming establishes forward resolution. Reverse and Primary lookup also need a display-name election authorized by the destination account; they do not list every name a wallet owns. Handle an empty election result separately from a reported read failure. See [reverse and Primary semantics](/sdk/reverse-and-primary).
 
-The minimal `cyclops.nova` contract demonstrates forward resolution and a method call. It does not implement display-name election, so it is not a positive reverse-lookup example.
+The minimal `cyclops.nova` contract supports the forward-resolution and method-call example below. It does not implement display-name election.
 
 ## Call a contract by name
 
 Select `cyclops.nova` in Whois, then select **Run hello-world example**. Nova resolves the name to a C address and simulates its `hello()` method. The expected result is `Hello, world!`. This read does not sign or submit a transaction.
 
-The verified example contract is `CCVKI6UYJDO34LO4D653IXCTPBGJOHJSJGSIOB4A46IH4ULNHS2MPQL7`. Stellar contract invocations take a C address; the application resolves `cyclops.nova` first. The name does not add a new address type to Stellar.
+The example contract is `CCVKI6UYJDO34LO4D653IXCTPBGJOHJSJGSIOB4A46IH4ULNHS2MPQL7`. The app resolves `cyclops.nova` to its C address before invoking the contract.
 
 ```js
 import {
@@ -121,6 +121,6 @@ Use this with the configured `soran` instance above, or download the [standalone
 
 ## Inspect the contract calls
 
-Expand **Developer details** below a Whois result to inspect the Universal Lookup contract, typed arguments and decoded result. Name reads use `resolve_v2`; account identity reads use `reverse` and `primary_name`; M identity reads use `reverse_muxed` and `primary_name_muxed`. Supporting checks verify the deployment and interface before accepting results. See the [on-chain reference](/api/onchain-resolution).
+Expand **Developer details** below a Whois result to see the contract, arguments and decoded result. Name reads use `resolve_v2`; G/C identity reads use `reverse` and `primary_name`; M identity reads use `reverse_muxed` and `primary_name_muxed`. See the [on-chain reference](/api/onchain-resolution) for the full interface.
 
-For claiming, Nova shows **Exact transaction for wallet approval** before signing. The Registrar's `claim(intent, proof)` invocation is separate from Whois reads. Use the [Holder SDK claim flow](/owner/automatic-claiming) to implement registration in your own app. After a claim, **Choose my wallet display name** opens the optional account-authorized setup.
+To add registration to your own app, use the [Holder SDK claim flow](/owner/automatic-claiming). Nova shows the Registrar's `claim(intent, proof)` call under **Exact transaction for wallet approval** before signing. After a claim, **Choose my wallet display name** opens the optional display-name setup.

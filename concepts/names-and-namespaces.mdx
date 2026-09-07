@@ -1,9 +1,9 @@
 ---
 title: "Names and namespaces"
-description: "Name grammar, contract roles, ownership generations and storage availability."
+description: "How names fit under a namespace and how Soran stores and resolves them."
 ---
 
-Soran names have exactly two labels: `alice.nova` consists of the name label `alice` and namespace `nova`. There are no deeper subdomains in this ABI.
+In `alice.nova`, `nova` is the **namespace** and `alice` is the **name label**. The namespace owner sets the rules for issuing names. Each issued name has a holder and a payment destination, which can be different addresses. Soran supports exactly these two labels; it does not support deeper subdomains.
 
 ## Contract roles
 
@@ -13,20 +13,24 @@ flowchart TD
   Lookup --> Registry[Registry: namespace ownership and routing]
   Lookup --> Registrar[Registrar: holder, generation and expiry]
   Lookup --> Resolver[Resolver: address, optional memo, text and reverse]
-  Lookup --> Primary[Primary: account display name]
+  Lookup --> Primary[Primary: G/C account display name]
   Holder[Name holder] --> Resolver
   Owner[Namespace owner] --> Registrar
 ```
 
-Universal Lookup stores configuration, not a duplicate names database. Registry, Registrar, Resolver and Primary remain the on-chain sources for their respective state. Writes still target the contract that owns that state.
+Apps read through Universal Lookup, which follows the namespace's current contracts. Registry stores namespace ownership and routing. Registrar stores name ownership and lifecycle. Resolver stores payment and profile records, plus G/C reverse selections. Primary stores G/C account display-name selections. Universal Lookup also stores the separate elections for complete M addresses.
 
-A **namespace owner** controls issuance under its namespace policy. A **holder** owns an issued name under that policy. A **recipient** is the effective payment destination. These can be different addresses.
+| Role | What it controls |
+| --- | --- |
+| Namespace owner | Issuance and namespace settings under the contract policy |
+| Holder | An issued name and its records under that policy |
+| Recipient | The account or contract receiving payments; destination-account authorization controls display-name elections |
 
 ## Namespace contract addresses
 
 Each namespace has its own Registrar and Resolver. Individual names such as `alice.nova` are records within those contracts; they do not each receive a separate contract address.
 
-The current Registry reports `deployment_salt_version() == 1`. It derives each deployment address from the namespace node, the contract's role and the caller's 32-byte nonce, within the network and Registry's Stellar deployment context. Reusing a nonce for another namespace or the other role produces a different address. Deployment still requires namespace-owner authorization and the Registry's eligibility checks.
+The current Registry uses salt version `1` to derive addresses from the namespace node, contract role and a caller-supplied 32-byte nonce. The network and Registry also determine the deployment context. Reusing the nonce for another namespace or role produces a different address.
 
 | Registry read | Result |
 | --- | --- |
@@ -34,9 +38,9 @@ The current Registry reports `deployment_salt_version() == 1`. It derives each d
 | `predict_registrar(node:BytesN<32>, salt:BytesN<32>)` | Registrar address for that namespace node and nonce |
 | `predict_resolver(node:BytesN<32>, salt:BytesN<32>)` | Resolver address for that namespace node and nonce |
 
-The `salt` argument is the caller's nonce; the Registry derives the scoped deployment salt internally. Use the prediction methods rather than the previous Registry's raw-salt formula. Prediction is read-only: it neither reserves an address nor proves ownership or deployment. Check confirmed deployment and current Registry routing before publishing an address as active.
+Pass your nonce as `salt` to these prediction methods. Prediction does not reserve or deploy an address. Deployment requires namespace-owner authorization and Registry eligibility checks. Confirm deployment and Registry routing before publishing an address as active.
 
-The Registry enforces namespace and role separation. It does not require a `SORAN` prefix, so direct contract callers can choose nonces that produce ordinary contract addresses. A branded prefix is not proof of authenticity. See [the current deployment and historical records](/reference/release-status).
+The console can [prepare branded addresses](/platform/issuing-names#automatic-branded-contract-addresses), but Registry does not require a `SORAN` prefix. Verify the deployed address through Registry; a prefix alone does not prove authenticity.
 
 ## Labels
 
@@ -66,7 +70,7 @@ Use the raw bytes for contract `BytesN<32>` arguments. Use the explicit hex rend
 
 ## Generations
 
-Issuance, reissue, reclaim and accepted transfer advance a name's ownership generation. Resolver records from a previous generation cannot become the new holder's records. Read current generation and lifecycle metadata through `name_metadata`; use `resolve_destination` for the complete effective destination, including muxed routing.
+Each issuance, reissue, reclaim or accepted transfer advances the name's **generation**, an ownership counter. Records from the previous generation do not become the new holder's records. Read generation and lifecycle details with `name_metadata`; read the complete payment instruction with `resolve_destination`.
 
 ## The two clocks
 
@@ -77,6 +81,6 @@ Issuance, reissue, reclaim and accepted transfer advance a name's ownership gene
 
 At the exact finite expiry timestamp, a name remains active. No expiry alone does not establish [permanence](/concepts/ownership-guarantees).
 
-Archived data may require a funded restoration transaction before a simulation can answer. Read-only resolution does not guarantee automatic restoration. Treat restore requirements and unavailable data as failures to obtain a current answer, never as proof that a name is unowned or memo-free. Keepers can extend relevant contract and record TTLs without changing ownership.
+Archived data may need a funded restoration transaction before a read can succeed. Read-only resolution does not guarantee restoration. An unavailable answer does not establish that a name is unowned or memo-free. Keepers can extend contract and record TTLs without changing ownership.
 
-Hosted dormancy labels are separate from verified on-chain archival. An indexed last-known value can support a history display; it cannot replace current payment instructions.
+The hosted service's **cold** label indicates dormancy, not verified on-chain archival. A last-known value is useful for history, but payments need a current instruction.

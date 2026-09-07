@@ -1,31 +1,29 @@
 ---
 title: "Claiming a namespace"
-description: "Upfront namespace fees, objection windows, reserved claims and exact refund outcomes."
+description: "Apply for a namespace, follow its claim window and understand your refund."
 ---
 
-A public namespace claim follows **announce → objection window → execute** on chain. The fee is for a namespace such as `nova`, not individual names such as `alice.nova`.
+A namespace gives you a top-level name such as `nova`, under which you can issue names such as `alice.nova`. To claim one publicly, you pay an upfront fee, wait through its objection window and complete the award on chain.
 
 <Note>
-The fresh testnet Allocator is deployed with a 5,000 native XLM fee and a verified receiving/governance address. The proposed mainnet price is 5,000 USDC, not a configured live price. See [release status](/reference/release-status).
+The current testnet namespace fee is **5,000 XLM**. Mainnet is not live. Check [release status](/reference/release-status) for the current deployment.
 </Note>
 
 ## Pay upfront into escrow
 
-The Allocator must have a governance-configured fee policy before any public `announce` can succeed. That policy names the token, positive base-unit amount and recipient. Configuration is one-time in this implementation; a claim never relies on an off-chain price alone.
+Review the fee quote and set your maximum network fee before signing. Your `announce` transaction transfers the exact namespace fee into the Allocator contract, where it stays in escrow while the claim is pending. Stellar transaction and resource fees are separate.
 
-The claimant signs an announcement that transfers the exact fee into the Allocator. The payment stays reserved while the claim is pending. Objection bonds use a separate accounting system and may use a different token.
-
-The Allocator's governance address cannot itself announce a public claim. Use the actual claimant's authorized account; being the configured fee recipient does not grant an exemption.
-
-The app and local MCP claim flow require a reviewed fee quote and an explicit network-fee ceiling. They re-read the on-chain fee policy and check the exact authorization before signing. The namespace fee and Stellar transaction/resource fees are separate.
+The fee's token, amount and recipient come from the Allocator's on-chain policy. The app checks that policy again before signing. Public claims cannot proceed without a configured policy, and the Allocator's governance address cannot act as the claimant. Receiving namespace fees does not itself grant a fee exemption.
 
 ## The claim window
 
-The deployed Allocator sets its window and maximum claim age. The fresh testnet configuration uses a one-day objection window; check actual deployed configuration before relying on a countdown. Removing Universal Lookup's upgrade delay does **not** remove the claim window.
+1. **Announce:** sign the claim and fund its escrow.
+2. **Wait:** the current testnet objection window is one day. An eligible third party can submit a bond and evidence during this window. An objection pauses the claim for governance to decide.
+3. **Execute:** once the unopposed claim is ready, anyone can submit `execute` to award the namespace through Registry. Confirm the transaction; reaching zero on a countdown does not complete the award.
 
-During the open window an eligible third party may object with a bond and evidence. An objection pauses the claim for governance adjudication. Once unopposed and ready, `execute` is permissionless and awards the namespace through Registry. Automation can submit it, but a countdown does not prove execution occurred.
+The deployed contract also limits how long a claim can remain pending. Read its current state for the applicable deadlines. Contract-upgrade delays and namespace claim windows are separate.
 
-An allocated namespace belongs to its recorded owner. The Allocator cannot reassign an already allocated Registry node; the owner can still transfer its namespace through the Registry's transfer process.
+After the award, the recorded owner controls the namespace. The Allocator cannot reassign an already owned Registry node. The owner can still [transfer the namespace](/owner/lifecycle-and-transfers).
 
 ## Fee outcomes
 
@@ -37,31 +35,31 @@ An allocated namespace belongs to its recorded owner. The Allocator cannot reass
 | Withdrawn | 80% | 20% |
 | Expired and cleared | 80% | 20% |
 
-For 80% refunds, integer base units are rounded down and the remainder goes to the recipient. Contract-recognized stuck recovery takes precedence when the claim is also expired or withdrawn.
+For 80% refunds, the contract rounds down to whole token base units and gives the remainder to the recipient. Qualifying stuck recovery takes precedence over expiry or withdrawal.
 
-**Stuck has a specific meaning:** the claim is still announced or objected while Registry already has an owner for that namespace, so the claim cannot award it. `cancel_stuck` checks that condition on chain. For an objected stuck claim, the outstanding objection bond is also returned in full. A slow network, an active objection, a missed deadline or general dissatisfaction does not itself qualify for a 100% stuck refund.
+**A stuck claim** is still announced or objected, but Registry already has an owner for that namespace. It can no longer award the name. The permissionless `cancel_stuck` call checks this condition and also returns any outstanding objection bond in full. A slow network, active objection or missed deadline alone does not qualify.
 
-Settlement attempts to pay the entitled parties. If delivery fails, the undelivered amount becomes a protected **pull credit**. Anyone can trigger its delivery, but it always goes to the recorded payee. A settled receipt reports entitlements, not proof that every transfer already arrived. Fee reserves and credits cannot be swept as surplus.
+Settlement attempts to pay each party. If a transfer fails, the amount remains available as a protected **pull credit**. Anyone can retry delivery to the recorded payee. Check the credit as well as the settlement receipt: the receipt records what is owed, even when delivery is pending. Fee reserves and credits cannot be swept as surplus.
 
 ## Objection outcomes
 
 - An **upheld** objection rejects the claim, returns its fee in full and refunds the objector's bond.
 - A **dismissed** objection resumes the existing claim; it does not charge the claim fee again. The objection bond is burned under the Allocator's rules.
-- An adjudication timeout provides a permissionless recovery path and resumes the claim under the timeout rules; it is not a fee rejection.
-- Rejected-claim cooldowns, claimant reopen procedures and bounded objection cycles remain separate contract rules. Rejection does not permanently reserve the label for an objector.
+- An adjudication timeout lets anyone trigger recovery and resume the claim under the timeout rules. It does not trigger the rejected-claim fee refund.
+- Rejected claims have separate cooldown and reopening rules. Rejection does not permanently reserve the label for the objector.
 
-Withdrawal is claimant-authorized for eligible announced or objected claims. Expiry clearing and stuck recovery are permissionless when their on-chain conditions hold. An objected withdrawal also settles the objection bond under the withdrawal rules; the namespace fee refund remains 80% unless the applicable stuck condition is established.
+You can withdraw your eligible announced or objected claim. Anyone can clear an expired claim when its on-chain conditions hold. Withdrawing an objected claim also settles its bond; the namespace fee refund remains 80% unless the stuck condition applies. Objection bonds are accounted for separately from namespace fees and may use a different token.
 
 ## Reserved labels
 
-Registry commits reserved labels into an immutable Merkle root. Reservation is not ownership.
+Some top-level labels are reserved in Registry's fixed Merkle root. A reservation sets claim eligibility; it does not establish ownership.
 
 - A **bound reserved claimant** can claim directly with the required proof while that reservation is active. This direct Registry path bypasses Allocator escrow and is exempt from the namespace fee.
 - Unbound reservations and public claims after an allowed fallback deadline use the public Allocator process and pay its fee.
-- An arbitrary user cannot bypass the fee by calling Registry's public allocation path: that path is restricted to the Allocator, apart from valid reserved direct claims.
+- Other users cannot bypass the fee by calling Registry directly: ordinary allocation is restricted to the Allocator.
 
 `isAvailable(namespace)` checks ownership. It does not prove a label is unrestricted, that no rival claim exists, or that a fee exemption applies.
 
 ## After the award
 
-Activate the namespace's Registrar, configure its native Resolver and begin [issuing names](/platform/issuing-names). A claim does not impose a mandatory annual Soran ownership fee. Optional hosted services and a namespace owner's finite-term policy are different arrangements.
+Activate the namespace's Registrar and Resolver, then begin [issuing names](/platform/issuing-names). There is no mandatory annual Soran ownership fee. Any owner-set username price, timed-name policy or optional hosted subscription has separate terms.

@@ -1,48 +1,60 @@
 ---
 title: "Issuing names"
-description: "Activate a Registrar, issue under its policy and maintain state availability."
+description: "Set up your namespace and choose manual issuance or username claims in your app."
 ---
 
-After a namespace is awarded, activate its Registrar and native Resolver. Then choose Manual issuance or configure [automatic username claiming](/owner/automatic-claiming) for your app signup. The namespace application fee is separate from any owner-set username price.
+Once you own a namespace, you can issue names yourself or let users claim them in your app. First activate the namespace's Registrar and native Resolver, then choose how registration should work. The upfront namespace fee and any price you set for usernames are separate.
 
 ## Activate the namespace
 
-The owner chooses the Registrar's policy and authorizes deployment. Reclaimable policy lets the owner reclaim names under its rules. A zero-term non-reclaimable policy has no ownership expiry, but remains **unlocked** until the required [permanence transition](/concepts/ownership-guarantees) freezes eligible code and routing.
+1. Choose the Registrar policy, including reclaimability, transfers and the default name term.
+2. Review the prepared deployment and sign with the namespace owner's wallet.
+3. Deploy and configure the native Resolver to store payment and profile records.
 
-The console validates the selected deployment and transaction before signing. An uncertain submitted activation must be checked before retrying. Console team access alone cannot replace the on-chain owner's signature.
+An admin or issuer console role does not replace the owner's on-chain signature. If submission is interrupted, check its outcome before retrying.
 
-Deploy/configure a native Resolver for current memo-aware reads. A Registrar record alone is not an invitation to bypass Universal Lookup's strict payment checks.
+A reclaimable policy lets the owner reclaim names under its rules. A zero-term, non-reclaimable policy gives names no expiry, but code and routing remain **unlocked** until the [permanence transition](/concepts/ownership-guarantees) succeeds.
 
 ## Automatic branded contract addresses
 
-The current Soran console automatically searches for a `C?SORAN...` address when you activate a new namespace's Registrar or create its native Resolver. The `?` is Stellar's second address character, one of `A`, `B`, `C` or `D`; the five branding letters follow it.
+The console searches for a `C?SORAN...` address when preparing a new Registrar or native Resolver. Here `?` is Stellar's second address character: `A`, `B`, `C` or `D`.
 
-The console displays search progress and lets you cancel preparation before wallet signing. Search time varies. A canceled or failed search can be restarted. No deployment exists until you authorize the transaction and it is confirmed.
+You can follow progress or cancel before signing. Search time varies, and you can restart a canceled or failed search. The contract exists only after its deployment transaction is confirmed.
 
-This search computes candidate nonces off chain without wallet signing keys or payment memos. The Registry's [namespace-and-role-bound deployment](/concepts/names-and-namespaces#namespace-contract-addresses), ownership, prediction methods and routing remain on chain. Address and memo records stay in the native Resolver on chain.
+Address preparation computes candidate nonces locally without your signing key. Registry still verifies the owner and derives the [namespace-specific contract address](/concepts/names-and-namespaces#namespace-contract-addresses).
 
-Individual names are records, not separate contracts. Existing contract addresses do not change, and direct contract callers can choose ordinary addresses: the Registry enforces namespace and role separation, not a branding prefix. Verify confirmed Registry routing rather than trusting an address because it contains `SORAN`.
+Individual names are records within these contracts. Existing contract addresses do not change. Direct callers may choose ordinary addresses, so verify Registry routing rather than a `SORAN` prefix.
 
 ## Issue names
 
-Manual mode accepts owner-authorized issuance. Public mode requires the user claim path, except explicitly reserved assignment; the console does not bypass those rules.
+| Mode | Who issues a name |
+| --- | --- |
+| Manual | The namespace owner authorizes issuance |
+| Public | The user authorizes a claim under your settings; the owner can still assign explicitly reserved labels |
 
-Supply a canonical label and valid holder address. Issuance writes the holder and initial built-in target under the namespace policy. The holder can later publish its own complete Resolver payment instruction.
+For manual or reserved issuance, supply a canonical label and valid holder address. The initial payment target is the holder. The holder can then publish a different address and optional memo through the Resolver. For Public mode, follow [automatic username claiming](/owner/automatic-claiming) to integrate registration into your app.
 
 The console supports single issuance and CSV workflows with per-row outcomes. The Owner SDK supports batches of at most 23 names per transaction. Check confirmed outcomes and uncertain transaction hashes before retrying a row.
 
 ## Fees
 
-A namespace owner can set free public username claims or a flat native XLM price paid directly to their G treasury. There is no mandatory annual ownership charge or separate holder renewal fee. Stellar transaction/resource fees and storage rent still apply. Their amounts depend on current network parameters and transaction simulation; old displayed benchmark figures are not a current fee quote.
+You can make public username claims free or set a flat native XLM price paid directly to your G treasury. Choose a treasury that does not require a deposit memo. The contracts add no mandatory annual ownership charge or separate holder renewal fee. Stellar transaction fees and storage rent still apply; use the current transaction estimate.
 
 When enabled on a deployment, managed billing can charge for hosted services. A namespace owner can also offer its own commercial service or timed names under its disclosed contract policy. These costs are distinct from the upfront top-level namespace claim fee.
 
 ## Dormancy, TTL and restoration
 
-A hosted **cold** label is a dormancy signal. It is not proof that Stellar has archived an entry, and it does not itself end ownership. A keeper may extend relevant contract, name, Resolver, reverse and Primary entries while they are available.
+A hosted **cold** label means the service considers a name dormant. It does not establish on-chain archival or end ownership. A keeper can extend relevant contract and record TTLs while they are available.
 
-If a required entry is archived, current payment resolution may need restoration before it can succeed. The hosted API does not return a database payment destination in place of a failed on-chain read. A cached profile can be shown as historical information; it cannot establish current payment instructions.
+Archived entries may need restoration before payment resolution succeeds. The hosted API does not substitute a database destination for a failed on-chain read. Cached profiles can show history, but payments need current instructions.
 
 ## Who can change what
 
-Namespace-owner authorization controls claim settings, Manual/reserved issuance, policy-permitted reclaim and owner renewal. Native self-service claiming uses the claimant’s authorization plus the configured eligibility proof, if any; eligible bounded renewal uses the holder’s authorization. Holder authorization controls a name's records and permitted individual transfer. Destination address authorization controls reverse/Primary identity for that address. An admin or issuer role in the console does not combine these authorities.
+| Signer | Authorized actions |
+| --- | --- |
+| Namespace owner | Claim settings, Manual/reserved issuance, permitted reclaim and owner renewal |
+| Claimant | Self-service claim, with an eligibility proof only when the policy requires one |
+| Holder | Name records, permitted individual transfer and eligible bounded renewal |
+| Destination account | Its reverse and Primary display-name elections; the base G account signs for M routes |
+
+Console team roles do not combine these separate authorities.

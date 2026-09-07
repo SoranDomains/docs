@@ -1,9 +1,11 @@
 ---
 title: "Namespace claim fee API"
-description: "Read the on-chain fee policy, settlement receipt and recoverable credit before signing."
+description: "Get a namespace claim quote, prepare an announcement and recover fee credit."
 ---
 
-Namespace claims pay upfront into the Allocator. The fee applies to the namespace, not names issued beneath it. Read [claim outcomes](/concepts/claiming-a-namespace) and [release status](/reference/release-status) for policy and deployment state.
+Public namespace claims pay a fee upfront into the Allocator. This fee applies to a namespace such as `yourbrand`. Prices for names beneath it, such as `alice.yourbrand`, use the separate [native claim interface](/api/native-claiming).
+
+Read the quote before preparing an announcement. After settlement, use the receipt and credit routes to check the outcome. All claim-fee routes use `Cache-Control: no-store`.
 
 ## Quote
 
@@ -11,44 +13,64 @@ Namespace claims pay upfront into the Allocator. The fee applies to the namespac
 GET /v1/claim-fee
 ```
 
-The no-store quote reads the Allocator's `claim_fee_policy` and verifies native XLM for this testnet integration. It returns:
+Reads the Allocator's current `claim_fee_policy` and verifies that its token is the network's native XLM asset contract.
 
 | Field | Meaning |
 | --- | --- |
-| `allocatorId`, `token` | Exact Allocator and native asset contract IDs |
-| `amount` | Integer token base units as a decimal string |
-| `recipient` | Configured fee/retained-portion destination |
+| `allocatorId` | Allocator contract |
+| `token` | Native XLM asset contract |
+| `amount` | Integer token base units, as a decimal string |
+| `recipient` | Configured fee recipient |
 | `decimals`, `asset` | `7`, `"XLM"` |
-| `network` | Exact Stellar network passphrase |
-| `refundBps` | Awarded 0; Rejected/Stuck 10,000; Withdrawn/Expired 8,000 |
+| `network` | Stellar network passphrase |
 | `rounding` | `"floor"` |
 
-One XLM equals 10,000,000 base units. A quote is not a payment request from an arbitrary server: the signing client independently rechecks the on-chain policy and exact authorization. A changed or unconfigured policy must fail.
+One XLM is 10,000,000 base units. The response's `refundBps` object gives each outcome's refund rate:
+
+| Outcome | Basis points refunded |
+| --- | --- |
+| `Awarded` | 0 |
+| `Rejected`, `Stuck` | 10,000 |
+| `Withdrawn`, `Expired` | 8,000 |
+
+See [claim outcomes](/concepts/claiming-a-namespace) for what each outcome means. Verify the policy independently on chain before signing a payment authorization.
 
 ## Prepare a paid announcement
 
-The authenticated tenant claim flow uses:
+This route requires an authenticated wallet session:
 
 ```http
 POST /console/register/announce/prepare
 Content-Type: application/json
+```
 
+```json
 {
   "label": "yourbrand",
-  "basis": "your public claim evidence",
+  "basis": ["Your public claim evidence"],
   "expectedFee": {
-    "allocatorId": "C...verified-allocator...",
-    "token": "C...native-XLM-contract...",
-    "amount": "50000000000",
-    "recipient": "G...verified-fee-recipient...",
-    "network": "Test SDF Network ; September 2015"
+    "allocatorId": "ALLOCATOR_FROM_QUOTE",
+    "token": "TOKEN_FROM_QUOTE",
+    "amount": "AMOUNT_FROM_QUOTE",
+    "recipient": "RECIPIENT_FROM_QUOTE",
+    "network": "NETWORK_FROM_QUOTE"
   }
 }
 ```
 
-Use the exact reviewed quote values and a valid wallet session; abbreviated addresses above illustrate fields only. The response contains `ok`, unsigned `xdr`, `claimant`, `fee` and `network`. Missing `expectedFee` returns `400 claim_fee_quote_required`; a changed quote returns `409 claim_fee_changed`.
+Replace every uppercase placeholder with the corresponding quote value. `basis` is an array of up to 16 nonempty strings, each at most 120 characters. Omitting it uses an empty array.
 
-This requirement is a breaking change for older announcement clients. The signing client must independently read the on-chain policy and verify the exact Allocator, claimant, label/evidence, native-token transfer and network-fee ceiling. Accepting the HTTP server's quote alone is insufficient. The existing announce contract arguments remain unchanged; the token authorization now includes escrow collection.
+The response contains `ok`, unsigned `xdr`, `claimant`, `fee` and `network`. The claimant is the authenticated wallet. Preparing the transaction does not submit the announcement or collect the fee.
+
+Before signing, independently verify the network, Allocator, claimant, label, evidence, exact native-token transfer and accepted network-fee ceiling. The API checks that `expectedFee` matches the current quote, but that check does not replace your wallet's transaction review.
+
+| Error | Meaning |
+| --- | --- |
+| `400 invalid_request` | Invalid label, basis or body |
+| `400 wallet_required` | The session has no wallet account |
+| `400 claim_fee_quote_required` | `expectedFee` is missing |
+| `409 claim_fee_changed` | At least one quoted field no longer matches |
+| `409 reserved_label` | An active bound reservation prevents this announcement |
 
 ## Receipt
 
@@ -56,20 +78,47 @@ This requirement is a breaking change for older announcement clients. The signin
 GET /v1/claim-fee/{label}
 ```
 
-Returns `label`, current `policy`, and nullable `receipt`. A receipt has `claimant`, `amount`, `outcome`, `refundAmount` and `treasuryAmount`. Outcomes are `Held`, `Awarded`, `Rejected`, `Withdrawn`, `Expired`, `Stuck`. Amounts are decimal strings.
+Returns `label`, current `policy` and a nullable `receipt`. A receipt contains:
 
-The current receipt can be replaced when a new claim begins for the label. Use archived fee events for earlier claim epochs. Settlement amounts are entitlements and do not prove all transfers were delivered.
+| Field | Meaning |
+| --- | --- |
+| `claimant` | Claiming address |
+| `amount` | Original fee, in decimal-string base units |
+| `outcome` | `Held`, `Awarded`, `Rejected`, `Withdrawn`, `Expired` or `Stuck` |
+| `refundAmount` | Claimant's settlement entitlement |
+| `treasuryAmount` | Fee recipient's settlement entitlement |
+
+All amounts are decimal strings. Entitlements do not prove that every transfer was delivered; check available credit when a payout is undelivered.
+
+A new claim for the same label can replace the current receipt. Use [archived fee events](/api/events#fee-events) for earlier claims. Invalid labels return `400 bad_label`.
 
 ## Recover an undelivered payout
 
+### Read available credit
+
 ```http
 GET /v1/claim-fee/credit/{address}
-POST /v1/claim-fee/credit/{address}/prepare
-Content-Type: application/json
-
-{ "source": "G...funded-transaction-source..." }
 ```
 
-The read returns the payee, available base-unit amount and policy. The prepare route returns an unsigned transaction for `claim_fee_credit(address)`. Inspect and sign it through your wallet, preserving a network-fee ceiling. It never redirects credit to the transaction source: payout always goes to the recorded payee. A zero credit returns `409 no_credit` when preparing recovery.
+Returns `address`, available `amount` in decimal-string base units and current `policy`. Use the G or C payee address recorded by the contract.
 
-The contract also exposes `fee_credit`, `claim_fee_credit` and `touch_fee_credit` directly. Reserved direct Registry claims are exempt and do not create paid Allocator receipts. Objection bond credits are separate from these claim-fee credits.
+### Prepare recovery
+
+```http
+POST /v1/claim-fee/credit/{address}/prepare
+Content-Type: application/json
+```
+
+```json
+{ "source": "YOUR_FUNDED_G_ACCOUNT" }
+```
+
+Replace the placeholder with a funded G transaction-source account. A successful response adds `source`, unsigned `xdr` and `network` to the credit result. The transaction calls `claim_fee_credit(address)` and always pays the recorded payee, even when the transaction source differs.
+
+Review and sign the transaction with a network-fee ceiling. Invalid sources return `400 wallet_required`; zero available credit returns `409 no_credit`.
+
+The contract also exposes `fee_credit`, `claim_fee_credit` and `touch_fee_credit` directly. Objection bond credit uses separate accounting. Reserved direct Registry claims are exempt from this fee and do not create paid Allocator receipts.
+
+## Unavailable fee reads
+
+An unconfigured fee policy returns `409 claim_fee_not_configured`. Failed reads, invalid responses and token mismatches return `503` with an `error` code. A failed read does not establish a zero fee or zero credit.

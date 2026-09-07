@@ -1,9 +1,9 @@
 ---
 title: "Webhooks"
-description: "Signed HTTP notifications for supported namespace events, dormancy signals and optional hosted services."
+description: "Receive signed notifications when names and supported hosted services change."
 ---
 
-Webhooks push namespace events to your backend so you don't have to poll. Create them in the console's **Developers** tab: give a public HTTPS endpoint and pick the events you want. Endpoints resolving to private or internal hosts are rejected.
+Webhooks send namespace events to your backend. In the console's **Developers** tab, enter a public HTTPS endpoint, choose your events and save the signing secret shown at creation. Private or internal endpoints are rejected.
 
 ## Event types
 
@@ -13,13 +13,15 @@ Webhooks push namespace events to your backend so you don't have to poll. Create
 | `reclaimed` | A name is reclaimed from its holder (on-chain event) |
 | `transferred` | A name changes holders (on-chain event) |
 | `went_cold` | The hosted service marks a name dormant/cold; this is not proof of on-chain archival |
-| `invoice_paid` | A subscription invoice payment was matched (billing-enabled deployments) |
-| `entitlement_suspended` | The subscription was suspended — typically after an ownership transfer, pending [re-attestation](/platform/billing#ownership-transfers-and-re-attestation) |
+| `invoice_paid` | A subscription invoice payment was matched |
+| `entitlement_suspended` | The subscription was suspended, typically after an ownership transfer pending [re-attestation](/platform/billing#ownership-transfers-and-re-attestation) |
 | `entitlement_resumed` | A suspended subscription came back |
 | `entitlement_lapsed` | The subscription period ended unpaid |
-| `market_listed` / `market_sold` / `market_refunded` | Marketplace lifecycle for your namespace (marketplace-enabled deployments) |
+| `market_listed` / `market_sold` / `market_refunded` | Marketplace lifecycle for your namespace |
 
-The supported webhook subscriptions above are separate from raw versioned contract events. New payment, text, fee and renewal events do not automatically become webhook subscription types; use the [event archive](/api/events) for them.
+Billing and marketplace events apply only **when enabled on a deployment**. Both features are disabled on the current testnet setup.
+
+This table lists the supported subscriptions. For other contract events, including payment, text, fee and renewal events, use the [event archive](/api/events).
 
 ## Delivery format
 
@@ -34,23 +36,23 @@ Each delivery is a `POST` with a JSON body:
 }
 ```
 
-and two headers:
+Each request includes these headers. The signature is an HMAC-SHA256 digest of the raw body:
 
 ```
 x-soran-event: issued
-x-soran-signature: sha256=8f3b2a…   ← HMAC-SHA256 of the raw body
+x-soran-signature: sha256=8f3b2a…
 ```
 
-Deliveries for the same on-chain event carry a **deterministic `id`**, so if you ever see a repeat (e.g. after an indexer replay), dedupe on `id`.
+Deduplicate deliveries by `id`. For a given subscription and on-chain event, the ID stays the same even after an indexer replay.
 
 ## Verify the signature
 
-Your signing secret (`whsec_…`) is shown **exactly once** when the webhook is created — store it then, because it is never retrievable afterwards. Compute the HMAC over the raw request body and compare in constant time:
+Your `whsec_…` signing secret is shown once and cannot be retrieved later. Keep it on your backend. Verify each request before processing it:
 
 ```ts
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-function verifySoranWebhook(rawBody: string, signatureHeader: string, secret: string): boolean {
+function verifySoranWebhook(rawBody: Uint8Array, signatureHeader: string, secret: string): boolean {
   const expected = `sha256=${createHmac("sha256", secret).update(rawBody).digest("hex")}`;
   const a = new TextEncoder().encode(signatureHeader);
   const b = new TextEncoder().encode(expected);
@@ -58,23 +60,21 @@ function verifySoranWebhook(rawBody: string, signatureHeader: string, secret: st
 }
 ```
 
-<Warning>
-  Sign over the **raw body bytes**, not a re-serialized parse — `JSON.parse` followed by `JSON.stringify` can reorder or reformat and break the comparison.
-</Warning>
+Pass the **raw body bytes** from your HTTP framework. Parsing and re-serializing JSON can change those bytes and invalidate the signature.
 
 ### Rotating the secret
 
-If the secret leaks or you never copied it, rotate it from the Developers tab. Rotation creates a fresh secret, shown once, for subsequent signatures. Deliveries already signed with the previous secret can still arrive; handle those according to your rotation policy and deduplicate on delivery ID. Rotation remains available to an authorized owner/admin even when billing would otherwise gate console extras.
+Rotate a lost or exposed secret in **Developers**. Save the new secret when it is shown. In-flight requests may still carry the old signature, so account for that overlap and continue deduplicating by delivery ID. Authorized owners and admins can rotate secrets even when billing restricts new webhook creation.
 
 ## Retries and timeouts
 
-- Your endpoint must respond with a **2xx within 8 seconds**; anything else counts as a failure.
-- Failed deliveries retry with **exponential backoff** — starting at ~2 seconds and doubling (2s, 4s, 8s, 16s, 32s) — for up to **6 attempts** total, plus request durations and scheduling time, after which the delivery is marked failed. Webhooks are a live signal: if your endpoint may be down longer than that, reconcile against the [public API](/api/overview) rather than relying on redelivery.
-- Delivery is asynchronous and concurrent: one slow endpoint of yours never delays your other events, and retrying deliveries never starve fresh ones.
-- Delivery records are pruned after about two weeks; treat webhooks as a live signal, not an archive. If you need a full replay, use your retained [event archive and its coverage](/api/events); RPC history retention is finite.
+- Return a **2xx within 8 seconds**. Other responses and timeouts count as failures.
+- Failed requests get up to **6 attempts** total, with retry backoff of approximately 2, 4, 8, 16 and 32 seconds. Scheduling and request time affect the actual intervals.
+- Deliveries run asynchronously and concurrently. Do not depend on arrival order.
+- Completed or failed delivery records are pruned after about two weeks. Use the [event archive and its coverage](/api/events) to reconcile missed events.
 
-Respond fast: accept the payload, enqueue it, return `200`. Do your real work off the request path.
+Verify the signature, deduplicate the ID, enqueue your work and return `200` promptly. Process the event outside the request handler.
 
 <Note>
-  On billing-enabled deployments, *creating* a new webhook requires an active subscription — but existing webhooks keep delivering regardless (they carry the billing notifications themselves), and rotation stays open.
+  When billing is enabled on a deployment, creating a webhook requires an active subscription. Existing webhooks keep delivering, and signing-secret rotation stays available.
 </Note>
