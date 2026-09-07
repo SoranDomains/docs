@@ -3,21 +3,21 @@ title: "Soran for AI agents"
 description: "Use MCP with Universal Lookup, explicit payment memos and reviewed namespace claim fees."
 ---
 
-The MCP server exposes read tools to local and hosted agents. Local mode additionally supports wallet-authorized writes. MCP 0.7.1 uses Lookup 0.7.0, Holder 0.5.1, Owner 0.7.0 and Stellar SDK 17. See [release status](/reference/release-status) for package availability and the matching testnet contracts.
+The MCP server exposes read tools to local and hosted agents. Local mode additionally supports wallet-authorized writes. MCP 0.8.0 uses Lookup 0.8.0, Holder 0.6.0, Owner 0.7.0 and Stellar SDK 17. See [release status](/reference/release-status) for package availability and the matching testnet contracts.
 
-Published MCP **0.7.1** includes Holder **0.5.1** for the updated [receipt recovery checks](/owner/automatic-claiming#recover-before-replacing-a-request). Hosted MCP remains **0.7.0** with read-only tools; it does not expose the local native receipt helpers.
+Published MCP **0.8.0** includes Holder **0.6.0** for full-M elections and the retained [receipt recovery checks](/owner/automatic-claiming#recover-before-replacing-a-request). Hosted MCP **0.8.0** was verified on 7 September with read-only tools, including exact-M reverse lookup. It does not expose local signing or native receipt helpers.
 
 ## Connect
 
 The hosted MCP URL is `https://mcp.soran.domains/mcp`. Its independently verified deployment and package status are recorded in [release status](/reference/release-status). Remote mode provides read tools, without receiving a signing key.
 
-For local clients, install the published MCP 0.7.1 patch:
+For local clients, install MCP 0.8.0:
 
 ```bash
-npx -y @sorandomains/mcp@0.7.1
+npx -y @sorandomains/mcp@0.8.0
 ```
 
-Configure `SORAN_REGISTRY_ID`, `SORAN_LOOKUP_ID`, `SORAN_PRIMARY_ID`, `SORAN_ALLOCATOR_ID`, `SORAN_RPC_URL` and `SORAN_PASSPHRASE` from one verified deployment. `SORAN_HINT_URL` selects indexed discovery. `SORAN_RESOLUTION_MODE` defaults to universal; missing Lookup configuration fails closed. `SORAN_PRIMARY_ID=none` disables Primary.
+Configure `SORAN_REGISTRY_ID`, `SORAN_LOOKUP_ID`, `SORAN_PRIMARY_ID`, `SORAN_ALLOCATOR_ID`, `SORAN_RPC_URL` and `SORAN_PASSPHRASE` from one verified deployment. `SORAN_HINT_URL` selects indexed discovery. `SORAN_RESOLUTION_MODE` defaults to universal; missing Lookup configuration fails closed. `SORAN_PRIMARY_ID=none` disables the G/C Primary path; full-M Primary uses Lookup independently.
 
 For local namespace activation, `SORAN_REGISTRY_DEPLOYMENT_SALT_VERSION=1` selects the current namespace-bound deployment scheme. The matching testnet preset defaults to `1`; a custom Registry requires an explicit `0` (older raw-salt deployment) or `1`. This is an MCP write configuration, not a Lookup SDK constructor option.
 
@@ -96,7 +96,25 @@ default route; a custom route needs the holder's separate payment update.
 
 Payment addresses are G, M or C; M and C support `none` only. M addresses retain their embedded IDs and are never silently converted to G plus memo. Use the [supported address and memo examples](/concepts/payment-destinations) when constructing tool inputs.
 
-`claim_display_name` coordinates forward, reverse and Primary operations for the wallet's own address. These are multiple writes, not one atomic universal transaction; handle partial completion. Account display names do not identify a customer's memo or muxed ID on a shared exchange address.
+`claim_display_name` coordinates forward, reverse and Primary operations for the wallet's own G address. These are multiple writes, not one atomic universal transaction; handle partial completion. This existing tool is not the M election flow. G account elections do not identify an individual customer memo.
+
+### Muxed identity tools
+
+MCP 0.8.0 is published with Lookup 0.8.0 and Holder 0.6.0. These methods require Lookup's `muxed_identity_version() == 1`; check package and hosted-service activation separately in [release status](/reference/release-status). `reverse_lookup` and `wallet_names` accept the complete M address for verified names. M wallet profiles return no holder holdings.
+
+Local mode adds two explicit tools:
+
+```json
+{
+  "name": "customer420.nova",
+  "destination": "MA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUAAAAAAAAAABUTGI4",
+  "kind": "reverse"
+}
+```
+
+Pass this input to `set_muxed_display_name`. After that transaction succeeds, make a separate call with `kind: "primary"` to choose the same name across namespaces. A failed or cancelled Primary does not undo the successful reverse. The tool does not repoint payment instructions.
+
+`clear_muxed_display_name` accepts `destination` and `kind: "reverse" | "primary"`; `namespace` is required for reverse clearing. The base G account must authorize every write. A customer using an exchange deposit M address cannot sign for the exchange. IDs remain exact through the contract call, with no base-G, other-ID or memo fallback.
 
 Owner tools include issuance, reclaim, renew, treasury, Resolver routing, namespace transfers and guarded permanence. Holder tools include profile/payment records and name transfers. All remain subject to contract authorization; console/API data cannot grant ownership authority.
 

@@ -3,10 +3,10 @@ title: "Managing your name"
 description: "Publish an atomic on-chain address and optional memo, profile records and account display names."
 ---
 
-The Holder SDK writes to the current namespace contracts. Lookup remains the shared read entry point. These examples target Holder 0.5.1 with Stellar SDK 17. See [release status](/reference/release-status) for the matching testnet contracts.
+The Holder SDK writes payment and name records to the current namespace contracts. Universal Lookup is the shared read entry point and, with the muxed identity extension, stores M display-name elections. These examples target Holder 0.6.0 with Stellar SDK 17. See [release status](/reference/release-status) for the matching testnet contracts.
 
 <Note>
-Use published Holder **0.5.1** for native claims and receipt recovery. It verifies Registrar attestation and deployed code against sufficiently recent RPC ledger context before accepting receipt results. It retains the native claims, atomic transfer acceptance and bounded renewal introduced in 0.5.0, and M-address writes introduced in 0.4.0. Contract pins are unchanged; see [release status](/reference/release-status).
+Use published Holder **0.6.0** for native claims and receipt recovery. It verifies Registrar attestation and deployed code against sufficiently recent RPC ledger context before accepting receipt results. It adds full-M display-name elections, retains the receipt-verification checks introduced in 0.5.1, native claims and lifecycle flows from 0.5.0, and M payment writes from 0.4.0. Contract pins are unchanged; see [release status](/reference/release-status).
 </Note>
 
 ```ts
@@ -71,7 +71,43 @@ await me.setPrimary("alice.nova");
 
 Reverse and Primary writes require the address's authorization and a current forward match. Name ownership alone does not authorize identity writes for someone else's destination account. The Primary Registry anchor is checked before signing; custom deployments need matching configuration.
 
-`clearReverse(namespace)` and `clearPrimary()` remove the elected display records. These identify G/C accounts, not individual customer memos or muxed IDs. Changing a payment destination to M can make a previous reverse/Primary selection stop verifying; use a direct account destination for account identity.
+`clearReverse(namespace)` and `clearPrimary()` remove G/C elected display records. These account elections do not distinguish individual customer memos. Changing a payment destination to M can make a previous G/C reverse or Primary selection stop verifying. Use the dedicated M methods below to elect a name for the complete muxed address.
+
+## Muxed display names
+
+<Note>
+Holder 0.6.0 is published; the testnet Lookup reports `muxed_identity_version() == 1`. Existing G/C election methods and all contract addresses remain unchanged. See [release status](/reference/release-status) for verification.
+</Note>
+
+Configure `lookupId` alongside the matching Registry and network. The testnet preset supplies it; a custom Registry or passphrase does not inherit an unrelated Lookup pin. The signer must control the **base G account** of the M address. A customer who only receives an exchange deposit address cannot sign for the exchange.
+
+```ts
+const me = new SoranHolder({
+  signer: walletSigner,
+  registryId: deployment.registryId,
+  lookupId: deployment.lookupId,
+  rpcUrl: deployment.rpcUrl,
+  passphrase: deployment.passphrase,
+});
+const muxedAddress =
+  "MA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUAAAAAAAAAABUTGI4";
+
+// The active name must already resolve to this exact M address.
+await me.setReverseMuxed("customer420.nova", muxedAddress);
+// Optional: select the same verified reverse name across namespaces.
+await me.setPrimaryMuxed("customer420.nova", muxedAddress);
+```
+
+Each call is a separate wallet-authorized transaction. If the first succeeds and the second is cancelled, the namespace reverse selection remains valid. Review replacement of an existing selection: changing or clearing the reverse means a Primary using the old reverse no longer verifies while that mismatch persists. Claiming or publishing a destination does not elect these names automatically.
+
+```ts
+await me.clearReverseMuxed("nova", muxedAddress);
+await me.clearPrimaryMuxed(muxedAddress);
+```
+
+These four methods call Universal Lookup. They bind the name or namespace, base G and exact u64 ID in the authorization. They do not edit payment instructions or strip the M address to G. ID `"0"` is distinct from the base G account. A transferred or reissued name has a new generation and needs a fresh election.
+
+Operators can maintain existing elections with the contract's permissionless `touch_reverse_muxed` and `touch_primary_muxed` calls. A touch does not create an election or make stale proof valid. See the [contract ABI](/api/onchain-resolution#muxed-identity-extension) and [stored records](/reference/contract-storage#muxed-identity-storage).
 
 ## Name transfer
 

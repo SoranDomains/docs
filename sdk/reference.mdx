@@ -1,12 +1,12 @@
 ---
 title: "Lookup SDK reference"
-description: "Universal reads, payment types, discovery pages and typed failures in Lookup 0.7.0."
+description: "Universal reads, payment types, discovery pages and typed failures in Lookup 0.8.0."
 ---
 
-This reference targets Lookup 0.7.0. See [release status](/reference/release-status) for the matching testnet contracts. All write flows are in the Owner or Holder SDKs; Lookup reads through Soroban RPC and optionally uses HTTP discovery/history.
+This reference targets Lookup 0.8.0. See [release status](/reference/release-status) for the matching testnet contracts. All write flows are in the Owner or Holder SDKs; Lookup reads through Soroban RPC and optionally uses HTTP discovery/history.
 
 <Note>
-Lookup **0.7.0** selects the current testnet deployment. Check [release status](/reference/release-status) for publication. Its muxed methods continue the support introduced in 0.6.0. You can also use the [contract ABI](/api/onchain-resolution) or [HTTP API](/api/resolution).
+Lookup **0.8.0** selects the current testnet deployment. Check [release status](/reference/release-status) for publication. It retains muxed payments from 0.6.0 and adds full-M display-name reads. You can also use the [contract ABI](/api/onchain-resolution) or [HTTP API](/api/resolution).
 </Note>
 
 ## Constructor
@@ -19,7 +19,7 @@ Lookup **0.7.0** selects the current testnet deployment. Check [release status](
 | `registryId`, `rpcUrl`, `passphrase` | `string` | Coherent deployment and network overrides |
 | `lookupId` | `string` or `null` | Verified Lookup ID; `null` explicitly selects direct mode |
 | `resolutionMode` | `"universal"` or `"direct"` | Universal by default |
-| `primaryId` | `string` or `null` | Optional Primary anchor check; `null` disables |
+| `primaryId` | `string` or `null` | Optional G/C Primary anchor check; `null` disables that path |
 | `reverseNamespaces` | `string[]` | Ordered candidate namespaces |
 | `hintUrl` | `string` | Optional HTTP discovery/history API |
 | `resolverCacheTtlMs` | `number` | Direct routing cache, default 30,000 ms |
@@ -54,6 +54,12 @@ Custom Registry/passphrase settings inherit no unrelated Lookup or Primary pin. 
 | `namehash(namespace)`, `node(name)` | `Promise<Uint8Array>` containing the 32 raw hash bytes; [explicit hex conversion](/concepts/names-and-namespaces#namehash) |
 
 SDK metadata uses camelCase, such as `builtinAddress`, `expiresAt` and `namespacePermanent`. Contract ABI fields use snake_case. Generations and ownership timestamps remain exact `bigint` values in SDK metadata; JSON consumers must explicitly encode them, usually as decimal strings.
+
+## Complete muxed-address identity
+
+Lookup 0.8.0 extends `reverse`, `primaryOf`, `reverseVerify`, `reverseLookup`, `reverseNames` and `walletProfile` to accept a complete M address in universal mode. It requires a deployed Lookup with `muxed_identity_version() == 1`, verified on the current testnet deployment. See [release status](/reference/release-status).
+
+The SDK verifies Lookup's Registry, destination version `2` and `muxed_identity_version() == 1`, then dispatches M reads to Lookup with the decoded base G and exact u64 ID. There is no G-account, memo or other-ID fallback. Direct mode rejects M identity reads with `CONFIG`. M Primary is stored in Lookup and is independent of the `primaryId` G/C configuration. Holdings still accept G/C only; `walletProfile(M)` reports `holdings: null` instead of returning the shared account's holdings. See [elections and verification](/sdk/reverse-and-primary).
 
 ## Payment types
 

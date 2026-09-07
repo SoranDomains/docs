@@ -5,7 +5,7 @@ description: "Configure on-chain username registration, pricing, receiving walle
 
 <Note>
 Automatic claiming is deployed in the **6 September 2026 native-claim contracts**.
-The examples target Owner 0.7.0 and Holder 0.5.1; their publication and hosted console
+The examples target Owner 0.7.0 and Holder 0.6.0; their publication and hosted console
 cutover are tracked independently in [release status](/reference/release-status).
 Older namespaces remain owner-only unless they use a compatible native-claim deployment.
 </Note>
@@ -61,7 +61,7 @@ Contract execution and storage rent still cost XLM. Initial contract storage ren
 can be substantially higher than later actions, and storage upkeep can incur
 additional costs. Always review the current transaction estimate.
 
-Owner 0.7.0 and Holder 0.5.1 default to a **5 XLM network-fee limit** for
+Owner 0.7.0 and Holder 0.6.0 default to a **5 XLM network-fee limit** for
 native claim operations. This limit is separate from the namespace's username
 price; it is not the amount charged. An estimate above the limit is rejected before
 wallet signing. Applications can explicitly set `maxNativeFeeStroops` after their
@@ -151,7 +151,7 @@ permitted contract operations.
 
 ## Owner SDK example
 
-These examples target **Owner 0.7.0 and Holder 0.5.1**. Check their publication
+These examples target **Owner 0.7.0 and Holder 0.6.0**. Check their publication
 status before installing them. Supply the [verified native-claim Registry](/reference/release-status)
 explicitly; an older deployment cannot provide this interface.
 The `acme` namespace below is illustrative.
@@ -314,7 +314,7 @@ if (receipt) {
 }
 ```
 
-Holder 0.5.1 checks the Registry’s Registrar attestation and deployed code after
+Holder 0.6.0 checks the Registry’s Registrar attestation and deployed code after
 each receipt read or transaction confirmation, using RPC ledger context at least
 as recent as that result. The check applies to both a receipt and a null result.
 Missing, older or mismatched context stops recovery; retain the original request

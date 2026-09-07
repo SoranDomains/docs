@@ -3,7 +3,7 @@ title: "Contract storage reference"
 description: "Raw ledger keys, stored types, payment encodings and storage lifetimes for the six native-claim testnet contracts."
 ---
 
-This reference describes the native-claim deployment verified on **6 September 2026 at ledger 4,534,629**. Match the contract's current Wasm hash to the [public deployment manifest](/reference/deployments/testnet.json) before decoding storage with this schema. An upgrade can change an upgradeable contract's implementation while keeping its address.
+This reference describes the native-claim deployment verified on **6 September 2026 at ledger 4,534,629**, plus the additive Lookup muxed identity upgrade verified on **7 September at ledger 4,549,326**. Match the contract's current Wasm hash to the [public deployment manifest](/reference/deployments/testnet.json) before decoding storage with this schema. An upgrade can change an upgradeable contract's implementation while keeping its address.
 
 Use [Universal Lookup](/api/onchain-resolution#on-chain-resolution) for authoritative name and payment answers. Raw ledger entries are useful for explorers, storage tools and independent inspection. They are not a substitute for the contracts' ownership, generation, routing and payment checks.
 
@@ -23,7 +23,7 @@ its Registry records do not contain the new required ownership epoch.
 | Nova Registrar | `CBSORANHQRVZ7PEZ7VVFEQ7GQJ3M4RLBY2DNQ44MIVLU5C4J2DJ3DH3N` | `claim_version() = 1`; versioned `ClaimKey` entries below |
 | Nova Resolver | `CDSORANQGIHRR7ZLQTARI6UJUA6TPVFUYO4BXKFJQPUXUVWLCJPGWA5H` | `payment_version() = 2`; `destination_version() = 2`; `initialization_version() = 1` |
 | Primary | `CASORAN755O3GCQTRAHKDXLLCSDLNKAQWAP6MWABRSFVSHLJOEKAC7AB` | Immutable; no stored schema-version key |
-| Lookup | `CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA` | `version() = 2`; `destination_version() = 2` |
+| Lookup | `CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA` | `version() = 2`; `destination_version() = 2`; `muxed_identity_version() = 1` |
 
 Registrar and Resolver are namespace-specific. The other four contracts are shared. For another namespace, discover its current Registrar and Resolver through Lookup/Registry; do not use nova's pair. See [release status](/reference/release-status) for the verification timestamp, deployment transactions and historical deployments.
 
@@ -339,11 +339,58 @@ struct LegacyCodeHashes { registrar: BytesN<32>, resolver: BytesN<32> }
 struct PendingUpgrade { wasm_hash: BytesN<32>, execute_after: u64 }
 ```
 
-Lookup stores **no per-name answers, payment records, reverse records or cached namespace data**. It queries the Registry and the current namespace contracts. Resolution structs, namespace/name metadata and the internal Provenance mirror are ABI data, not additional Lookup storage entries. An absent optional anchor is not a failed read; decoding or RPC failures must be handled separately.
+The initial deployment has only the instance keys above. The additive muxed identity extension adds the two persistent election keys below; existing keys remain unchanged. Lookup does not copy payment records or memo instructions. Resolution structs, namespace/name metadata and the internal Provenance mirror are ABI data, not additional storage entries. An absent optional anchor is not a failed read; decoding or RPC failures must be handled separately.
 
 `version()` and `destination_version()` are code-defined getters; neither has a stored DataKey. ABI 2 selects complete `Direct`/`Muxed` destinations. A successful native Resolver payment-version `1` response uses its direct-payment interface; version `2` requires destination-version `2`. Failed or unknown capability responses do not justify a legacy fallback. The old Address-returning methods cannot represent a muxed ID and refuse that result.
 
 All Lookup configuration and pending-upgrade data share the instance lifetime. `keep_alive()` extends instance/code. The current upgrade delay is `0`: governance still proposes an exact Wasm hash, and execution checks that proposal. Code replacement does not automatically convert the stored Config or other instance values.
+
+### Muxed identity storage
+
+<Note>
+This additive schema is active on testnet after the Lookup upgrade at ledger **4,549,326**. Verify the current Wasm hash and `muxed_identity_version() == 1` against [release status](/reference/release-status). The original deployment receipts remain unchanged.
+</Note>
+
+| Key | Storage | Value | Meaning |
+| --- | --- | --- | --- |
+| `DataKey::MuxedReverse(ns_node, account, id)` | Persistent | `MuxedIdentityRecord` | One name per namespace and exact G-plus-u64 destination |
+| `DataKey::MuxedPrimary(account, id)` | Persistent | `MuxedIdentityRecord` | One cross-namespace election for that exact M destination |
+
+```rust
+struct MuxedIdentityRecord {
+    version: u32,             // 1
+    name: String,
+    registrar: Address,
+    resolver: Address,
+    generation: u64,
+}
+```
+
+Both keys include the classic G account and its **full `SCV_U64` ID**. The namespace key uses the normal 32-byte namespace node. Their exact XDR shapes are:
+
+```text
+SCV_VEC [SCV_SYMBOL("MuxedReverse"), SCV_BYTES(ns_node), SCV_ADDRESS(G), SCV_U64(id)]
+SCV_VEC [SCV_SYMBOL("MuxedPrimary"), SCV_ADDRESS(G), SCV_U64(id)]
+```
+
+The value is a five-field symbol-keyed map. `version` is `SCV_U32`; `generation` is `SCV_U64`; `name` is `SCV_STRING`; both contract pointers are `SCV_ADDRESS`. Malformed shapes, wrong field types or an unsupported record version fail with `InvalidMuxedRecord`. `muxed_identity_version()` is a code-defined getter, not a storage key.
+
+ID `0` is a real muxed key; it does not address a G-account record. ID `18446744073709551615` must remain an exact bigint or decimal string in tools. Keys with the same G but different IDs never alias. No entry duplicates or replaces the Resolver's payment data.
+
+These records capture an election-time snapshot. Reads recheck the same Registrar, Resolver, generation and complete current M payment. A transferred or reissued name needs a fresh election even if its new payment uses the same M address. An M Primary additionally requires the same verified reverse snapshot in its name's namespace. A raw stored value alone is not proof that the election is currently valid.
+
+Election and clear calls require the base G account's authorization. Clear removes only the exact key and leaves transaction history. `touch_reverse_muxed(namespace,account,id)` and `touch_primary_muxed(account,id)` are permissionless: each extends one existing entry and Lookup's instance/code, without creating an entry or validating its proof. `keep_alive()` alone maintains instance/code, not every election. Archived keys require restoration; an unavailable read is not an empty election.
+
+Versioned semantics are identified by these event topics and data:
+
+| Topics | Data |
+| --- | --- |
+| `set_mrev`, namespace node | `(account:Address, id:u64, record:MuxedIdentityRecord)` |
+| `clr_mrev`, namespace node | `(account:Address, id:u64)` |
+| `set_mpri` | `(account:Address, id:u64, record:MuxedIdentityRecord)` |
+| `clr_mpri` | `(account:Address, id:u64)` |
+
+The `set` events preserve `record.version = 1`; clear events preserve the exact key. These events describe elections and retractions, not payment updates or current validity. Touch calls emit no election event.
 
 ## TTL and restoration
 
@@ -358,13 +405,15 @@ threshold = min(2_500_000, saturating_sub(extend_to, 1))
 
 Lookup uses `threshold = min(2_500_000, max_ttl)` and `extend_to = min(3_000_000, max_ttl)`. These are ledger targets, not a promised number of days. A bump only extends an entry below its threshold; it can be a no-op for an already-long TTL. Instance extension checks the instance and Wasm-code TTLs separately. [Instance TTL semantics](https://docs.rs/soroban-sdk/26.1.0/soroban_sdk/storage/struct.Instance.html#method.extend_ttl)
 
+A newly uploaded replacement Wasm can have a shorter TTL than an existing Lookup instance. Because `keep_alive()` extends both, a later consumer write can inherit substantial code-extension cost if deployment upkeep has not been funded. Verify the code entry and instance separately after an upgrade, and confirm representative write fees before enabling consumers. Raising a consumer fee limit does not fix that deployment-maintenance gap.
+
 Persistent entries and contract instances can archive and later be restored. Archival does not establish that a namespace is unowned, a name has expired, a rejection/credit never existed, or a payment needs no memo. A raw `getLedgerEntries` result that omits a key is not a sufficient payment or ownership decision. A transaction accessing archived persistent data must include the required restoration work or fail; RPC simulation can identify what is needed. Restoration costs and subsequent TTL extension are distinct from name-renewal or claim fees. [Stellar state archival](https://developers.stellar.org/docs/learn/fundamentals/contract-development/storage/state-archival)
 
 Use the relevant contract read after restoration to recheck current meaning. Restoring an old-generation payment or a stale primary declaration does not make it current. Do not translate an RPC failure, archived entry or malformed ScVal into `None`, `false`, zero credit, or a memo-free G address.
 
 ## Read raw keys with Stellar RPC
 
-This read-only Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.7.0`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It does not sign, submit, restore, or construct a payment. Replace the example name with an actually issued name.
+This read-only Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.8.0`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It does not sign, submit, restore, or construct a payment. Replace the example name with an actually issued name.
 
 ```typescript
 import { Address, nativeToScVal, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";

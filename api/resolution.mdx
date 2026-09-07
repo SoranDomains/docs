@@ -44,7 +44,7 @@ Returns `name`, `node`, `holder`, `address`, complete `payment`, decimal-string 
 
 `holder` is distinct from `address`. `displayName` is the checked scoped reverse comparison. A Primary read error sets `primaryName: null` and records the status instead of inventing a false election result. A successful Primary `None` retains the underlying proof limitation described in [reverse and Primary](/sdk/reverse-and-primary).
 
-For M destinations, `address` and `payment.address` keep the complete M address. Account-level reverse/Primary checks are skipped, `displayName` is `false`, `primaryName` is `null`, and `primaryStatus` is `muxed_destination_not_account_identity`. The base G account is not substituted as the customer's identity.
+With the deployed muxed identity API update, M destinations keep the complete address in both `address` and `payment.address`. `displayName` compares the exact M namespace election; `primaryName` is a boolean comparison with that M Primary, or `null` on a Primary error. The base G account and other IDs are not substituted. This replaces the earlier `muxed_destination_not_account_identity` result on the current API deployment, verified on 7 September. See [release status](/reference/release-status).
 
 Payment, metadata, text and applicable reverse reads must succeed; separate reads are not a single atomic snapshot. Errors use `400` for bad input, `404` for recognized absent/inactive context, `409` for incompatible or memo-related conditions and `503` for unavailable/invalid dependent reads. Do not turn any error into a no-memo destination.
 
@@ -56,16 +56,53 @@ GET /v1/names/{namespace}/{label}
 
 This profile-oriented route returns indexed name/lifecycle fields and namespace operator metadata. It is not a current payment proof. Issuance timestamps/ledgers can be null for incomplete legacy history. New projection fields track generation, built-in address, current issuance and lifecycle source; expiry and ownership still require current chain verification for authoritative decisions.
 
-## Holder hint versus verified Primary
+## Verified reverse and Primary names
+
+<Note>
+Exact-M identity reads and the scoped reverse endpoint are live, verified at **08:46 UTC on 7 September**. API deployment is checked separately from contract deployment and SDK publication in [release status](/reference/release-status).
+</Note>
 
 ```http
-GET /v1/reverse/{address}
+GET /v1/reverse/{namespace}/{address}
 GET /v1/primary/{address}
 ```
 
-The first returns one indexed holder candidate with `source: "holder_hint"`, `verified: false` and coverage. It is not a reverse proof and is not the source of the SDK's contract-verified reverse answer.
+Both routes accept G, C or a complete M address. Scoped reverse returns `address`, `namespace`, `name`, `source: "chain_reverse"`, `verified` and `proof`. Primary returns `address`, `name`, `source: "chain_primary"`, `verified` and `proof`. A nonempty name is an elected, current contract-verified answer; `verified` is false when no verified election is returned. Both use `Cache-Control: no-store`.
 
-The second reads the current configured Primary route. Its `source` is `chain_primary`; a nonempty name has a verified current account election. A null name means no current verified election returned, and may include the underlying Primary's inability to complete a proof.
+For M, the API decodes the full address and reads `reverse_muxed` or `primary_name_muxed` on Lookup with its exact base G and u64 ID. It never substitutes a base-account or another-ID election. Invalid addresses fail with `400`; unsupported muxed identity and configuration conflicts fail with `409`; failed or malformed dependent reads fail with `503`. G/C Primary retains its [existing proof limitation](/sdk/reverse-and-primary#absence-and-failures).
+
+## Indexed holder hint
+
+```http
+GET /v1/reverse/{address}
+```
+
+This separate route returns one indexed holder candidate with `source: "holder_hint"`, `verified: false` and coverage. It is not a reverse proof and is not the source of the SDK's contract-verified reverse answer.
+
+It accepts G/C holder addresses. A muxed routing ID is not a holder and does not inherit the base G account's names.
+
+## Prepare an M display-name transaction
+
+The API accepts one explicit M election action per request:
+
+```http
+POST /records/prepare
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "customer420.nova",
+  "destination": "MA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUAAAAAAAAAABUTGI4",
+  "reverse": "set"
+}
+```
+
+Use `reverse: "set"` or `"clear"`, or replace it with `primary: "set"` or `"clear"`. Do not combine actions. `destination` is the complete M address; optional `address` is its base G signer and defaults to that G account. The name supplies the namespace for a reverse clear. This does not change the payment destination.
+
+A successful response includes `ok`, unsigned `xdr`, `signer`, `destination`, Lookup `contract`, `method` and `network`. A set requires the name's exact current M payment; Primary additionally requires its matching M reverse. The base G account must sign before submission, including when a custodian controls it. Preparing a transaction does not save an election or authorize the API to sign.
+
+Independently validate the network, Lookup/Registry anchors, exact method, name or namespace, G account, u64 ID, authorization tree and accepted network-fee ceiling before signing an API-supplied transaction. Prefer the [Holder SDK](/holder/managing-your-name#muxed-display-names) when you want to build the same calls directly from your app.
 
 ## Holdings pages
 
