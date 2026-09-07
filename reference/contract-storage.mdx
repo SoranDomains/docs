@@ -423,7 +423,9 @@ The testnet infrastructure configuration caps a keeper transaction at **200 XLM*
 
 Archived code, instances and records require restoration; a touch is not a restore. An absent optional record may never have existed or may have been intentionally cleared. Inspect the relevant contract state and event history before attempting restoration; absence alone does not justify recreating a record.
 
-Retained Rejected/Withdrawn claims are maintained alongside active claims, but `touch_claim` does not extend every claimant's separate `RejectedLock` or `ParkedAge` entry. Claimant history and events outside the indexer's known coverage need separate maintenance or, when archived, restoration. Archival does not erase these rules or establish a claim bypass. Confirm actual upkeep before relying on continued availability.
+Retained Rejected/Withdrawn claims are maintained alongside active claims. The keeper also retains each known `(label, claimant)` pair after the current claim changes and independently checks its `ParkedAge`, `RejectedLock` and `ClaimantReopenEta` entries. It extends due, live entries through Stellar's ledger-entry TTL operation. `touch_claim` alone does not cover those separate keys.
+
+Historical candidates come from exact fee and claimant-appeal events plus known claims. Events outside the indexer's coverage require verified historical evidence; a label-only event does not establish who the earlier claimant was. Unavailable entries require inspection before any restoration. Restoring an archived entry preserves its stored value and does not clear a rejection or grant a reopening.
 
 ## Read raw keys with Stellar RPC
 
