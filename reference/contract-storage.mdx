@@ -411,6 +411,20 @@ Persistent entries and contract instances can archive and later be restored. Arc
 
 Use the relevant contract read after restoration to recheck current meaning. Restoring an old-generation payment or a stale primary declaration does not make it current. Do not translate an RPC failure, archived entry or malformed ScVal into `None`, `false`, zero credit, or a memo-free G address.
 
+### Hosted keeper coverage
+
+The API maintenance keeper checks **contract instance and current Wasm-code TTLs independently** for Lookup, Registry, Allocator, Primary and known namespace Registrar/Resolver contracts. A long-lived instance does not establish that replacement code has the same remaining lifetime. See [release status](/reference/release-status#hosted-services) for deployment verification; source changes alone do not establish that a keeper is running.
+
+Primary has no `keep_alive` method. Its permissionless `touch_primary(keeper_address)` can maintain code and instance even when that address has no Primary record. This call does not create an election or change a display name. Prepared maintenance transactions must preserve the exact requested invocation and contain no contract authorization entries. A namespace contract that asks for additional account authority is not signed by the keeper.
+
+Record maintenance covers known Registry nodes, names, Resolver payment/profile/reverse records, Primary records and retained Allocator claims. Complete M elections use the exact `MuxedReverse(namespace, G, u64)` and `MuxedPrimary(G, u64)` keys. Current election events supply candidates, and each pass can recover up to 500 matching events from the indexer's stored event archive. This bounded history recovery is not enumeration of all on-chain keys. A touch checks an existing key; it does not recreate a missing election or make its forward proof valid.
+
+The testnet infrastructure configuration caps a keeper transaction at **200 XLM** and cumulative reserved fees at **1,000 XLM per pass**. These are maintenance spending ceilings, not namespace claim prices, username prices or wallet transaction limits. The keeper reserves each simulated fee before signing, counts failed attempts against its attempt limit and stops further attempts after an uncertain submission. Unused allowance is not spent. Other networks require explicit maintenance fee limits.
+
+Archived code, instances and records require restoration; a touch is not a restore. An absent optional record may never have existed or may have been intentionally cleared. Inspect the relevant contract state and event history before attempting restoration; absence alone does not justify recreating a record.
+
+Retained Rejected/Withdrawn claims are maintained alongside active claims, but `touch_claim` does not extend every claimant's separate `RejectedLock` or `ParkedAge` entry. Claimant history and events outside the indexer's known coverage need separate maintenance or, when archived, restoration. Archival does not erase these rules or establish a claim bypass. Confirm actual upkeep before relying on continued availability.
+
 ## Read raw keys with Stellar RPC
 
 This read-only Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.8.0`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It does not sign, submit, restore, or construct a payment. Replace the example name with an actually issued name.
