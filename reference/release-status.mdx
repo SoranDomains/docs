@@ -20,8 +20,8 @@ The contract addresses and initial configuration below are a dated deployment re
 | Native receipt patch | Holder 0.5.1 published; Nova claiming app and Studio updates verified live |
 | Separate Allocator source fixes | Pending the existing proposal; the Lookup identity upgrade does not execute or replace it |
 | Allocator upgrade-delay change | Selected policy: zero waiting for future contract upgrades; **not installed yet**. Installing the revised proposal still requires the live code's 24-hour wait |
-| Public app / API | API M identity endpoints verified on 7 September at 08:46 UTC; main public web deployment retains its separate 6 September verification |
-| Hosted MCP | **0.8.0**, verified on 7 September at 08:46 UTC with exact-M reverse reads; read-only tools |
+| Public app / API | API M identity endpoints verified on 7 September at 08:47 UTC; main public web deployment retains its separate 6 September verification |
+| Hosted MCP | **0.8.0**, verified on 7 September at 08:47 UTC with exact-M reverse reads; read-only tools |
 | Mainnet | No deployment or supported preset announced |
 | Mainnet namespace fee | Proposed 5,000 USDC; not a live configured price |
 
@@ -102,7 +102,7 @@ The [quickstart](/quickstart) pins Registry, Lookup and Primary explicitly. Miss
 - HTTP API: `https://api.soran.domains`; resolution alias: `https://resolve.soran.domains`.
 - Hosted MCP: `https://mcp.soran.domains/mcp`, with read tools only.
 
-The API and hosted MCP **0.8.0** were verified at **08:46:13 UTC on 7 September**. Both returned the elected name for an M address with ID `0`; the same G account with ID `1` returned no election, while the base G account returned its separately elected name. Forward payment instructions were also checked. This verifies exact-ID separation through API `primary` / scoped `reverse` and hosted MCP `reverse_lookup`.
+The API and hosted MCP **0.8.0** were verified at **08:47:25 UTC on 7 September**. Both returned the elected names for M IDs `0`, `9007199254740993` and `18446744073709551615`; the same G account with ID `1` returned no election, while the base G account returned its separately elected name. Forward payment instructions were also checked. This verifies exact-ID separation through API `primary` / scoped `reverse` and hosted MCP `reverse_lookup`.
 
 The API deployment is `ff35e3dd-117a-4b99-b6de-b280759d4714`; hosted MCP deployment is `71b205dc-a112-431e-a0a1-3362e6fb1226`. Native claim helpers and M signing tools remain [local-only](/agents/access#native-usernames-in-local-mode). Neither contract deployment nor npm publication alone proves a hosted service has switched.
 

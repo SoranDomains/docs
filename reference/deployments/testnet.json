@@ -154,7 +154,7 @@
     "consumerFeeCapsChanged": false
   },
   "hostedServices": {
-    "verifiedAt": "2026-09-07T08:46:13.017Z",
+    "verifiedAt": "2026-09-07T08:47:25.093Z",
     "api": {
       "url": "https://api.soran.domains",
       "resolutionAlias": "https://resolve.soran.domains",
@@ -166,6 +166,6 @@
       "deploymentVersion": "71b205dc-a112-431e-a0a1-3362e6fb1226",
       "mode": "read-only"
     },
-    "verificationScope": "Confirmed exact M ID 0 Primary/reverse through API and reverse_lookup through hosted MCP; same-G ID 1 returned no election and base G returned its independent account election. Forward destinations were preserved."
+    "verificationScope": "Confirmed exact M IDs 0, 9007199254740993 and 18446744073709551615 Primary/reverse through API and reverse_lookup through hosted MCP; same-G ID 1 returned no election and base G returned its independent account election. Forward destinations preserved every ID without rounding."
   }
 }
