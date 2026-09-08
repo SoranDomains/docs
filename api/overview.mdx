@@ -52,3 +52,20 @@ Paginated routes return `nextCursor`, `hasMore`, `truncated` and `coverage`. Con
 `/v1/stats` reports indexed counts. `/v1/ledger/head` reports the last observed chain head, which can remain cached after a failed refresh. Use [`/v1/coverage` and status](/api/status) to assess freshness.
 
 `GET /health` checks process liveness. `GET /v1/status` reports component measurements. Authenticated console management is outside this public reference, apart from the tenant-facing [paid claim preparation flow](/api/claim-fees#prepare-a-paid-announcement).
+
+<span id="upcoming-submission-responses" />
+
+## Submission responses
+
+The hosted API returns the locally calculated transaction hash when a submission's outcome is uncertain. This behavior is active in the 8 September 2026 update.
+
+| Response | What your app should do |
+| --- | --- |
+| `202`, `pending: true`, `txHash` | Check that original transaction before preparing a replacement |
+| `503`, `error: "namespace_authority_unavailable"`, `notSubmitted: true` | No transaction was submitted; wait for ownership checks to recover, then review again |
+| `409`, `error: "transaction_rejected"`, `txHash` | Show the definite rejection or included failure; inspect the result before another attempt |
+| Connection lost before your app receives a response | Use the hash your app saved from the signed transaction to check inclusion |
+
+Save the signed transaction and its hash before submitting. Re-broadcasting that same signed transaction preserves its identity. Preparing and signing another transaction creates a separate operation and may repeat a renewal or other action that already succeeded.
+
+`notSubmitted: true` also identifies a definitive pre-handler refusal or a transaction rejected before inclusion. An included failure uses `notSubmitted: false`; network fees can still apply. A failed preparation, an uncertain send and an included failure are different outcomes.

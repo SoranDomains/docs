@@ -86,3 +86,22 @@ Direct mode checks Registry, Registrar authority and payment capability. Version
 HTTPS is required except for allowed local-development hosts. Names are checked for ASCII before lowercasing, and whitespace is not trimmed. Malformed configuration or name input must be corrected rather than retried as an absent record.
 
 See [reference](/sdk/reference) for methods, result types and typed failures.
+
+## Upcoming write-client fee limit
+
+This option is implemented in the next Owner and Holder source revision. It is **not yet available in the published versions listed above**. Check [release status](/reference/release-status#upcoming-updates) before using it in an installed package.
+
+Add `maxNetworkFeeStroops` to either write client's configuration to cap the total network fee for each transaction, including storage restoration:
+
+```ts
+// Options for the upcoming Owner or Holder client release.
+const feeOptions = {
+  maxNetworkFeeStroops: 50_000_000n, // 5 XLM per transaction
+};
+```
+
+The default is 5 XLM. This is a maximum, not a flat charge. The client checks the final transaction before asking the signer to approve it. Username prices and namespace application fees remain separate contract payments.
+
+`maxNativeFeeStroops` remains an optional additional limit for native operations; the lower applicable limit wins. If you omit `maxNetworkFeeStroops`, an explicitly configured `maxNativeFeeStroops` supplies the general ceiling too. Valid limits are positive bigint values up to `4_294_967_295n` stroops.
+
+A restoration and the requested write are separate transactions, each subject to the ceiling. For workflows such as `setProfile` that submit several transactions, the limit applies to each transaction rather than the whole workflow. Review the estimates before raising the limit.

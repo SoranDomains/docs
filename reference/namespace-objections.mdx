@@ -77,3 +77,31 @@ Persistent records still need storage upkeep. Anyone can call `touch_decision(ca
 | `42` | `DecisionNotFound` | The decision requested for upkeep does not exist |
 
 Existing errors such as `ClaimNotFound`, `NotObjected` and authorization failures still apply. A transport error or restoration requirement is not a zero credit or an absent decision. Use [Allocator events](/api/events#namespace-objection-events) to discover case IDs, then read the contract for authoritative records.
+
+<span id="upcoming-reopening-interface" />
+
+## Reopening proposals
+
+Each governance proposal to reopen a rejected claimant's application has an exact identity. This interface is active on the current testnet Allocator after the [8 September upgrade](/reference/release-status#allocator-upgrade). Before using these methods on another deployment, verify `reopen_version() == 1`. The existing `ruling_version()` does not establish this capability.
+
+| Method | Arguments | Result or purpose |
+| --- | --- | --- |
+| `reopen_version` | None | `u32`; `1` for this interface |
+| `reopen_proposal` | `label: Bytes`, `claimant: Address` | `Option<ReopenProposal>` |
+| `cancel_reopen_bound` | `label: Bytes`, `claimant: Address`, `expected_id: BytesN<32>` | Governance cancels the exact reviewed proposal |
+| `execute_reopen_bound` | `label: Bytes`, `claimant: Address`, `expected_id: BytesN<32>` | Anyone executes that proposal once its existing timing conditions are met |
+
+```rust
+struct ReopenProposal {
+    id: BytesN<32>,
+    eta: u64,
+    rejected_at: u64,
+    legacy: bool,
+}
+```
+
+Read the proposal, review its claimant and rejection timestamp, then pass its `id` to cancellation or execution. If a different proposal replaced it, the call returns `ReopenChanged` (`44`). Read and review the replacement before making another request. `ReopenSequenceExhausted` (`45`) prevents issuing a reused identity if the sequence reaches its limit.
+
+The update retains existing reopening proposals and their original `eta`. `legacy` identifies a proposal stored through the older label-wide path. Reopening still waits one full allocation window; a zero code-upgrade delay does not remove this wait. The older cancellation/execution methods remain available, so new integrations should explicitly select the bound methods after checking the capability.
+
+The `reo_case` event carries `(label, claimant, id, legacy)` for proposal discovery. Read the proposal from the contract before acting; an event alone does not prove it is still pending.

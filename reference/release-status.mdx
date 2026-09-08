@@ -102,6 +102,7 @@ Nova is unlocked and its policy is reclaimable. Example records can change; test
 | Registrar `claim_version()` | `1` |
 | Resolver `initialization_version()` | `1` |
 | Allocator `ruling_version()` | `1` |
+| Allocator `reopen_version()` | `1` |
 | Registry namespace deployment salt | `1` |
 
 Lookup's muxed identity extension is active at the same contract address. See the [full-M methods](/api/onchain-resolution#muxed-identity-extension) and [storage schema](/reference/contract-storage#muxed-identity-storage).
@@ -110,9 +111,9 @@ Lookup's muxed identity extension is active at the same contract address. See th
 
 ## Allocator upgrade
 
-The Allocator's current implementation records [case-specific rulings and explanations](/reference/namespace-objections) on chain. It also lets upgrade execution and cancellation bind the exact reviewed code hash. The [confirmed 8 September upgrade](https://stellar.expert/explorer/testnet/tx/bcfdd52a7e10330f437f133abb0dcbf712c9912dad225c40bd73fbe8d55faae9) keeps the same contract address and storage schema `4`.
+The Allocator records [case-specific rulings and explanations](/reference/namespace-objections) on chain. Code-upgrade execution and cancellation bind the exact reviewed code hash. Reopening cancellation and execution now bind the [exact proposal identity](/reference/namespace-objections#reopening-proposals), so a replacement proposal needs a new review. The [latest confirmed 8 September upgrade](https://stellar.expert/explorer/testnet/tx/a9c77709a1a4e51fa4a5ca74647e332302f629ef53578bb3bc912fd7e29ca9c3) keeps the same contract address and storage schema `4`.
 
-The earlier upgrade that day removed the mandatory wait for new governance-approved code proposals and fixed XLM settlement to G accounts that do not yet exist. A payout can create the account when it meets the required reserve; if the transfer fails, the recipient receives a recoverable credit. Both upgrades are recorded separately in the deployment manifest.
+Earlier upgrades that day added case-specific rulings, removed the mandatory wait for new governance-approved code proposals and fixed XLM settlement to G accounts that do not yet exist. A payout can create the account when it meets the required reserve; if the transfer fails, the recipient receives a recoverable credit. The upgrades are recorded separately in the deployment manifest.
 
 Namespace claim and objection windows, the 5,000 XLM fee and refund entitlements remain unchanged. See [governance and upgrades](/concepts/governance#allocator-upgrade-flow).
 
@@ -128,6 +129,19 @@ Namespace claim and objection windows, the 5,000 XLM fee and refund entitlements
 | SDK demonstration app | [Open Soran Studio](https://soran-studio.throbbing-cloud-0f8e.workers.dev/) |
 
 These services use the current deployment. Hosted MCP runs version **0.8.0**; signing tools are [local-only](/agents/access#native-usernames-in-local-mode). Billing and marketplace features are disabled on this setup. Check [service status](/api/status) when integrating.
+
+The 8 September console/API update checks [current namespace ownership](/platform/console#current-ownership-checks), preserves the transaction hash after an [interrupted submission](/api/overview#submission-responses), and lets you recover an interrupted renewal before attempting another. The console also checks a maximum network fee and a short transaction expiry before wallet approval. Its name-management page supports full muxed identities through Universal Lookup.
+
+## Upcoming updates
+
+The following changes are implemented in the next source revision. They have **not been published or deployed**. The package versions, hosted services and contract addresses listed above remain the release reference.
+
+| Area | Change after release |
+| --- | --- |
+| Owner and Holder clients | One [network-fee ceiling](/sdk/installation#upcoming-write-client-fee-limit) covers every write and storage restoration |
+| Local MCP | An operator-wide [network-fee setting](/agents/access#upcoming-network-fee-setting) applies across write tools |
+
+Client publication and hosted API rollout are separate steps. The Allocator reopening interface and hosted console/API corrections are already active; these remaining SDK and local MCP updates still require publication.
 
 ## Historical records
 

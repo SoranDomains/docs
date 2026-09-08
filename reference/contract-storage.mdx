@@ -227,6 +227,22 @@ struct ObjectionDecision {
 
 `claim` preserves the original `Objected` snapshot, including the evidence and parties. `reason` is `Some(Bytes)` for `resolve_objection_for` and `None` for the older label-only ruling method. Later claims do not overwrite decisions. The latest pointer is a convenience lookup, not a complete history. Normal persistent TTL and restoration rules apply. See the [ruling methods and reason limits](/reference/namespace-objections).
 
+<span id="upcoming-reopening-proposal-storage" />
+
+### Reopening proposal storage
+
+The [reopening interface](/reference/namespace-objections#reopening-proposals) uses the following keys in the current testnet Allocator. Schema `4` and the existing `(eta, rejected_at)` tuples remain unchanged.
+
+| Key | Storage | Value | Meaning |
+| --- | --- | --- | --- |
+| `DataKey::ReopenSequence` | Instance | `u64`, initially absent means `0` | Monotonic sequence for newly created reopening proposals |
+| `DataKey::LegacyReopenId(label_hash)` | Persistent | `BytesN<32>` | Identity accompanying a label-wide reopening proposal |
+| `DataKey::ClaimantReopenId(label_hash, claimant)` | Persistent | `BytesN<32>` | Identity accompanying a claimant-specific reopening proposal |
+
+The `ReopenProposal` returned by `reopen_proposal` combines the stored identity with its timing tuple; it is not an additional stored struct. New IDs hash the XDR tuple `(Symbol("soran_reopen_v1"), network_id, allocator_address, sequence)`. Earlier proposals without an ID remain readable through a deterministic compatibility identity derived from their namespace, claimant, timing and storage path. An archived ID requires restoration rather than being treated as a missing legacy value.
+
+Recreating a proposal receives a new identity even in the same ledger. Cancellation, execution and related cleanup remove the matching ID with its proposal. Proposal upkeep also extends its existing ID. Use the read method to obtain an ID before a bound action instead of constructing one from raw storage.
+
 ## Registrar
 
 Stores each issued name, its holder and its ownership policy.
