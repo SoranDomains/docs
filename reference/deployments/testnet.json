@@ -3,8 +3,8 @@
   "network": "testnet",
   "networkPassphrase": "Test SDF Network ; September 2015",
   "rpcUrl": "https://soroban-testnet.stellar.org",
-  "verifiedAt": "2026-09-08T12:08:16.854Z",
-  "verifiedLedger": 4569136,
+  "verifiedAt": "2026-09-08T20:54:03.390Z",
+  "verifiedLedger": 4575408,
   "governance": "GAJCWWNMBKCSTQQISDFTHFTCEOGXYA37YTP3U3ZW7Q5CYQPHSW6TB4QX",
   "lookupVersion": 2,
   "lookupUpgradeDelaySeconds": 0,
@@ -42,19 +42,25 @@
     },
     "allocator": {
       "id": "CCSORANYFHUJUWETEQ7UWIDN4JTPV7NN5G6YUSSBZI57X7EQWVA63VMJ",
-      "wasmHash": "df086b031a94b6d59b8251079c051d1499fc609bd6f19a2ac06138bb509fa197",
+      "wasmHash": "609a736865dc7d4dbbaf29ac0a60ff876141809c5a0d5da9fe747b12f040a618",
       "deploymentTransaction": "6588ca3a8d09458e6aadeaf0173927dc10865b68c8531632d4368c109b85d46e",
       "deploymentLedger": 4534622,
       "deploymentWasmHash": "584d5dc1d82e34655d4130f4f0e93ae7b5cd75d6465484efb51b8525f13c3db0",
-      "upgradeTransaction": "bcfdd52a7e10330f437f133abb0dcbf712c9912dad225c40bd73fbe8d55faae9",
-      "upgradeLedger": 4569136,
-      "codeVerifiedAt": "2026-09-08T12:08:16.854Z",
+      "upgradeTransaction": "a9c77709a1a4e51fa4a5ca74647e332302f629ef53578bb3bc912fd7e29ca9c3",
+      "upgradeLedger": 4575408,
+      "codeVerifiedAt": "2026-09-08T20:54:03.390Z",
       "upgradeHistory": [
         {
           "wasmHash": "9480a4f980de9df0a31652b0b64c54d5c5e1979745cc8c4fc486624b9c177e40",
           "transaction": "8a25369b3a11676ea602a93f3830b0c22df47033726ab433367355072d2f0631",
           "ledger": 4564382,
           "codeVerifiedAt": "2026-09-08T05:31:39.329Z"
+        },
+        {
+          "wasmHash": "df086b031a94b6d59b8251079c051d1499fc609bd6f19a2ac06138bb509fa197",
+          "transaction": "bcfdd52a7e10330f437f133abb0dcbf712c9912dad225c40bd73fbe8d55faae9",
+          "ledger": 4569136,
+          "codeVerifiedAt": "2026-09-08T12:08:16.854Z"
         }
       ]
     },
@@ -170,7 +176,8 @@
     "api": {
       "url": "https://api.soran.domains",
       "resolutionAlias": "https://resolve.soran.domains",
-      "deploymentVersion": "ff35e3dd-117a-4b99-b6de-b280759d4714"
+      "deploymentVersion": "a040829d-0a3b-4654-9219-fde28298b0e2",
+      "verifiedAt": "2026-09-08T20:50:12.565Z"
     },
     "mcp": {
       "url": "https://mcp.soran.domains/mcp",
@@ -178,30 +185,26 @@
       "deploymentVersion": "71b205dc-a112-431e-a0a1-3362e6fb1226",
       "mode": "read-only"
     },
-    "verificationScope": "Confirmed exact M IDs 0, 9007199254740993 and 18446744073709551615 Primary/reverse through API and reverse_lookup through hosted MCP; same-G ID 1 returned no election and base G returned its independent account election. Forward destinations preserved every ID without rounding."
+    "verificationScope": "Confirmed exact M IDs 0, 9007199254740993 and 18446744073709551615 Primary/reverse through API and reverse_lookup through hosted MCP; same-G ID 1 returned no election and base G returned its independent account election. Forward destinations preserved every ID without rounding.",
+    "web": {
+      "url": "https://soran.domains",
+      "deploymentVersion": "0d33f943-ce7e-49b3-8f18-61f3e4d442e1",
+      "verifiedAt": "2026-09-08T20:50:12.565Z"
+    }
   },
   "allocatorUpgradeDelaySeconds": 0,
   "allocatorSchemaVersion": 4,
-  "allocatorUpkeep": {
-    "transaction": "17534552b0df1903ba0782880fe681e3e8b16712710a43e8ee139132176d3675",
-    "ledger": 4569139,
-    "feeStroops": "1709664771",
-    "paidBy": "platform deployment account",
-    "instanceLiveUntilLedger": 7534623,
-    "codeLiveUntilLedger": 7569139,
-    "consumerFeeCapsChanged": false
-  },
   "independentCodeVerification": {
-    "verifiedAt": "2026-09-08T12:08:16.854Z",
+    "verifiedAt": "2026-09-08T20:54:03.390Z",
     "contractLedgers": {
-      "registry": 4569139,
-      "allocator": 4569139,
-      "registrar": 4569140,
-      "resolver": 4569140,
-      "primary": 4569140,
-      "lookup": 4569140
+      "registry": 4575449,
+      "allocator": 4575449,
+      "registrar": 4575450,
+      "resolver": 4575450,
+      "primary": 4575450,
+      "lookup": 4575451
     },
-    "scope": "Downloaded and verified all six deployed Wasm hashes after the case-bound Allocator ruling upgrade. Every retained Allocator instance entry matched the pre-upgrade snapshot. Schema 4, fee policy, liabilities and Registry Allocator anchor were unchanged. Ruling API version 1 and its added read methods were verified directly on chain. The indexed allocation queue was empty; no persistent claims were sampled."
+    "scope": "Downloaded and verified all six current Wasm hashes after the same-address Allocator reopen-identity correction. All retained Allocator instance entries, fee policy, liabilities, Registry anchor and schema 4 were unchanged. Reopen and ruling APIs both verified as version 1. No historical persistent claim enumeration is asserted."
   },
   "allocatorRulingVersion": 1,
   "allocatorUpkeepHistory": [
@@ -214,5 +217,25 @@
       "codeLiveUntilLedger": 7564393,
       "consumerFeeCapsChanged": false
     }
-  ]
+  ],
+  "allocatorReopenVersion": 1,
+  "allocatorReopenVerification": {
+    "verifiedAt": "2026-09-08T20:50:29.515Z",
+    "ledger": 4575408,
+    "reopenVersion": 1,
+    "rulingVersion": 1,
+    "schemaVersion": 4,
+    "scope": "Verified the new code hash, capability methods, existing instance storage, fee policy and Registry Allocator anchor after the proposal-bound reopening upgrade."
+  },
+  "allocatorUpkeep": {
+    "transaction": "17534552b0df1903ba0782880fe681e3e8b16712710a43e8ee139132176d3675",
+    "ledger": 4569139,
+    "feeStroops": "1709664771",
+    "paidBy": "platform deployment account",
+    "instanceLiveUntilLedger": 7534623,
+    "codeLiveUntilLedger": 7569139,
+    "consumerFeeCapsChanged": false,
+    "wasmHash": "df086b031a94b6d59b8251079c051d1499fc609bd6f19a2ac06138bb509fa197",
+    "scope": "Historical upkeep for the prior Allocator Wasm; its code TTL does not describe the current uploaded code."
+  }
 }

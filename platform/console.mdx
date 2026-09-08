@@ -56,3 +56,13 @@ Use reserved assignment to issue an administrative label while keeping it reserv
 The maximum network fee starts at 5 XLM per transaction, separate from the username price. This is a ceiling, not the amount charged. Review an estimate before raising the limit for storage rent or other network costs. If a submission is interrupted, use **Check transaction** before making another change.
 
 Connect the [Owner and Holder SDKs](/owner/automatic-claiming) to your app's own signup or account settings. Your users can claim there without visiting the Soran console.
+
+<span id="upcoming-ownership-checks" />
+
+## Current ownership checks
+
+The console/API checks the selected namespace's current on-chain owner before allowing namespace administration. These checks are active in the 8 September 2026 update.
+
+After a namespace transfer, the previous owner's console team loses access. The new owner can refresh their wallet session, select the namespace and configure their own team or rotate webhook credentials. If current ownership cannot be read, management waits until that check succeeds. An indexer delay does not require you to transfer the namespace again.
+
+These checks concern namespace administration. Public lookups and a holder's wallet-authorized name operations keep their own access rules.
