@@ -23,10 +23,12 @@ An upgrade keeps the Lookup address stable. Registry and version checks verify t
 ## Allocator upgrade flow
 
 1. Governance authorizes `propose_upgrade(new_wasm_hash)` for one exact Wasm hash. The proposal stores `eta` as the current ledger timestamp.
-2. Anyone may call `execute_upgrade()` immediately. It uses the stored proposal's hash; the caller cannot substitute another hash.
+2. Anyone may call `execute_upgrade_for(expected_wasm_hash)` immediately. The supplied hash must still match the pending proposal.
 3. Successful execution replaces the Wasm at the same Allocator address and consumes the proposal. A failed replacement rolls back the transaction.
 
-Only one proposal can be pending. Governance must cancel it before proposing a different hash. As with Lookup, immediate execution leaves no guaranteed review or cancellation window.
+Only one proposal can be pending. Governance uses `cancel_upgrade_for(expected_wasm_hash)` to cancel the exact reviewed proposal before proposing another hash. Both bound methods reject a changed hash with `UpgradeChanged` (`43`). As with Lookup, immediate execution leaves no guaranteed review or cancellation window.
+
+The older `execute_upgrade()` and `cancel_upgrade()` remain available for compatibility. They act on whichever proposal is pending at execution time. New integrations should use the methods that bind the expected hash; their arguments use `BytesN<32>`. The stored `eta` still applies.
 
 The upgrade timing is separate from allocation rules. Claim windows and objection rules remain in place, and governance reopening proposals still wait one full allocation window.
 

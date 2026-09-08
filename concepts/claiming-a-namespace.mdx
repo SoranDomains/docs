@@ -43,6 +43,8 @@ Settlement attempts to pay each party. If a transfer fails, the amount remains a
 
 ## Objection outcomes
 
+Only the Allocator's configured governance address can decide an objection. Its [case-specific ruling method](/reference/namespace-objections) records the reviewed evidence and a public explanation on chain. A namespace owner or application login does not confer ruling authority.
+
 - An **upheld** objection rejects the claim, returns its fee in full and refunds the objector's bond.
 - A **dismissed** objection resumes the existing claim; it does not charge the claim fee again. The objection bond is burned under the Allocator's rules.
 - An adjudication timeout lets anyone trigger recovery and resume the claim under the timeout rules. It does not trigger the rejected-claim fee refund.
