@@ -5,7 +5,7 @@ description: "Who can change each contract and what an upgrade means for your in
 
 Soran contracts have different upgrade rules. Universal Lookup can change immediately after governance approves an exact code hash. Registry and Primary have no code-upgrade entry point. Namespace owners control eligible Registrar and Resolver upgrades until a [permanence lock](/concepts/ownership-guarantees) removes that ability.
 
-The current testnet Allocator still requires **24 hours** for a code upgrade. A replacement that removes this delay is pending; see [release status](/reference/release-status) for installation status. This delay is separate from namespace claim and objection windows.
+The current testnet Allocator also has **no mandatory code-upgrade wait**. This policy was activated on 8 September 2026; see [release status](/reference/release-status#allocator-upgrade). Namespace claim, objection and reopening windows still apply.
 
 ## Universal Lookup upgrade flow
 
@@ -18,24 +18,24 @@ Governance can call `cancel_upgrade()` before execution, but zero delay leaves n
 
 An upgrade keeps the Lookup address stable. Registry and version checks verify the reported connections and interface compatibility; they do not pin its executable code. If your integration requires a specific reviewed implementation, verify the current code too.
 
-## Allocator upgrade policy (pending installation)
+<span id="allocator-upgrade-policy-pending-installation" />
 
-The pending replacement would use this flow:
+## Allocator upgrade flow
 
 1. Governance authorizes `propose_upgrade(new_wasm_hash)` for one exact Wasm hash. The proposal stores `eta` as the current ledger timestamp.
 2. Anyone may call `execute_upgrade()` immediately. It uses the stored proposal's hash; the caller cannot substitute another hash.
 3. Successful execution replaces the Wasm at the same Allocator address and consumes the proposal. A failed replacement rolls back the transaction.
 
-Only one proposal can be pending. Governance must cancel it before proposing a different hash. As with Lookup, immediate execution would leave no guaranteed review window.
+Only one proposal can be pending. Governance must cancel it before proposing a different hash. As with Lookup, immediate execution leaves no guaranteed review or cancellation window.
 
-Installation follows the currently deployed 24-hour rule. Replacing a proposal starts a fresh wait. The proposed change affects only code-upgrade timing: claim windows and objection rules remain in place, and governance reopening proposals still wait one full allocation window.
+The upgrade timing is separate from allocation rules. Claim windows and objection rules remain in place, and governance reopening proposals still wait one full allocation window.
 
 ## Other contracts
 
 | Contract | Upgrade boundary |
 | --- | --- |
 | Registry | No upgrade method in the current implementation; replacement requires a new deployment and configuration |
-| Allocator | Governance proposes code changes; current testnet code requires 24 hours before execution |
+| Allocator | Governance proposes one exact code hash; execution has zero mandatory delay |
 | Registrar and Resolver | The namespace owner can change eligible unlocked contracts; permanence and upgrade taint constrain that ability |
 | Primary | No code upgrade entry point in the current implementation |
 | Universal Lookup | Governed exact-hash code replacement with zero mandatory delay |
