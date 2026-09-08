@@ -3,7 +3,7 @@ title: "Testnet and contract addresses"
 description: "Current contract addresses, SDK versions, endpoints and fees for integrating with Soran."
 ---
 
-Soran is available on **Stellar testnet**. Mainnet is not available yet. This page was reviewed on **7 September 2026**.
+Soran is available on **Stellar testnet**. Mainnet is not available yet. This page was reviewed on **8 September 2026**.
 
 <span id="verified-claim-behavior" />
 
@@ -105,13 +105,15 @@ Nova is unlocked and its policy is reclaimable. Example records can change; test
 
 Lookup's muxed identity extension is active at the same contract address. See the [full-M methods](/api/onchain-resolution#muxed-identity-extension) and [storage schema](/reference/contract-storage#muxed-identity-storage).
 
-## Pending Allocator upgrade
+<span id="pending-allocator-upgrade" />
 
-The Allocator still enforces its current **24-hour upgrade wait**. A pending proposal adds an XLM payout correction and removes the wait for future upgrades. Its earliest execution is **7 September 2026 at 19:22:47 UTC**; reaching that time does not execute it automatically.
+## Allocator upgrade
 
-Until that upgrade is installed, an XLM payout to a G account that does not yet exist can fail settlement. The refund entitlements above remain unchanged.
+The Allocator was upgraded at the **same contract address on 8 September 2026**. New governance-approved code proposals can execute immediately, with no mandatory upgrade wait. The [confirmed transaction](https://stellar.expert/explorer/testnet/tx/8a25369b3a11676ea602a93f3830b0c22df47033726ab433367355072d2f0631) is recorded in the deployment manifest.
 
-Lookup already has no mandatory upgrade wait. The Allocator change does not shorten namespace claim or objection windows. See [governance and upgrades](/concepts/governance#allocator-upgrade-policy-pending-installation).
+The update also fixes XLM settlement to G accounts that do not yet exist. A payout can create the account when it meets the required reserve; if the transfer fails, the recipient receives a recoverable credit.
+
+Namespace claim and objection windows, the 5,000 XLM fee and refund entitlements remain unchanged. See [governance and upgrades](/concepts/governance#allocator-upgrade-flow).
 
 ## Hosted services
 
