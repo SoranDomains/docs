@@ -1,0 +1,79 @@
+---
+title: "Namespace objections"
+description: "Read an objection's exact case, submit a governance ruling and retrieve its on-chain explanation."
+---
+
+Namespace objections pause a top-level namespace application for governance to decide. They are separate from username registration beneath an existing namespace. See [claim and refund outcomes](/concepts/claiming-a-namespace#objection-outcomes) for the user journey.
+
+Use the Allocator address from [the current deployment](/reference/release-status). The methods below require `ruling_version() == 1`. An RPC error or an unavailable version method is not a supported capability.
+
+## Read a case
+
+| Method | Arguments | Result |
+| --- | --- | --- |
+| `ruling_version` | None | `u32`; `1` for this interface |
+| `get_claim` | `label: Bytes` | `Option<Claim>`; current/latest claim for the label |
+| `objection_id` | `label: Bytes` | `Option<BytesN<32>>`; the standing objection's case ID |
+| `objection_decision` | `case_id: BytesN<32>` | `Option<ObjectionDecision>` |
+| `last_objection_decision` | `label: Bytes` | `Option<BytesN<32>>`; latest governance decision for the label |
+| `bond_credit` | `to: Address` | `i128`; undelivered objection-bond credit |
+
+These reads return contract errors when required state is unavailable or incompatible. Only a successful `objection_id` result of `None` means there is no standing objection. `last_objection_decision` can refer to an earlier claim; read the saved decision before displaying its parties or outcome.
+
+Pass the top-level label as bytes, such as UTF-8 `yourbrand`, rather than its namespace hash. Case IDs are exact 32-byte values; keep them distinct from the label hash and transaction hash.
+
+`bond_credit` uses the smallest units of `Config.token` and is separate from the claim-fee credit. Anyone can call `claim_credit(to)` to deliver it to the recorded payee; failed delivery leaves the credit available for retry.
+
+## Submit a ruling
+
+Only the Allocator's configured governance address can authorize a ruling. Namespace ownership or an application login does not grant this authority.
+
+1. Read the standing claim and `objection_id(label)` from a consistent ledger snapshot, then review the claimant, objector and submitted evidence.
+2. Choose the outcome and write a public explanation.
+3. Authorize `resolve_objection_for(label, expected_objection_id, uphold, reason)`.
+4. Confirm the transaction and read `objection_decision(expected_objection_id)`.
+
+If your RPC calls use separate snapshots, read the case ID before and after reading the claim. Proceed only when both IDs match and the observed ledger numbers never move backwards. Retry on a changed ID; do not pair an old claim's evidence with a new case ID.
+
+The contract checks the supplied case ID against the standing objection before changing state. If the case changed, start a fresh review. Governance authorization covers the label, expected ID, decision and explanation.
+
+| Argument | Type | Meaning |
+| --- | --- | --- |
+| `label` | `Bytes` | Top-level namespace label |
+| `expected_objection_id` | `BytesN<32>` | Exact case you reviewed |
+| `uphold` | `bool` | `true`: reject the namespace claim; `false`: dismiss the objection and resume the remaining window |
+| `reason` | `Bytes` | Public UTF-8 explanation |
+
+The reason must contain non-whitespace text and be at most **2,048 UTF-8 bytes**. Control characters are rejected except newline and tab. Successful execution returns `()`; the ruling record and settlement commit together.
+
+The older `resolve_objection(label, uphold)` remains available for compatibility. It records a decision with `reason: None`, but does not bind the authorization to a reviewed case ID. Use `resolve_objection_for` for new integrations.
+
+## Retrieve the explanation and evidence
+
+```rust
+struct ObjectionDecision {
+    case_id: BytesN<32>,
+    claim: Claim,
+    governance: Address,
+    uphold: bool,
+    reason: Option<Bytes>,
+    decided_at: u64,
+}
+```
+
+`claim` is the complete `Objected` snapshot before the ruling, including both parties, the original claim basis, objection basis, bond and timestamps. Its format is in the [Allocator storage reference](/reference/contract-storage#allocator). `decided_at` is a Unix timestamp in seconds.
+
+Subsequent claims or rulings do not overwrite this decision. Timeout, withdrawal and stuck cancellation are different outcomes; they clear the standing case without creating a governance ruling. Decisions made before this interface was installed are not reconstructed with invented reasons.
+
+Persistent records still need storage upkeep. Anyone can call `touch_decision(case_id)` to extend a known decision's TTL; this returns `DecisionNotFound` for an absent record. `touch_claim(label)` also maintains the active ID, latest-decision pointer and latest decision. Older decisions require their own known IDs, and archived records require restoration. See [decision storage and identity](/reference/contract-storage#objection-identities-and-decisions).
+
+## Errors
+
+| Code | Error | Meaning |
+| --- | --- | --- |
+| `39` | `ObjectionChanged` | The standing case no longer matches the reviewed ID |
+| `40` | `BadRulingReason` | The explanation is empty, invalid UTF-8, contains disallowed controls or exceeds the byte limit |
+| `41` | `ObjectionSequenceExhausted` | A new objection cannot receive a unique sequence number |
+| `42` | `DecisionNotFound` | The decision requested for upkeep does not exist |
+
+Existing errors such as `ClaimNotFound`, `NotObjected` and authorization failures still apply. A transport error or restoration requirement is not a zero credit or an absent decision. Use [Allocator events](/api/events#namespace-objection-events) to discover case IDs, then read the contract for authoritative records.

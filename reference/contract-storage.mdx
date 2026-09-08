@@ -128,6 +128,10 @@ Use `label_hash = H(label_bytes)` in this section. Objections and upfront claim 
 | `DataKey::LockedFees` | Instance | `i128`, absent means `0` | Unsettled upfront claim fees |
 | `DataKey::FeeCredit(address)` | Persistent | `i128`, absent means `0` | Undelivered claim-fee settlement credit in `FeePolicy.token` |
 | `DataKey::FeeOwed` | Instance | `i128`, absent means `0` | Aggregate outstanding claim-fee credits |
+| `DataKey::ObjectionSequence` | Instance | `u64`, initially absent means `0` | Monotonic sequence for new objection IDs |
+| `DataKey::ActiveObjection(label_hash)` | Persistent | `BytesN<32>` | Exact ID of the standing objection |
+| `DataKey::ObjectionDecision(case_id)` | Persistent | `ObjectionDecision` | Immutable ruling and original objection snapshot |
+| `DataKey::LastObjectionDecision(label_hash)` | Persistent | `BytesN<32>` | Latest governance decision for the label |
 
 ```rust
 struct Config {
@@ -191,11 +195,37 @@ The equivalent refund basis points are `0`, `10000`, and `8000`; those numbers d
 
 ### Storage upkeep and compatibility
 
-`touch_claim(label)` extends the existing Claim, legacy ReopenEta, FeeReceipt and ObjCount plus the instance/code. It does not enumerate claimant-keyed history or all payee credits. `touch_reopen_for(label, claimant)` maintains that claimant's proposal and matching rejection lock plus the instance/code; `touch_fee_credit(address)` maintains that fee credit plus the instance/code. There is no general enumeration of every persistent key. Known keys can also be maintained through Stellar's ledger-entry TTL operations.
+`touch_claim(label)` extends the existing Claim, legacy ReopenEta, FeeReceipt, ObjCount, ActiveObjection, latest-decision pointer and latest decision, plus the instance/code. It does not enumerate older decisions, claimant-keyed history or all payee credits. `touch_decision(case_id)` maintains a known decision; `touch_reopen_for(label, claimant)` maintains that claimant's proposal and matching rejection lock; `touch_fee_credit(address)` maintains that fee credit. There is no general enumeration of every persistent key. Known keys can also be maintained through Stellar's ledger-entry TTL operations.
 
 Schema `4` requires fee receipts for claims. Schema `3` had no claim-fee receipt requirement; schema `2` used a single `u64` ReopenEta value rather than the two-element tuple; legacy schema `1` had no SchemaVersion entry and different Claim/Config layouts. The current deployment was created fresh. There is no general raw-storage migration method: an upgrade must preserve the existing schema or implement a separately reviewed migration. Changing a version getter or stored version number does not convert old values.
 
-The [8 September Allocator upgrade](/reference/release-status#allocator-upgrade) preserves schema `4`. New `PendingUpgrade.eta` values equal the proposal's ledger timestamp, allowing immediate execution. `Config.window` still controls allocation timing; it no longer adds a code-upgrade wait. Earlier proposals retain their stored `eta`.
+The [8 September Allocator upgrades](/reference/release-status#allocator-upgrade) preserve schema `4` and all existing key/value encodings. The objection interface adds separately keyed state. New `PendingUpgrade.eta` values equal the proposal's ledger timestamp, allowing immediate execution. `Config.window` still controls allocation timing; it no longer adds a code-upgrade wait. Earlier proposals retain their stored `eta`.
+
+### Objection identities and decisions
+
+With `ruling_version() == 1`, each new objection receives a case ID scoped to its network and Allocator. The global `ObjectionSequence` is stored with the instance and does not reset when a claim is dismissed, withdrawn, replaced or reopened. Overflow rejects the new objection instead of reusing an ID.
+
+```text
+new_case_id = SHA256(XDR((Symbol("soran_objection_v1"), network_id, allocator_address, sequence)))
+legacy_case_id = SHA256(XDR((Symbol("soran_objection_legacy"), network_id, allocator_address, claim)))
+```
+
+The legacy form applies only to objections already standing when the interface was installed, using their complete stored `Claim` snapshot. New objections write their active ID atomically with the objection and bond collection. An archived active-ID entry must be restored; it does not become an absent legacy entry.
+
+`ActiveObjection` is removed when the claim leaves `Objected`. Governance rulings are retained as independent records:
+
+```rust
+struct ObjectionDecision {
+    case_id: BytesN<32>,
+    claim: Claim,
+    governance: Address,
+    uphold: bool,
+    reason: Option<Bytes>,
+    decided_at: u64,
+}
+```
+
+`claim` preserves the original `Objected` snapshot, including the evidence and parties. `reason` is `Some(Bytes)` for `resolve_objection_for` and `None` for the older label-only ruling method. Later claims do not overwrite decisions. The latest pointer is a convenience lookup, not a complete history. Normal persistent TTL and restoration rules apply. See the [ruling methods and reason limits](/reference/namespace-objections).
 
 ## Registrar
 

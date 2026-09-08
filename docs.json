@@ -112,6 +112,7 @@
         "pages": [
           "api/onchain-resolution",
           "reference/contract-storage",
+          "reference/namespace-objections",
           "api/native-claiming",
           "reference/successor-claim-storage"
         ]

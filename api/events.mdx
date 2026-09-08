@@ -129,6 +129,21 @@ Registry namespace transfers use `prop_tr`, `acc_tr` and `canc_tr`. They are dis
 
 Lookup upgrade events are `upg_prop` with `(wasm_hash, execute_after)`, `upg_exec` with the exact hash, and `upg_canc` with the canceled hash. Lookup's current upgrade delay is zero, so a proposal can execute immediately without advance notice to watchers.
 
+Allocator emits `upg_prop` with `(wasm_hash, eta)`, `upg_exec` with the executed hash and `upg_cxl` with `()`. These events are unchanged for its hash-bound execution and cancellation methods. The cancel event contains no hash, so retain proposal and transaction context. See [Allocator upgrade flow](/concepts/governance#allocator-upgrade-flow).
+
+## Namespace objection events
+
+Allocators with `ruling_version() == 1` add these events:
+
+| Topics | Data | Meaning |
+| --- | --- | --- |
+| `obj_case` | `(label: Bytes, case_id: BytesN<32>)` | A new standing objection received its exact case ID |
+| `obj_rule` | `(label: Bytes, case_id: BytesN<32>, uphold: bool)` | Governance ruled on that case |
+
+Existing `objected` and `resolved` events remain unchanged. The new events accompany the same transitions; do not count them as a second objection or settlement. `uphold = true` rejects the namespace claim; `false` dismisses the objection.
+
+Use `objection_decision(case_id)` to read the saved parties, evidence and optional explanation. Timeout, withdrawal and stuck cancellation emit their existing events and do not invent a governance ruling. Retain known case IDs for history and upkeep; event availability is limited by your RPC provider. See [namespace objection methods](/reference/namespace-objections).
+
 ## Fee events
 
 These Allocator events describe namespace claim fees:
