@@ -115,7 +115,23 @@ Lookup accepts native Resolver payment version `1` through its direct-payment me
 
 ## Decoding results
 
-Soroban `contracttype` structs encode as field-symbol maps. Enum variants encode as vectors such as `[None]`, `[Id, u64]` or `[Direct, Payment]`, `[Muxed, { account, id }]` or `[NativePayment, PaymentDestination]`; symbols are not strings in XDR. Preserve u64 precision as bigint or decimal strings. Validate shape, variant arity, addresses and memo bounds after decoding. The [SDK](/sdk/reference) supplies strict decoders if you choose to use it.
+With Stellar SDK 17, `scValToNative` returns ordinary objects for structs and arrays for enum variants. For example:
+
+```js
+["Direct", { address: "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF", memo: ["Id", 77n] }]
+["Direct", { address: "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF", memo: ["None"] }]
+["Muxed", { account: "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF", id: 420n }]
+```
+
+`PaymentMemo::None` is **`["None"]`**, while a missing `Option<String>` is **`null`**. An ID is a JavaScript **bigint**, not a number. Symbols are strings after decoding, but must be Symbols in the original XDR.
+
+The [JavaScript decoding guide](/reference/lookup-decoding) lists every destination variant, nested `ResolutionV2` results, generated bindings, and downloadable XDR test vectors with expected outputs and rejection cases. It includes a standalone decoder using only Stellar SDK. A Soran SDK is optional.
+
+## Normalize name input
+
+Normalize user-entered names **before** calling the contract. Trim surrounding whitespace, reject non-ASCII name characters, lowercase, then validate exactly two labels. For example, `" Alice.Nova "` becomes `"alice.nova"`. Calling the contract with `"Alice.Nova"` directly returns `MalformedName` (`4`).
+
+Each label must contain 1–63 ASCII letters, digits or interior hyphens. Reject extra dots, underscores, internal spaces and leading/trailing hyphens. Do not perform Unicode lookalike folding, IDNA conversion or URL parsing. Show the resulting canonical name in payment confirmation. Never lowercase or trim wallet addresses, memo text or profile values. A tested [normalization function](/reference/lookup-decoding#normalize-ui-input) is included with the decoder example.
 
 ## Other read methods
 
@@ -160,6 +176,12 @@ Use metadata for ownership and profile views, not as a payment fallback. `builti
 ### G/C display names
 
 The G/C `reverse` and `primary_name` results receive a current forward check, including required memos as valid account routes. A muxed payment does not prove base-G identity and is rejected by those paths. Their underlying contracts may collapse absent/stale/failed proof into None; a returned None does not diagnose every downstream failure. The dedicated M methods below preserve the complete route. See [identity limits](/sdk/reverse-and-primary).
+
+### History screens and multiple addresses
+
+The current contract has no batch reverse or batch Primary method. Deduplicate addresses before lookup and use a small concurrency limit for separate read simulations. Key any short-lived display cache by network, Lookup contract and the complete identity: G/C address or G account plus muxed ID. Keep unavailable results distinct from a successful `null`; do not retain failed reads as permanent absence. Re-resolve live payment instructions before payment. Independent simulations may observe different ledgers.
+
+A single simulation containing an arbitrary number of calls is not a supported substitute for a batch contract method. A future batch interface needs a measured size limit and a separate result for each identity. Per-item results can preserve ordinary dependency errors, but a simulation-wide resource or restoration failure can still prevent the whole batch from returning. No such method is deployed yet.
 
 ## Muxed identity extension
 
@@ -243,6 +265,21 @@ Errors preserve their numeric ABI. Codes `23`–`26` belong to the muxed identit
 | 26 | `InvalidMuxedRecord` |
 
 A dependency failure never means a memo-free result. Unsupported methods must not trigger a silent direct-read fallback.
+
+### Error 7: missing or expired name
+
+Payment methods currently return `NameInactive` (`7`) when the Registrar has no live holder record. The error alone does not say whether a name was never issued or has expired.
+
+For a UI explanation, call `name_metadata(name)` through the same Lookup:
+
+| Metadata result | What the UI can say |
+| --- | --- |
+| Object with `active: false` | The stored name record has expired; `expires_at` is its deadline |
+| Object with `active: true` | The name is active in this read; obtain fresh payment instructions before proceeding |
+| `null` | No name record was returned; the namespace or Registrar can also be missing |
+| Read error or restoration required | Status unavailable; do not label the name unregistered |
+
+Use `namespace_metadata(namespace)` when you need to distinguish a missing namespace or missing Registrar from a missing issued record. These are separate observations and can race with issuance, expiry or ownership changes. `name_metadata` is explanatory metadata; its `builtin_address` is not a payment fallback or an availability guarantee. Existing numeric errors remain unchanged.
 
 ## Raw state and discovery
 

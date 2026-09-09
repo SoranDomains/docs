@@ -1,0 +1,8 @@
+{
+  "name": "soran-universal-lookup-conformance",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test conformance.test.mjs" },
+  "dependencies": { "@stellar/stellar-sdk": "17.0.1" },
+  "engines": { "node": ">=22.12.0" }
+}

@@ -16,3 +16,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run validate
+      - name: Install standalone Lookup example
+        run: npm ci --prefix examples/universal-lookup --ignore-scripts --no-audit --fund=false
+      - name: Verify return vectors and decoder
+        run: npm test --prefix examples/universal-lookup
