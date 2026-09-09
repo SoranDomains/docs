@@ -111,6 +111,7 @@
         "group": "Contract reference",
         "pages": [
           "api/onchain-resolution",
+          "reference/lookup-decoding",
           "reference/contract-storage",
           "reference/namespace-objections",
           "api/native-claiming",

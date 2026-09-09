@@ -6,6 +6,7 @@ Public [Soran](https://github.com/SoranDomains) documentation built with Mintlif
 - `reference/deployments/testnet.json` records public contract IDs, hashes and confirmed deployment transactions.
 - Concepts explain optional on-chain memos, namespace fees, ownership and governance.
 - SDK/API pages distinguish current contract reads from indexed discovery and history.
+- `reference/lookup-decoding.mdx` documents exact JavaScript return shapes. The standalone example in `examples/universal-lookup` checks portable XDR fixtures using Stellar SDK.
 
 ## Validate and preview
 

@@ -1,0 +1,143 @@
+---
+title: "JavaScript decoding and test vectors"
+description: "Exact Universal Lookup return shapes, working generated bindings and portable XDR conformance tests."
+---
+
+Use Universal Lookup directly with Stellar SDK or bindings generated from the contract. You do not need a Soran SDK, API key or database. The examples here use **Stellar SDK 17.0.1** and the [current testnet deployment](/reference/release-status).
+
+## Exact scValToNative outputs
+
+These fixtures use the following values. They illustrate encoding; they are not payment instructions for a live name.
+
+```js
+const G = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
+const C = "CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA";
+const hash32 = Uint8Array.from({ length: 32 }, (_, i) => i);
+```
+
+After `scValToNative(returnedScVal)`, `resolve_destination` returns exactly one of these shapes:
+
+| Destination | Decoded JavaScript value |
+| --- | --- |
+| G, no memo | `["Direct", { address: G, memo: ["None"] }]` |
+| G, numeric memo | `["Direct", { address: G, memo: ["Id", 77n] }]` |
+| G, text memo | `["Direct", { address: G, memo: ["Text", "invoice-77"] }]` |
+| G, hash memo | `["Direct", { address: G, memo: ["Hash", hash32] }]` |
+| C contract | `["Direct", { address: C, memo: ["None"] }]` |
+| Muxed destination | `["Muxed", { account: G, id: 420n }]` |
+
+Both numeric memos and muxed IDs are `bigint`, including small values. Their range is `0n` through `18446744073709551615n`. Do not convert them to JavaScript `number`. Muxed `{ account, id }` identifies the full M address and carries no separate memo. C destinations only support `["None"]`.
+
+Text is a JavaScript string containing **1–28 UTF-8 bytes**, not necessarily 1–28 characters. Preserve its bytes, including whitespace and a leading byte-order mark. Hash values are a **32-byte Uint8Array** under SDK 17, not a hex string until you explicitly encode them.
+
+### None is not null
+
+| Contract type and value | `scValToNative` output |
+| --- | --- |
+| `PaymentMemo::None` | `["None"]` |
+| `PaymentMemo::Id(77)` | `["Id", 77n]` |
+| `Option<String>::None` from a reverse read | `null` |
+| `Option<String>::Some("alice.nova")` | `"alice.nova"` |
+| `Option<Address>::None` | `null` |
+| `Option<Address>::Some(G)` | `G` |
+
+The optional values are not encoded as `["Some", value]` or `["None"]`. A payment memo is a separate custom enum with different wire encoding.
+
+### Nested resolution results
+
+`resolve_v2` returns a struct whose `result` field wraps the destination:
+
+```js
+{
+  name: "alice.nova",
+  registrar: C,
+  resolver: C,
+  generation: 3n,
+  result: ["NativePayment", ["Direct", {
+    address: G,
+    memo: ["Id", 77n]
+  }]]
+}
+```
+
+A muxed result uses `result: ["NativePayment", ["Muxed", { account: G, id: 420n }]]`. The legacy shape is `result: ["LegacyAddress", G]`; this leaves memo capability **unknown**, so it is not a complete payment instruction. The current deployment does not enable legacy routing. Legacy vectors exist to test decoder compatibility.
+
+`scValToNative` decodes an ScVal; it does not establish that the result conforms to this ABI. A String and a Symbol can both become JavaScript strings, for example. Check simulation success and restoration first, then validate variant arity, field names, wire types, address types and memo bounds. The reference decoder below validates the XDR boundary before returning the native shape. See Stellar's [custom type encoding](https://developers.stellar.org/docs/learn/encyclopedia/contract-development/types/custom-types).
+
+## Downloadable test vectors
+
+Download [lookup-returns-v1.json](/reference/vectors/lookup-returns-v1.json), or use the [source copy](https://github.com/SoranDomains/docs/blob/main/reference/vectors/lookup-returns-v1.json). It contains:
+
+- **19 valid return values:** all destination variants, u64 boundaries, UTF-8 text boundaries, nested resolution, optional names and active/expired metadata.
+- **23 rejection cases:** malformed variants, missing or extra fields, incorrect XDR types, invalid UTF-8, invalid memo sizes, C-with-memo, incorrect muxed bases and truncated XDR.
+- The deployed Lookup executable hash and relevant embedded spec entries used to encode the fixtures.
+
+Every vector contains a base64 ScVal return value. Valid vectors also contain the expected `scValToNative` result. JSON cannot represent bigint or typed byte arrays, so the file uses `{"$bigint":"77"}` for `77n` and `{"$bytes":"0001..."}` for a byte array. These markers describe the test file; **the SDK does not return those marker objects**. Ordinary `null` remains null.
+
+These are synthetic fixtures matching the deployed ABI. They do not prove a live record, successful transaction or trusted RPC result. Test against your own decoder as well as the fixture verifier.
+
+The [standalone example](https://github.com/SoranDomains/docs/tree/main/examples/universal-lookup) includes the strict decoder, normalization helper, dependency lockfile and tests. It depends only on Stellar SDK. From a checkout of the docs repository:
+
+```sh
+cd examples/universal-lookup
+npm ci
+npm test
+```
+
+To compare your decoder, parse each `xdrBase64` with `xdr.ScVal.fromXDR(value, "base64")`, decode it, and compare its tagged JSON representation with `expectedNative`. Every item in `invalid` must be rejected as a payment destination even if generic ScVal decoding succeeds.
+
+## Generated bindings
+
+The deployed Lookup embeds its spec. For a **Stellar SDK 17** app, generate compatible TypeScript code with the SDK's own generator:
+
+```sh
+npx @stellar/stellar-sdk@17.0.1 generate --contract-id CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA --network testnet --output-dir ./packages/soran-lookup
+```
+
+Install and build the generated package, then import its client:
+
+```sh
+cd packages/soran-lookup
+npm install
+npm run build
+```
+
+```ts
+import { Client } from "./packages/soran-lookup/dist/index.js";
+
+const lookup = new Client({
+  contractId: "CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA",
+  networkPassphrase: "Test SDF Network ; September 2015",
+  rpcUrl: "https://soroban-testnet.stellar.org",
+});
+
+const read = await lookup.resolve_destination({ name: "mux.nova" });
+const destination = read.result.unwrap(); // throws for a contract error
+console.dir(destination, { depth: null });
+// Read simulation only: do not call signAndSend() for this lookup.
+```
+
+Generated bindings use **tagged objects**, not the raw arrays above:
+
+```js
+{ tag: "Muxed", values: [{ account: G, id: 420n }] }
+{ tag: "Direct", values: [{ address: G, memo: { tag: "None", values: undefined } }] }
+```
+
+The generated `Result` wrapper is also distinct from the raw RPC return ScVal. Handle RPC/restore failures and contract errors before using its value. Regenerate and review bindings when adopting a changed ABI; generating once does not pin future contract code. See the [Stellar SDK generator reference](https://stellar.github.io/js-stellar-sdk/#generating-bindings).
+
+The Rust Stellar CLI also supports `stellar contract bindings typescript --network testnet --contract-id <id> --output-dir <directory>`. Check the generated package's SDK dependency. **CLI 25.2.0 generates SDK 14.5 code; changing only that dependency to SDK 17 fails typechecking.** Use the tested SDK 17 generator above for this guide. See the [Stellar CLI reference](https://developers.stellar.org/docs/tools/cli/stellar-cli).
+
+## Normalize UI input
+
+Use the example's `normalizeName` before encoding a name argument. It trims surrounding whitespace, rejects remaining non-ASCII characters before case conversion, lowercases and validates the two labels. For example:
+
+```js
+normalizeName(" Alice.Nova "); // "alice.nova"
+normalizeName("alice..nova"); // throws
+normalizeName("Kate.nova");   // throws; no Unicode lookalike conversion
+```
+
+The contract itself accepts canonical lowercase ASCII only. Normalization is a UI convenience, not a change to contract rules. Never apply it to addresses, memo text or arbitrary record values.
+
+For expired-name explanations and current batch-read limitations, see [error 7](/api/onchain-resolution#error-7-missing-or-expired-name) and [history screens](/api/onchain-resolution#history-screens-and-multiple-addresses).
