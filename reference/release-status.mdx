@@ -3,7 +3,7 @@ title: "Testnet and contract addresses"
 description: "Current contract addresses, SDK versions, endpoints and fees for integrating with Soran."
 ---
 
-Soran is available on **Stellar testnet**. Mainnet is not available yet. This page was reviewed on **8 September 2026**.
+Soran is available on **Stellar testnet**. Mainnet is not available yet. The deployment below was verified on **8 September 2026**. Upcoming release notes were updated on **9 September 2026**.
 
 <span id="verified-claim-behavior" />
 
@@ -141,7 +141,17 @@ The following changes are implemented in the next source revision. They have **n
 | Owner and Holder clients | One [network-fee ceiling](/sdk/installation#upcoming-write-client-fee-limit) covers every write and storage restoration |
 | Local MCP | An operator-wide [network-fee setting](/agents/access#upcoming-network-fee-setting) applies across write tools |
 
-Client publication and hosted API rollout are separate steps. The Allocator reopening interface and hosted console/API corrections are already active; these remaining SDK and local MCP updates still require publication.
+These changes are prepared for Owner **0.7.1**, Holder **0.6.1** and MCP **0.8.1**. They are not yet available from npm. Continue using the published versions listed above until this page confirms their release.
+
+Client publication and hosted app rollout are separate steps. The Allocator reopening interface and hosted console/API corrections are already active. The remaining SDK and local MCP updates still require publication, followed by the corresponding app updates.
+
+### Planned Resolver migration
+
+**The Resolver migration has not happened.** Continue using the current contract addresses and published SDK versions on this page.
+
+The migration being prepared would replace the Registry, Nova Registrar, Nova Resolver and Primary contracts. Universal Lookup and Allocator would keep their current addresses. Apps should use Universal Lookup for resolution so they can discover the current namespace contracts through one shared entry point.
+
+The migration also includes a way for updated clients to verify original claim receipts after the move. That support is not available in the published clients yet. Replacement addresses and migration instructions will be published when the new setup is ready; do not combine current and replacement contract configurations.
 
 ## Historical records
 
