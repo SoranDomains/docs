@@ -1,9 +1,9 @@
 ---
 title: "Lookup SDK reference"
-description: "Universal reads, payment types, discovery pages and typed failures in Lookup 0.8.0."
+description: "Universal reads, registration status, bounded history reads and typed failures in Lookup 0.9.0."
 ---
 
-Use this reference for **Lookup 0.8.0**. Start with [installation](/sdk/installation) for configuration or [resolving payments](/sdk/resolving-names) for a practical flow.
+Use this reference for **Lookup 0.9.0**. Start with [installation](/sdk/installation) for configuration or [resolving payments](/sdk/resolving-names) for a practical flow.
 
 Lookup performs reads through Soroban RPC and optionally uses HTTP discovery/history. Writes belong to the [Owner](/owner/issuing-from-code) and [Holder](/holder/managing-your-name) SDKs.
 
@@ -37,6 +37,7 @@ Custom Registry/passphrase settings inherit no unrelated Lookup or Primary pin. 
 | `resolve(name)`, `record(name)`, `verify(name,address)` | Native memo-free address convenience methods |
 | `namespaceMetadata(namespace)` | Owner, current routing, policy, provenance and permanence, or `null`; universal only |
 | `nameMetadata(name)` | Holder, built-in target, generation, expiry, active/no-expiry flags, or `null`; universal only |
+| `nameStatus(name)` | Five-way registration state, name, ledger and timestamp; universal status capability `1` |
 | `text(name,key)` | One text value or `null` |
 | `assurance(name)` | Resolver provenance, not payment or Lookup-code attestation |
 | `namespace(namespace)`, `isAvailable(namespace)` | Owner/Resolver subset and namespace ownership absence check |
@@ -53,6 +54,15 @@ SDK metadata uses camelCase, such as `builtinAddress`, `expiresAt` and `namespac
 | `reverseVerify(address,name)` | Scoped reverse comparison |
 | `reverseLookup(address,namespaces?)` | Primary then ordered namespace probes |
 | `reverseNames(address,namespaces?)` | Verified names among bounded namespace candidates |
+| `batchReadLimit()` | Supported contract input limit, currently `2` |
+| `primaryBatch(addresses)` | One bounded cross-namespace batch; `BatchNames` |
+| `reverseBatch(namespace,addresses)` | One bounded namespace batch; `BatchNames` |
+| `primaryNames(addresses)` | History helper for up to 256 identities; `ObservedIdentityName[]` |
+| `reverseMany(namespace,addresses)` | Namespace history helper for up to 256 identities; `ObservedIdentityName[]` |
+
+The new batch/history methods require universal mode and batch capability `1`. They accept G, C and complete M addresses. `primaryNames` (many addresses) differs from `reverseNames` (one address across namespace candidates). See [history examples and resource handling](/sdk/reverse-and-primary#history-screens).
+
+`nameStatus` returns `state.kind` as `namespaceMissing`, `registrarMissing`, `unregistered`, `active` or `expired`. Active/expired states include `state.record` with `registrar`, a hex `node`, `holder`, bigint `generation` and bigint `expiresAt`. The envelope's `ledger` is a number and `timestamp` is bigint. Status does not establish payment readiness or claimability.
 
 ### Profiles, discovery and helpers
 

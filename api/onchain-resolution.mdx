@@ -143,6 +143,11 @@ Each label must contain 1–63 ASCII letters, digits or interior hyphens. Reject
 | `primary()` | Optional configured Primary Address |
 | `namespace_metadata(namespace:String)` | Optional NamespaceMetadata |
 | `name_metadata(name:String)` | Optional NameMetadata |
+| `name_status_version()` | Status capability `1` |
+| `name_status(name:String)` | Registration state and observation ledger/time |
+| `batch_read_version()`, `batch_read_limit()` | Batch capability `1`, limit `2` |
+| `primary_names(identities:Vec<LookupIdentity>)` | Ordered cross-namespace election results |
+| `reverse_names(namespace:String,identities:Vec<LookupIdentity>)` | Ordered namespace election results |
 | `text(name:String,key:Symbol)` | Optional String |
 | `reverse(namespace:String,address:Address)` | Optional canonical account display name |
 | `primary_name(address:Address)` | Optional canonical Primary name |
@@ -179,9 +184,21 @@ The G/C `reverse` and `primary_name` results receive a current forward check, in
 
 ### History screens and multiple addresses
 
-The current contract has no batch reverse or batch Primary method. Deduplicate addresses before lookup and use a small concurrency limit for separate read simulations. Key any short-lived display cache by network, Lookup contract and the complete identity: G/C address or G account plus muxed ID. Keep unavailable results distinct from a successful `null`; do not retain failed reads as permanent absence. Re-resolve live payment instructions before payment. Independent simulations may observe different ledgers.
+Call `primary_names` for cross-namespace elections, or `reverse_names` for elections in one namespace. Check `batch_read_version() == 1` and `batch_read_limit() == 2` first. Each call accepts at most **two identities**, preserving order and duplicates:
 
-A single simulation containing an arbitrary number of calls is not a supported substitute for a batch contract method. A future batch interface needs a measured size limit and a separate result for each identity. Per-item results can preserve ordinary dependency errors, but a simulation-wide resource or restoration failure can still prevent the whole batch from returning. No such method is deployed yet.
+```text
+LookupIdentity = Direct(Address) | Muxed({ account: Address, id: u64 })
+IdentityName = Name(String) | None | Failed(u32)
+BatchNames { ledger: u32, timestamp: u64, results: Vec<IdentityName> }
+```
+
+Use `Direct` for G/C and `Muxed` for the exact G-plus-ID route. `None` means no verified election was returned, with the same underlying G/C proof limitations as the single read. `Failed(code)` preserves an ordinary Lookup error for that item. A malformed namespace or more than two inputs rejects the whole call; oversize is `BatchTooLarge` (`27`). Empty batches return an empty results vector.
+
+**Two is an input limit, not a guarantee that every pair fits.** Populated elections require repeated verification across contracts. Even two can exceed the network's memory allowance. After a top-level host `Budget/ExceededLimit` error, retry each identity separately. A one-item failure, restoration requirement, transport failure or ABI error remains a failure; never convert it to `None`. A batch that returns gives all its results one ledger and timestamp. Separate calls can observe different ledgers.
+
+Lookup SDK 0.9.0 provides `primaryNames(addresses)` and `reverseMany(namespace, addresses)` for up to 256 inputs. They use these bounded calls, switch to individual reads after a batch budget failure, and retain each row's observation ledger/time. See [history examples](/sdk/reverse-and-primary#history-screens).
+
+Deduplicate repeated addresses when your screen permits it. Key a short-lived display cache by network, Lookup contract and complete identity. Do not retain failed reads as permanent absence. Re-resolve payment instructions before payment; these methods return display names, not payment destinations.
 
 ## Muxed identity extension
 
@@ -263,6 +280,7 @@ Errors preserve their numeric ABI. Codes `23`–`26` belong to the muxed identit
 | 24 | `MuxedForwardMismatch` |
 | 25 | `NotMuxedDisplayName` |
 | 26 | `InvalidMuxedRecord` |
+| 27 | `BatchTooLarge` |
 
 A dependency failure never means a memo-free result. Unsupported methods must not trigger a silent direct-read fallback.
 
@@ -270,16 +288,20 @@ A dependency failure never means a memo-free result. Unsupported methods must no
 
 Payment methods currently return `NameInactive` (`7`) when the Registrar has no live holder record. The error alone does not say whether a name was never issued or has expired.
 
-For a UI explanation, call `name_metadata(name)` through the same Lookup:
+For a precise UI explanation, check `name_status_version() == 1`, then call `name_status(name)` through the same Lookup. Its result includes `name`, `ledger`, `timestamp` and one state, observed in a single invocation:
 
-| Metadata result | What the UI can say |
+| State | What the UI can say |
 | --- | --- |
-| Object with `active: false` | The stored name record has expired; `expires_at` is its deadline |
-| Object with `active: true` | The name is active in this read; obtain fresh payment instructions before proceeding |
-| `null` | No name record was returned; the namespace or Registrar can also be missing |
+| `NamespaceMissing` | The namespace is not allocated |
+| `RegistrarMissing` | The namespace exists but has no Registrar configured |
+| `Unregistered` | The current Registrar returned no name record |
+| `Active(RegisteredName)` | The name is active at the returned timestamp |
+| `Expired(RegisteredName)` | The stored record has passed its ownership deadline |
 | Read error or restoration required | Status unavailable; do not label the name unregistered |
 
-Use `namespace_metadata(namespace)` when you need to distinguish a missing namespace or missing Registrar from a missing issued record. These are separate observations and can race with issuance, expiry or ownership changes. `name_metadata` is explanatory metadata; its `builtin_address` is not a payment fallback or an availability guarantee. Existing numeric errors remain unchanged.
+`RegisteredName` contains `registrar: Address`, `node: BytesN<32>`, `holder: Address`, `generation: u64` and `expires_at: u64`. For expired records, holder and generation describe the stored historical record. Expiry is inclusive: a record is active at `timestamp == expires_at` and expired after it. Zero means no deadline, not a permanent-ownership guarantee.
+
+This read verifies Registrar anchors and consistency with its live holder record. It does not depend on payment configuration, and does not promise that a name can be claimed: reservations and registration policy still apply. A successful status is an observation, not a lock against subsequent changes. Fetch fresh payment instructions when needed. Existing payment methods and numeric errors, including `7`, remain compatible. See [exact JavaScript shapes](/reference/lookup-decoding#status-and-batch-shapes).
 
 ## Raw state and discovery
 

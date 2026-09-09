@@ -432,6 +432,8 @@ struct PendingUpgrade { wasm_hash: BytesN<32>, execute_after: u64 }
 
 The instance keys above hold configuration and upgrades. The [muxed identity keys](#muxed-identity-storage) below hold persistent elections. Lookup does not copy payment records or memo instructions. Resolution structs, namespace/name metadata and the internal Provenance mirror are ABI data, not additional storage entries. An absent optional anchor is not a failed read; decoding or RPC failures must be handled separately.
 
+The status and batch read extensions add **no storage keys or migrations**. `NameStatus`, `RegisteredName`, `LookupIdentity`, `IdentityName` and `BatchNames` are argument/return types only. Their ledger/time values come from the invocation. `name_status_version()`, `batch_read_version()` and `batch_read_limit()` are code-defined getters. See [their ABI and exact decoded shapes](/reference/lookup-decoding#status-and-batch-shapes).
+
 `version()` and `destination_version()` are code-defined getters; neither has a stored DataKey. ABI 2 selects complete `Direct`/`Muxed` destinations. A successful native Resolver payment-version `1` response uses its direct-payment interface; version `2` requires destination-version `2`. Failed or unknown capability responses do not justify a legacy fallback. The old Address-returning methods cannot represent a muxed ID and refuse that result.
 
 All Lookup configuration and pending-upgrade data share the instance lifetime. `keep_alive()` extends instance/code. The current upgrade delay is `0`: governance still proposes an exact Wasm hash, and execution checks that proposal. Code replacement does not automatically convert the stored Config or other instance values.
@@ -519,7 +521,7 @@ For independent upkeep, use the per-contract methods described above or Stellar'
 
 ## Read raw keys with Stellar RPC
 
-This Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.8.0`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It only reads state. Use an active name from the [live examples](/live-examples), or one you have issued.
+This Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.9.0`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It only reads state. Use an active name from the [live examples](/live-examples), or one you have issued.
 
 ```typescript
 import { Address, nativeToScVal, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";

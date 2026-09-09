@@ -7,7 +7,7 @@ A reverse lookup turns an address into a verified display name. Use `reverse` fo
 
 Use the five [live wallet examples](/live-examples#check-address-to-name-lookup) to test both directions. Each has an elected Nova reverse name and Primary name; the hello-world contract example is forward-only.
 
-Lookup 0.8.0 supports G/C account identities and complete M-address identities. M reads require universal mode and a Lookup with `muxed_identity_version() == 1`; the current [testnet deployment](/reference/release-status) provides it.
+Lookup 0.9.0 supports G/C account identities and complete M-address identities. M single reads require universal mode and a Lookup with `muxed_identity_version() == 1`; the current [testnet deployment](/reference/release-status) provides it.
 
 ```ts
 const scoped = await soran.reverse("nova", address);
@@ -45,6 +45,29 @@ const muxedPrimary = await soran.primaryOf(m420);
 These addresses illustrate distinct inputs; an election is not guaranteed. The SDK decodes M and calls Lookup's `reverse_muxed` or `primary_name_muxed` with the exact u64 ID. Never convert that ID to a JavaScript number. Direct mode rejects M identity reads.
 
 Use the [Holder SDK](/holder/managing-your-name#muxed-display-names) to create elections. Name ownership alone cannot authorize a Primary record for a destination you do not control.
+
+## History screens
+
+For several addresses in a history screen, use Lookup 0.9.0's history helpers:
+
+```ts
+const addresses = [account, m420]; // preserves full G/C/M identities
+const preferred = await soran.primaryNames(addresses);
+const inNova = await soran.reverseMany("nova", addresses);
+
+for (const row of preferred) {
+  if (row.kind === "name") console.log(row.address, row.name);
+  else if (row.kind === "none") console.log(row.address, "No verified election returned");
+  else console.log(row.address, "Read failed", row.errorCode, row.errorName);
+  console.log("Observed at", row.ledger, row.timestamp);
+}
+```
+
+Each accepts up to **256 identities**, preserves order and duplicates, and attaches the ledger/time of each successful call to its rows. It checks the Lookup anchor and batch capability once, then requests at most **two identities per call**. Detailed election proofs can exceed the network budget even for two identities. On that specific host budget failure, the helper retries individually and keeps using individual calls for the remaining inputs. Ordinary contract errors appear as `kind: "error"`; restoration, transport, ABI and single-item budget failures reject the helper. Catch those failures and show an unavailable state.
+
+Use `primaryBatch(addresses)` or `reverseBatch(namespace, addresses)` if you need one explicit contract invocation. They return `{ledger, timestamp, results}` and do not split a failed call. `batchReadLimit()` returns `2`. These are capability additions, not a promise that every pair fits, nor an all-history snapshot. The [contract reference](/api/onchain-resolution#history-screens-and-multiple-addresses) describes the raw ABI.
+
+G/C entries still have the underlying proof limitations below. A `none` result does not establish that no stored declaration exists. Re-resolve payment instructions before paying; a display-name result is not a destination.
 
 ## Discovery scope
 
