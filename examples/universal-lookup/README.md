@@ -16,9 +16,14 @@ npm test
   characters, lowercase and validate `name.namespace`.
 - `nativeJson(value)`: encode bigint and byte arrays for fixture comparison.
 
-The fixtures are in `../../reference/vectors/lookup-returns-v1.json`. Valid
+`decode-reads.mjs` exports `decodeNameStatusXdr(base64, expectedName)` and
+`decodeBatchNamesXdr(base64, expectedCount)`. They validate registration-state
+and batch results against the request, returning raw native shapes.
+
+The fixtures are in `../../reference/vectors/lookup-returns-v1.json` and
+`../../reference/vectors/lookup-read-extensions-v1.json`. Valid
 cases contain exact base64 XDR and expected decoded output. Invalid cases
-must fail payment-destination validation. The fixture format represents
+must fail the corresponding typed validation. The fixture format represents
 bigint as `{"$bigint":"77"}` and bytes as `{"$bytes":"0001..."}`; actual SDK
 values are bigint and Uint8Array.
 

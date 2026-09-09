@@ -3,8 +3,8 @@
   "network": "testnet",
   "networkPassphrase": "Test SDF Network ; September 2015",
   "rpcUrl": "https://soroban-testnet.stellar.org",
-  "verifiedAt": "2026-09-08T20:54:03.390Z",
-  "verifiedLedger": 4575408,
+  "verifiedAt": "2026-09-09T18:56:42.491Z",
+  "verifiedLedger": 4591323,
   "governance": "GAJCWWNMBKCSTQQISDFTHFTCEOGXYA37YTP3U3ZW7Q5CYQPHSW6TB4QX",
   "lookupVersion": 2,
   "lookupUpgradeDelaySeconds": 0,
@@ -84,13 +84,21 @@
     },
     "lookup": {
       "id": "CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA",
-      "wasmHash": "0d8ed0c9dd5f7ea4e8783ecb505f3da37ba643c632d85a52b3d9976fd11cea10",
+      "wasmHash": "ff3fcd22c400bb855644407588de35295ccf957d11bb6aae6570a769a4018cb8",
       "deploymentTransaction": "d480c19edd9d101357432142a14e0d0e3e6b2c7706b01de8393cb94d6d6a63fc",
       "deploymentLedger": 4534628,
       "deploymentWasmHash": "67c2d2c7f9b80b2901426a31d4a85cf1cf56c4f70afd69d229dfe4b67db78041",
-      "upgradeTransaction": "0ad8700aee3c142330e6c02d7c8d3139663001bccc50ed2f3a40c1571e403f8a",
-      "upgradeLedger": 4549326,
-      "codeVerifiedAt": "2026-09-07T08:37:00.175Z"
+      "upgradeTransaction": "34ac6a1189a83f6ea33692b4a9dca65324e147653b9ef8d74800c6eedc7ff907",
+      "upgradeLedger": 4591279,
+      "codeVerifiedAt": "2026-09-09T18:53:05.250Z",
+      "upgradeHistory": [
+        {
+          "wasmHash": "0d8ed0c9dd5f7ea4e8783ecb505f3da37ba643c632d85a52b3d9976fd11cea10",
+          "transaction": "0ad8700aee3c142330e6c02d7c8d3139663001bccc50ed2f3a40c1571e403f8a",
+          "ledger": 4549326,
+          "codeVerifiedAt": "2026-09-07T08:37:00.175Z"
+        }
+      ]
     }
   },
   "namespaceDeploymentSaltVersion": 1,
@@ -105,9 +113,12 @@
     "destinationVersion": 2,
     "upgradeDelaySeconds": 0,
     "governance": "GAJCWWNMBKCSTQQISDFTHFTCEOGXYA37YTP3U3ZW7Q5CYQPHSW6TB4QX",
-    "muxedIdentityVersion": 1
+    "muxedIdentityVersion": 1,
+    "nameStatusVersion": 1,
+    "batchReadVersion": 1,
+    "batchReadLimit": 2
   },
-  "verificationScope": "Original deployment receipts and configuration were verified on 6 September at deploymentVerifiedLedger. The in-place Lookup upgrade and muxed identity ABI 1 were verified on 7 September at contracts.lookup.upgradeLedger. The earlier 8 September Allocator payout/zero-delay upgrade remains recorded in contracts.allocator.upgradeHistory. At verifiedLedger the subsequent same-address Allocator upgrade added case-bound rulings, on-chain decision records and ruling API version 1 while retaining schema 4, all existing instance storage, fee policy, liabilities and Registry authority. All six current Wasm hashes were rechecked at the per-contract ledgers in independentCodeVerification. The indexed allocation queue was empty, so no persistent claims were sampled; this verification does not enumerate historical claim storage. Historical observations retain their original dated scope.",
+  "verificationScope": "The 9 September in-place Lookup upgrade added name-status capability 1 and batch-read capability 1 (two-identity input limit), preserving configuration, existing APIs and sampled payment/election answers. All six contract code hashes were rechecked independently. Historical deployment, namespace, claim and service observations retain their original dated scope; this verification is not a new migration or a full storage inventory.",
   "nativeClaimVerification": {
     "verifiedAt": "2026-09-06T12:19:15.689Z",
     "throughLedger": 4534713,
@@ -142,10 +153,10 @@
   "publishedPackages": [
     {
       "name": "@sorandomains/lookup",
-      "version": "0.8.0",
-      "integrity": "sha512-up/sYSfSlZMqe8fYFtlxlr5TBqUIQ3ZHrlim19jxV6kJOwGLLI6fXgRDKDxhdMWdKNazerJV0wUaS+mmXnfpVQ==",
-      "tarballSha256": "3f17c93b85258f24d12d59aff6cd88677e5e669ff3271f10882d78c0839b157c",
-      "verifiedAt": "2026-09-07T08:34:42.544Z"
+      "version": "0.9.0",
+      "integrity": "sha512-OfYyAfO7Ip++CJwXdXuEBd81YK6fU25LFzW5esvynGPsm2GBtE6giEcjlsF4uZ4E6UFx7gxHMkkbwaQJNCi0Hw==",
+      "tarballSha256": "d2ba6dc65d57dc17e40385c3a0e7e1542b53e10a3b5a6c06dfd726edc9e21e7f",
+      "verifiedAt": "2026-09-09T19:00:10.321083+00:00"
     },
     {
       "name": "@sorandomains/holder",
@@ -195,16 +206,16 @@
   "allocatorUpgradeDelaySeconds": 0,
   "allocatorSchemaVersion": 4,
   "independentCodeVerification": {
-    "verifiedAt": "2026-09-08T20:54:03.390Z",
+    "verifiedAt": "2026-09-09T18:56:42.491Z",
     "contractLedgers": {
-      "registry": 4575449,
-      "allocator": 4575449,
-      "registrar": 4575450,
-      "resolver": 4575450,
-      "primary": 4575450,
-      "lookup": 4575451
+      "registry": 4591321,
+      "allocator": 4591321,
+      "registrar": 4591322,
+      "resolver": 4591322,
+      "primary": 4591322,
+      "lookup": 4591323
     },
-    "scope": "Downloaded and verified all six current Wasm hashes after the same-address Allocator reopen-identity correction. All retained Allocator instance entries, fee policy, liabilities, Registry anchor and schema 4 were unchanged. Reopen and ruling APIs both verified as version 1. No historical persistent claim enumeration is asserted."
+    "scope": "Downloaded all six deployed Wasms and verified their hashes after the Lookup read-extension upgrade. Only Lookup changed in this release."
   },
   "allocatorRulingVersion": 1,
   "allocatorUpkeepHistory": [
@@ -237,5 +248,54 @@
     "consumerFeeCapsChanged": false,
     "wasmHash": "df086b031a94b6d59b8251079c051d1499fc609bd6f19a2ac06138bb509fa197",
     "scope": "Historical upkeep for the prior Allocator Wasm; its code TTL does not describe the current uploaded code."
-  }
+  },
+  "lookupNameStatusVersion": 1,
+  "lookupBatchReadVersion": 1,
+  "lookupBatchReadLimit": 2,
+  "verificationHistory": [
+    {
+      "verifiedAt": "2026-09-08T20:54:03.390Z",
+      "verifiedLedger": 4575408,
+      "scope": "Original deployment receipts and configuration were verified on 6 September at deploymentVerifiedLedger. The in-place Lookup upgrade and muxed identity ABI 1 were verified on 7 September at contracts.lookup.upgradeLedger. The earlier 8 September Allocator payout/zero-delay upgrade remains recorded in contracts.allocator.upgradeHistory. At verifiedLedger the subsequent same-address Allocator upgrade added case-bound rulings, on-chain decision records and ruling API version 1 while retaining schema 4, all existing instance storage, fee policy, liabilities and Registry authority. All six current Wasm hashes were rechecked at the per-contract ledgers in independentCodeVerification. The indexed allocation queue was empty, so no persistent claims were sampled; this verification does not enumerate historical claim storage. Historical observations retain their original dated scope."
+    }
+  ],
+  "independentCodeVerificationHistory": [
+    {
+      "verifiedAt": "2026-09-08T20:54:03.390Z",
+      "contractLedgers": {
+        "registry": 4575449,
+        "allocator": 4575449,
+        "registrar": 4575450,
+        "resolver": 4575450,
+        "primary": 4575450,
+        "lookup": 4575451
+      },
+      "scope": "Downloaded and verified all six current Wasm hashes after the same-address Allocator reopen-identity correction. All retained Allocator instance entries, fee policy, liabilities, Registry anchor and schema 4 were unchanged. Reopen and ruling APIs both verified as version 1. No historical persistent claim enumeration is asserted."
+    }
+  ],
+  "lookupReadVerification": {
+    "verifiedAt": "2026-09-09T18:54:16.110Z",
+    "throughLedger": 4591293,
+    "samples": [
+      "nikcle.nova",
+      "robert.nova",
+      "mux.nova",
+      "cyclops.nova"
+    ],
+    "priorPaymentAndElectionAnswersPreserved": true,
+    "activeStatusVerified": true,
+    "unregisteredStatusVerified": true,
+    "missingNamespaceStatusVerified": true,
+    "generatedBindingsVerified": true,
+    "scope": "Read-only live G, G-with-ID-memo, full-M and C checks. Cyclops is forward-only and correctly returns no elected name. Expiry, missing-Registrar and adversarial outcomes were verified in local compiled-contract tests. Dense pairs can require splitting; the input limit is not a universal resource guarantee."
+  },
+  "publishedPackageHistory": [
+    {
+      "name": "@sorandomains/lookup",
+      "version": "0.8.0",
+      "integrity": "sha512-up/sYSfSlZMqe8fYFtlxlr5TBqUIQ3ZHrlim19jxV6kJOwGLLI6fXgRDKDxhdMWdKNazerJV0wUaS+mmXnfpVQ==",
+      "tarballSha256": "3f17c93b85258f24d12d59aff6cd88677e5e669ff3271f10882d78c0839b157c",
+      "verifiedAt": "2026-09-07T08:34:42.544Z"
+    }
+  ]
 }

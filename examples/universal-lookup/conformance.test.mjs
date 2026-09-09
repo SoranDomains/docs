@@ -3,6 +3,20 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { scValToNative, xdr } from '@stellar/stellar-sdk';
 import { decodeDestinationXdr, nativeJson, normalizeName } from './decode.mjs';
+import { decodeNameStatusXdr, decodeBatchNamesXdr } from './decode-reads.mjs';
+
+const readVectors = JSON.parse(readFileSync(new URL('../../reference/vectors/lookup-read-extensions-v1.json', import.meta.url)));
+function decodeRead(entry) {
+  return entry.type === 'NameStatus'
+    ? decodeNameStatusXdr(entry.xdrBase64, entry.expectedName)
+    : decodeBatchNamesXdr(entry.xdrBase64, entry.expectedCount);
+}
+for (const entry of readVectors.valid) test(`read extension: ${entry.id}`, () => {
+  assert.deepEqual(nativeJson(decodeRead(entry)), entry.expectedNative);
+});
+for (const entry of readVectors.invalid) test(`reject malformed read: ${entry.id}`, () => {
+  assert.throws(() => decodeRead(entry));
+});
 
 const vectors = JSON.parse(readFileSync(new URL('../../reference/vectors/lookup-returns-v1.json', import.meta.url)));
 for (const entry of vectors.valid) test(`raw SDK decoding: ${entry.id}`, () => {

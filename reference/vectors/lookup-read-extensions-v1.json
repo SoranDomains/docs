@@ -1,0 +1,265 @@
+{
+  "format": "soran-lookup-read-vectors-v1",
+  "stellarSdk": "17.0.1",
+  "lookupContract": "CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA",
+  "lookupWasmSha256": "ff3fcd22c400bb855644407588de35295ccf957d11bb6aae6570a769a4018cb8",
+  "scope": "Synthetic ABI values, not a live registration or a batch resource guarantee.",
+  "valid": [
+    {
+      "id": "NamespaceMissing",
+      "type": "NameStatus",
+      "expectedName": "alice.nova",
+      "xdrBase64": "AAAAEQAAAAEAAAAEAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAARuYW1lAAAADgAAAAphbGljZS5ub3ZhAAAAAAAPAAAABXN0YXRlAAAAAAAAEAAAAAEAAAABAAAADwAAABBOYW1lc3BhY2VNaXNzaW5nAAAADwAAAAl0aW1lc3RhbXAAAAAAAAAFAAAAAAAAAE0=",
+      "expectedNative": {
+        "ledger": 42,
+        "name": "alice.nova",
+        "state": [
+          "NamespaceMissing"
+        ],
+        "timestamp": {
+          "$bigint": "77"
+        }
+      }
+    },
+    {
+      "id": "RegistrarMissing",
+      "type": "NameStatus",
+      "expectedName": "alice.nova",
+      "xdrBase64": "AAAAEQAAAAEAAAAEAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAARuYW1lAAAADgAAAAphbGljZS5ub3ZhAAAAAAAPAAAABXN0YXRlAAAAAAAAEAAAAAEAAAABAAAADwAAABBSZWdpc3RyYXJNaXNzaW5nAAAADwAAAAl0aW1lc3RhbXAAAAAAAAAFAAAAAAAAAE0=",
+      "expectedNative": {
+        "ledger": 42,
+        "name": "alice.nova",
+        "state": [
+          "RegistrarMissing"
+        ],
+        "timestamp": {
+          "$bigint": "77"
+        }
+      }
+    },
+    {
+      "id": "Unregistered",
+      "type": "NameStatus",
+      "expectedName": "alice.nova",
+      "xdrBase64": "AAAAEQAAAAEAAAAEAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAARuYW1lAAAADgAAAAphbGljZS5ub3ZhAAAAAAAPAAAABXN0YXRlAAAAAAAAEAAAAAEAAAABAAAADwAAAAxVbnJlZ2lzdGVyZWQAAAAPAAAACXRpbWVzdGFtcAAAAAAAAAUAAAAAAAAATQ==",
+      "expectedNative": {
+        "ledger": 42,
+        "name": "alice.nova",
+        "state": [
+          "Unregistered"
+        ],
+        "timestamp": {
+          "$bigint": "77"
+        }
+      }
+    },
+    {
+      "id": "active-at-boundary",
+      "type": "NameStatus",
+      "expectedName": "alice.nova",
+      "xdrBase64": "AAAAEQAAAAEAAAAEAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAARuYW1lAAAADgAAAAphbGljZS5ub3ZhAAAAAAAPAAAABXN0YXRlAAAAAAAAEAAAAAEAAAACAAAADwAAAAZBY3RpdmUAAAAAABEAAAABAAAABQAAAA8AAAAKZXhwaXJlc19hdAAAAAAABQAAAAAAAABNAAAADwAAAApnZW5lcmF0aW9uAAAAAAAF//////////8AAAAPAAAABmhvbGRlcgAAAAAAEgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPAAAABG5vZGUAAAANAAAAIFN9knq1slR8VD7OhFnGlx2HNVnsQ94qjUPNrRGNaJFuAAAADwAAAAlyZWdpc3RyYXIAAAAAAAASAAAAAeTogbACVb7Sujx9sTA+Z1uESOygZh8SGNCzvHzpGhx4AAAADwAAAAl0aW1lc3RhbXAAAAAAAAAFAAAAAAAAAE0=",
+      "expectedNative": {
+        "ledger": 42,
+        "name": "alice.nova",
+        "state": [
+          "Active",
+          {
+            "expires_at": {
+              "$bigint": "77"
+            },
+            "generation": {
+              "$bigint": "18446744073709551615"
+            },
+            "holder": "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+            "node": {
+              "$bytes": "537d927ab5b2547c543ece8459c6971d873559ec43de2a8d43cdad118d68916e"
+            },
+            "registrar": "CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA"
+          }
+        ],
+        "timestamp": {
+          "$bigint": "77"
+        }
+      }
+    },
+    {
+      "id": "expired",
+      "type": "NameStatus",
+      "expectedName": "alice.nova",
+      "xdrBase64": "AAAAEQAAAAEAAAAEAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAARuYW1lAAAADgAAAAphbGljZS5ub3ZhAAAAAAAPAAAABXN0YXRlAAAAAAAAEAAAAAEAAAACAAAADwAAAAdFeHBpcmVkAAAAABEAAAABAAAABQAAAA8AAAAKZXhwaXJlc19hdAAAAAAABQAAAAAAAABNAAAADwAAAApnZW5lcmF0aW9uAAAAAAAF//////////8AAAAPAAAABmhvbGRlcgAAAAAAEgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPAAAABG5vZGUAAAANAAAAIFN9knq1slR8VD7OhFnGlx2HNVnsQ94qjUPNrRGNaJFuAAAADwAAAAlyZWdpc3RyYXIAAAAAAAASAAAAAeTogbACVb7Sujx9sTA+Z1uESOygZh8SGNCzvHzpGhx4AAAADwAAAAl0aW1lc3RhbXAAAAAAAAAFAAAAAAAAAE4=",
+      "expectedNative": {
+        "ledger": 42,
+        "name": "alice.nova",
+        "state": [
+          "Expired",
+          {
+            "expires_at": {
+              "$bigint": "77"
+            },
+            "generation": {
+              "$bigint": "18446744073709551615"
+            },
+            "holder": "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+            "node": {
+              "$bytes": "537d927ab5b2547c543ece8459c6971d873559ec43de2a8d43cdad118d68916e"
+            },
+            "registrar": "CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA"
+          }
+        ],
+        "timestamp": {
+          "$bigint": "78"
+        }
+      }
+    },
+    {
+      "id": "no-expiry",
+      "type": "NameStatus",
+      "expectedName": "alice.nova",
+      "xdrBase64": "AAAAEQAAAAEAAAAEAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAARuYW1lAAAADgAAAAphbGljZS5ub3ZhAAAAAAAPAAAABXN0YXRlAAAAAAAAEAAAAAEAAAACAAAADwAAAAZBY3RpdmUAAAAAABEAAAABAAAABQAAAA8AAAAKZXhwaXJlc19hdAAAAAAABQAAAAAAAAAAAAAADwAAAApnZW5lcmF0aW9uAAAAAAAF//////////8AAAAPAAAABmhvbGRlcgAAAAAAEgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPAAAABG5vZGUAAAANAAAAIFN9knq1slR8VD7OhFnGlx2HNVnsQ94qjUPNrRGNaJFuAAAADwAAAAlyZWdpc3RyYXIAAAAAAAASAAAAAeTogbACVb7Sujx9sTA+Z1uESOygZh8SGNCzvHzpGhx4AAAADwAAAAl0aW1lc3RhbXAAAAAAAAAFAAAAAAAAAE0=",
+      "expectedNative": {
+        "ledger": 42,
+        "name": "alice.nova",
+        "state": [
+          "Active",
+          {
+            "expires_at": {
+              "$bigint": "0"
+            },
+            "generation": {
+              "$bigint": "18446744073709551615"
+            },
+            "holder": "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+            "node": {
+              "$bytes": "537d927ab5b2547c543ece8459c6971d873559ec43de2a8d43cdad118d68916e"
+            },
+            "registrar": "CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA"
+          }
+        ],
+        "timestamp": {
+          "$bigint": "77"
+        }
+      }
+    },
+    {
+      "id": "batch-name-none",
+      "type": "BatchNames",
+      "expectedCount": 2,
+      "xdrBase64": "AAAAEQAAAAEAAAADAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAAdyZXN1bHRzAAAAABAAAAABAAAAAgAAABAAAAABAAAAAgAAAA8AAAAETmFtZQAAAA4AAAAKYWxpY2Uubm92YQAAAAAAEAAAAAEAAAABAAAADwAAAAROb25lAAAADwAAAAl0aW1lc3RhbXAAAAAAAAAFAAAAAAAAAE0=",
+      "expectedNative": {
+        "ledger": 42,
+        "results": [
+          [
+            "Name",
+            "alice.nova"
+          ],
+          [
+            "None"
+          ]
+        ],
+        "timestamp": {
+          "$bigint": "77"
+        }
+      }
+    },
+    {
+      "id": "batch-failures",
+      "type": "BatchNames",
+      "expectedCount": 2,
+      "xdrBase64": "AAAAEQAAAAEAAAADAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAAdyZXN1bHRzAAAAABAAAAABAAAAAgAAABAAAAABAAAAAgAAAA8AAAAGRmFpbGVkAAAAAAADAAAACgAAABAAAAABAAAAAgAAAA8AAAAGRmFpbGVkAAAAAAADAAAAFwAAAA8AAAAJdGltZXN0YW1wAAAAAAAABQAAAAAAAABN",
+      "expectedNative": {
+        "ledger": 42,
+        "results": [
+          [
+            "Failed",
+            10
+          ],
+          [
+            "Failed",
+            23
+          ]
+        ],
+        "timestamp": {
+          "$bigint": "77"
+        }
+      }
+    },
+    {
+      "id": "batch-empty",
+      "type": "BatchNames",
+      "expectedCount": 0,
+      "xdrBase64": "AAAAEQAAAAEAAAADAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAAdyZXN1bHRzAAAAABAAAAABAAAAAAAAAA8AAAAJdGltZXN0YW1wAAAAAAAABQAAAAAAAABN",
+      "expectedNative": {
+        "ledger": 42,
+        "results": [],
+        "timestamp": {
+          "$bigint": "77"
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "id": "wrong-requested-name",
+      "type": "NameStatus",
+      "expectedName": "bob.nova",
+      "reason": "Name differs from request",
+      "xdrBase64": "AAAAEQAAAAEAAAAEAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAARuYW1lAAAADgAAAAphbGljZS5ub3ZhAAAAAAAPAAAABXN0YXRlAAAAAAAAEAAAAAEAAAABAAAADwAAAAxVbnJlZ2lzdGVyZWQAAAAPAAAACXRpbWVzdGFtcAAAAAAAAAUAAAAAAAAATQ=="
+    },
+    {
+      "id": "wrong-node",
+      "type": "NameStatus",
+      "expectedName": "alice.nova",
+      "reason": "Node does not derive from name",
+      "xdrBase64": "AAAAEQAAAAEAAAAEAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAARuYW1lAAAADgAAAAphbGljZS5ub3ZhAAAAAAAPAAAABXN0YXRlAAAAAAAAEAAAAAEAAAACAAAADwAAAAZBY3RpdmUAAAAAABEAAAABAAAABQAAAA8AAAAKZXhwaXJlc19hdAAAAAAABQAAAAAAAABNAAAADwAAAApnZW5lcmF0aW9uAAAAAAAF//////////8AAAAPAAAABmhvbGRlcgAAAAAAEgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPAAAABG5vZGUAAAANAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwAAAAlyZWdpc3RyYXIAAAAAAAASAAAAAeTogbACVb7Sujx9sTA+Z1uESOygZh8SGNCzvHzpGhx4AAAADwAAAAl0aW1lc3RhbXAAAAAAAAAFAAAAAAAAAE0="
+    },
+    {
+      "id": "expired-at-inclusive-boundary",
+      "type": "NameStatus",
+      "expectedName": "alice.nova",
+      "reason": "Expiry boundary is still active",
+      "xdrBase64": "AAAAEQAAAAEAAAAEAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAARuYW1lAAAADgAAAAphbGljZS5ub3ZhAAAAAAAPAAAABXN0YXRlAAAAAAAAEAAAAAEAAAACAAAADwAAAAdFeHBpcmVkAAAAABEAAAABAAAABQAAAA8AAAAKZXhwaXJlc19hdAAAAAAABQAAAAAAAABNAAAADwAAAApnZW5lcmF0aW9uAAAAAAAF//////////8AAAAPAAAABmhvbGRlcgAAAAAAEgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPAAAABG5vZGUAAAANAAAAIFN9knq1slR8VD7OhFnGlx2HNVnsQ94qjUPNrRGNaJFuAAAADwAAAAlyZWdpc3RyYXIAAAAAAAASAAAAAeTogbACVb7Sujx9sTA+Z1uESOygZh8SGNCzvHzpGhx4AAAADwAAAAl0aW1lc3RhbXAAAAAAAAAFAAAAAAAAAE0="
+    },
+    {
+      "id": "expired-zero",
+      "type": "NameStatus",
+      "expectedName": "alice.nova",
+      "reason": "Zero expiry is non-expiring",
+      "xdrBase64": "AAAAEQAAAAEAAAAEAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAARuYW1lAAAADgAAAAphbGljZS5ub3ZhAAAAAAAPAAAABXN0YXRlAAAAAAAAEAAAAAEAAAACAAAADwAAAAdFeHBpcmVkAAAAABEAAAABAAAABQAAAA8AAAAKZXhwaXJlc19hdAAAAAAABQAAAAAAAAAAAAAADwAAAApnZW5lcmF0aW9uAAAAAAAF//////////8AAAAPAAAABmhvbGRlcgAAAAAAEgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPAAAABG5vZGUAAAANAAAAIFN9knq1slR8VD7OhFnGlx2HNVnsQ94qjUPNrRGNaJFuAAAADwAAAAlyZWdpc3RyYXIAAAAAAAASAAAAAeTogbACVb7Sujx9sTA+Z1uESOygZh8SGNCzvHzpGhx4AAAADwAAAAl0aW1lc3RhbXAAAAAAAAAFAAAAAAAAAE0="
+    },
+    {
+      "id": "registrar-is-account",
+      "type": "NameStatus",
+      "expectedName": "alice.nova",
+      "reason": "Registrar must be C",
+      "xdrBase64": "AAAAEQAAAAEAAAAEAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAARuYW1lAAAADgAAAAphbGljZS5ub3ZhAAAAAAAPAAAABXN0YXRlAAAAAAAAEAAAAAEAAAACAAAADwAAAAZBY3RpdmUAAAAAABEAAAABAAAABQAAAA8AAAAKZXhwaXJlc19hdAAAAAAABQAAAAAAAABNAAAADwAAAApnZW5lcmF0aW9uAAAAAAAF//////////8AAAAPAAAABmhvbGRlcgAAAAAAEgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPAAAABG5vZGUAAAANAAAAIFN9knq1slR8VD7OhFnGlx2HNVnsQ94qjUPNrRGNaJFuAAAADwAAAAlyZWdpc3RyYXIAAAAAAAASAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8AAAAJdGltZXN0YW1wAAAAAAAABQAAAAAAAABN"
+    },
+    {
+      "id": "shortened-batch",
+      "type": "BatchNames",
+      "expectedCount": 2,
+      "reason": "One result per requested identity",
+      "xdrBase64": "AAAAEQAAAAEAAAADAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAAdyZXN1bHRzAAAAABAAAAABAAAAAQAAABAAAAABAAAAAQAAAA8AAAAETm9uZQAAAA8AAAAJdGltZXN0YW1wAAAAAAAABQAAAAAAAABN"
+    },
+    {
+      "id": "zero-error",
+      "type": "BatchNames",
+      "expectedCount": 1,
+      "reason": "No contract error has code zero",
+      "xdrBase64": "AAAAEQAAAAEAAAADAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAAdyZXN1bHRzAAAAABAAAAABAAAAAQAAABAAAAABAAAAAgAAAA8AAAAGRmFpbGVkAAAAAAADAAAAAAAAAA8AAAAJdGltZXN0YW1wAAAAAAAABQAAAAAAAABN"
+    },
+    {
+      "id": "noncanonical-name",
+      "type": "BatchNames",
+      "expectedCount": 1,
+      "reason": "Result name must already be canonical",
+      "xdrBase64": "AAAAEQAAAAEAAAADAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAAdyZXN1bHRzAAAAABAAAAABAAAAAQAAABAAAAABAAAAAgAAAA8AAAAETmFtZQAAAA4AAAAKQWxpY2UuTm92YQAAAAAADwAAAAl0aW1lc3RhbXAAAAAAAAAFAAAAAAAAAE0="
+    },
+    {
+      "id": "error-u64",
+      "type": "BatchNames",
+      "expectedCount": 1,
+      "reason": "Error uses u32, not u64",
+      "xdrBase64": "AAAAEQAAAAEAAAADAAAADwAAAAZsZWRnZXIAAAAAAAMAAAAqAAAADwAAAAdyZXN1bHRzAAAAABAAAAABAAAAAQAAABAAAAABAAAAAgAAAA8AAAAGRmFpbGVkAAAAAAAFAAAAAAAAAAoAAAAPAAAACXRpbWVzdGFtcAAAAAAAAAUAAAAAAAAATQ=="
+    }
+  ]
+}

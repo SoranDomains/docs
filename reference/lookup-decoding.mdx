@@ -64,13 +64,64 @@ A muxed result uses `result: ["NativePayment", ["Muxed", { account: G, id: 420n 
 
 `scValToNative` decodes an ScVal; it does not establish that the result conforms to this ABI. A String and a Symbol can both become JavaScript strings, for example. Check simulation success and restoration first, then validate variant arity, field names, wire types, address types and memo bounds. The reference decoder below validates the XDR boundary before returning the native shape. See Stellar's [custom type encoding](https://developers.stellar.org/docs/learn/encyclopedia/contract-development/types/custom-types).
 
+## Status and batch shapes
+
+The additive status and batch capabilities each report version `1`; the payment ABI remains version `2`. With raw `scValToNative`, `name_status` returns:
+
+```js
+{
+  ledger: 5000000,                 // u32 -> number
+  name: "alice.nova",
+  state: ["Active", {
+    expires_at: 2000000000n,       // u64 -> bigint
+    generation: 3n,
+    holder: G,
+    node: new Uint8Array(32),      // illustration; actual bytes = namehash(name)
+    registrar: C
+  }],
+  timestamp: 1900000000n
+}
+```
+
+| State | Exact raw variant shape |
+| --- | --- |
+| Namespace absent | `["NamespaceMissing"]` |
+| Registrar absent | `["RegistrarMissing"]` |
+| No issued record | `["Unregistered"]` |
+| Active | `["Active", record]` |
+| Expired | `["Expired", record]` |
+
+`record` has the five fields illustrated above. For an expired state, its nonzero `expires_at` must be less than the result's `timestamp`. Validate the returned name and node against your request. The downloadable vectors contain exact valid node bytes.
+
+For batch inputs, encode a G/C address as `[Symbol("Direct"), Address(G_or_C)]` and a muxed route as `[Symbol("Muxed"), {account: Address(G), id: U64(id)}]`. These describe XDR construction; they are not JavaScript constructors. The full input is a vector of at most two identity variants. Both `primary_names` and `reverse_names` return this native shape:
+
+```js
+{
+  ledger: 5000000,
+  results: [["Name", "alice.nova"], ["None"]],
+  timestamp: 1900000000n
+}
+```
+
+| Per-item outcome | Exact raw shape |
+| --- | --- |
+| Verified name | `["Name", "alice.nova"]` |
+| No verified election returned | `["None"]` |
+| Ordinary Lookup failure | `["Failed", 10]` |
+
+Here **`None` is an enum array**, unlike `null` from the older single-read `Option<String>`. Error codes are positive `u32` numbers. Preserve unknown codes as failures. Results have exactly the input count and order, including duplicates. Empty input yields `results: []`. Whole-simulation failures have no usable result vector. See the [resource limits and retry rules](/api/onchain-resolution#history-screens-and-multiple-addresses).
+
+Generated bindings represent these variants with tagged objects instead: `{tag: "Active", values: [record]}`, `{tag: "None", values: undefined}` or `{tag: "Failed", values: [10]}`. They also wrap each method's `Result`; unwrap it only after checking the read outcome.
+
 ## Downloadable test vectors
 
 Download [lookup-returns-v1.json](/reference/vectors/lookup-returns-v1.json), or use the [source copy](https://github.com/SoranDomains/docs/blob/main/reference/vectors/lookup-returns-v1.json). It contains:
 
 - **19 valid return values:** all destination variants, u64 boundaries, UTF-8 text boundaries, nested resolution, optional names and active/expired metadata.
 - **23 rejection cases:** malformed variants, missing or extra fields, incorrect XDR types, invalid UTF-8, invalid memo sizes, C-with-memo, incorrect muxed bases and truncated XDR.
-- The deployed Lookup executable hash and relevant embedded spec entries used to encode the fixtures.
+- The Lookup executable hash and relevant embedded spec entries used to encode the fixtures. The payment fixture file retains its original hash; those return types are unchanged by the additive read upgrade.
+
+Download [lookup-read-extensions-v1.json](/reference/vectors/lookup-read-extensions-v1.json) for **9 valid status/batch results and 9 rejection cases**. It includes all five states, the inclusive expiry boundary, no-expiry records, empty/mixed batch results, name/node mismatches, inconsistent expiry and incorrect result counts or wire types. These fixtures are encoded from the upgraded contract's embedded spec; they do not measure network resource use.
 
 Every vector contains a base64 ScVal return value. Valid vectors also contain the expected `scValToNative` result. JSON cannot represent bigint or typed byte arrays, so the file uses `{"$bigint":"77"}` for `77n` and `{"$bytes":"0001..."}` for a byte array. These markers describe the test file; **the SDK does not return those marker objects**. Ordinary `null` remains null.
 
@@ -84,7 +135,7 @@ npm ci
 npm test
 ```
 
-To compare your decoder, parse each `xdrBase64` with `xdr.ScVal.fromXDR(value, "base64")`, decode it, and compare its tagged JSON representation with `expectedNative`. Every item in `invalid` must be rejected as a payment destination even if generic ScVal decoding succeeds.
+To compare your decoder, parse each `xdrBase64` with `xdr.ScVal.fromXDR(value, "base64")`, decode it, and compare its tagged JSON representation with `expectedNative`. Every item in `invalid` must fail the relevant typed decoder even if generic ScVal decoding succeeds. `decode-reads.mjs` validates status against `expectedName` and batches against `expectedCount`. The combined suite runs **77 tests**.
 
 ## Generated bindings
 
@@ -140,4 +191,4 @@ normalizeName("Kate.nova");   // throws; no Unicode lookalike conversion
 
 The contract itself accepts canonical lowercase ASCII only. Normalization is a UI convenience, not a change to contract rules. Never apply it to addresses, memo text or arbitrary record values.
 
-For expired-name explanations and current batch-read limitations, see [error 7](/api/onchain-resolution#error-7-missing-or-expired-name) and [history screens](/api/onchain-resolution#history-screens-and-multiple-addresses).
+For registration-state explanations and batch-read limits, see [name status](/api/onchain-resolution#error-7-missing-or-expired-name) and [history screens](/api/onchain-resolution#history-screens-and-multiple-addresses).
