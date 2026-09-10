@@ -315,5 +315,51 @@
     ],
     "postActivationSetter": false,
     "verifiedAt": "2026-09-10T18:32:44.576Z"
+  },
+  "namespaces": {
+    "orange": {
+      "owner": "GD43OTU7UGMEJ4UNVZPBFR6MJOWDY4ZRMSPTGOHOKMEHNQNXUNSOPC5M",
+      "node": "d1d0e6f36d8c4c8ec257a0d939184c502d8cbe27f848705002eb47546b13cc7b",
+      "registrar": "CASORANR53NHAVQHIJ6HABWO6Z6HZF4GHLUXL4UTHFAZHLKK67KCG6TL",
+      "resolver": "CDSORANE4PINQFRAI7MJESCWXJLMR2M2FNRODUP5OGMQ5XWBWTV5AUGW",
+      "policy": {
+        "default_term_secs": "0",
+        "reclaimable": true,
+        "transferable": true,
+        "tradeable": false,
+        "trade_fee_bps": 0
+      },
+      "claims": {
+        "settings": {
+          "mode": "public",
+          "enabled": true,
+          "admission": {
+            "type": "open"
+          },
+          "feeToken": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+          "feeAmount": "0",
+          "feeRecipient": "GD43OTU7UGMEJ4UNVZPBFR6MJOWDY4ZRMSPTGOHOKMEHNQNXUNSOPC5M",
+          "walletLimit": "0",
+          "approvalAllowance": "0",
+          "approvalRateLimit": "0",
+          "approvalWindowSecs": "0",
+          "approvalTtlSecs": "0"
+        },
+        "ownerEpoch": "3",
+        "policyVersion": "1",
+        "grantEpoch": "1"
+      },
+      "verifiedAt": "2026-09-10T19:35:26.425Z",
+      "registrarDeployment": {
+        "transaction": "21ccb1e891ee7a51bed55bd52d071780372f5f38b222890142dc65e66710aec7",
+        "ledger": 4609061,
+        "wasmHash": "5c8ae72ea7370ccf19af52b9bbc0007362be94464651ccdf68a2bb1f478b6f2c"
+      },
+      "resolverDeployment": {
+        "transaction": "0ad56d73474646a08e3132555da741dcd37203bea9e7f8954ca999fbac8273b1",
+        "ledger": 4609063,
+        "wasmHash": "c6dfcd7bbf35943a13406888678334d0938d0fea54939906b00c2dc37b4a9a71"
+      }
+    }
   }
 }

@@ -16,6 +16,19 @@ Try [Nova Whois](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/whois) 
 
 Use these names for demonstrations, not deposits. The [example manifest](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/examples/manifest.json) lists their complete values as a dated snapshot. Read them live when testing; records can change, storage can expire and testnet can reset.
 
+## Try another namespace
+
+The [claim app](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/) lets you choose `.nova` or `.orange` beside the username field. The same username is a different name in each namespace.
+
+| Orange name | Destination | Memo or routing ID |
+| --- | --- | --- |
+| `cyclops.orange` | The same hello-world C contract as `cyclops.nova` | No memo; `hello()` returns `Hello, world!` |
+| `nikcle.orange` | Classic G account | No memo |
+| `mux.orange` | Muxed M address | Embedded routing ID `42`; no separate memo |
+| `robert.orange` | Classic G account | Memo ID `77` |
+
+These names were claimed by test wallets separate from the Orange namespace owner. Each username claim set its payment destination on chain without an owner signature. The [Orange example manifest](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/examples/orange.json) lists complete values and whether reverse and Primary selections are configured. Forward resolution alone does not create those selections.
+
 ## Read all destination types
 
 Install the published Lookup SDK and Stellar SDK:
