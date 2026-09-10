@@ -521,7 +521,7 @@ For independent upkeep, use the per-contract methods described above or Stellar'
 
 ## Read raw keys with Stellar RPC
 
-This Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.10.1`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It only reads state. Use an active name from the [live examples](/live-examples), or one you have issued.
+This Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.10.2`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It only reads state. Use an active name from the [live examples](/live-examples), or one you have issued.
 
 ```typescript
 import { Address, nativeToScVal, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";
@@ -637,14 +637,28 @@ The optimized Lookup uses these read-only helpers internally. They add no storag
 | --- | --- |
 | Registrar `identity_read_version()` | `1` |
 | Registrar `identity_context()` | `[registryAddress, namespaceNodeBytes, 1]` |
-| Registrar `live_records(nodes)` | Array of `null` or `[holderAddress, generationBigInt, builtinAddress]`; at most 16 nodes |
+| Registrar `live_records(nodes)` | Array of `null` or `[holderAddress, generationBigInt, builtinAddress]`; at most 32 nodes |
 | Resolver `identity_read_version()` | `1` |
 | Resolver `identity_context()` | `[registryAddress, registrarAddress, 1]` |
-| Resolver `reverse_records(addresses)` | Array of `null` or `[nameString, nodeBytes, generationBigInt]`; at most 16 addresses |
-| Resolver `identity_destinations(requests)` | Array of `null` or `[paymentDestination, explicitForwardBoolean]`; at most 16 requests |
+| Resolver `reverse_records(addresses)` | Array of `null` or `[nameString, nodeBytes, generationBigInt]`; at most 32 addresses |
+| Resolver `identity_destinations(requests)` | Array of `null` or `[paymentDestination, explicitForwardBoolean]`; at most 32 requests |
 | Primary `identity_read_version()` | `1` |
-| Primary `primary_records(addresses)` | Array of `null` or `[nameString, namespaceNodeBytes]`; at most 8 addresses |
+| Primary `primary_records(addresses)` | Array of `null` or `[nameString, namespaceNodeBytes]`; at most 16 addresses |
 
 Each destination request is `[nodeBytes, generationBigInt, builtinAddress]`. Its result uses the [existing destination enum](/reference/lookup-decoding). The supplied generation and fallback address are inputs, so the result alone is not proof of a live record. Lookup obtains them independently from the current Registrar and checks each election against current namespace routing. `explicitForwardBoolean` identifies an explicit forward address at that generation; G/C reverse verification requires it.
 
 These optional tuple results encode absence as Soroban `Void`, decoded to JavaScript `null`. Lookup’s public `IdentityName::None` is a different enum and decodes to `["None"]`. Input counts above the raw helper limit reject the whole call (`BatchTooLarge`: Registrar `8`, Resolver `31`, Primary `13`).
+
+The current optimized path can return related records and their contract context together:
+
+| Contract / method | Exact `scValToNative` result | Maximum inputs |
+| --- | --- | --- |
+| Registry `native_contracts_many(nodes)` | Array of `null` or `[registrarAddress, resolverAddress]` | 16 nodes |
+| Registrar `identity_live(nodes)` | `[registryAddress, namespaceNodeBytes, liveRecords]` | 32 nodes |
+| Resolver `identity_reverse(addresses)` | `[registryAddress, registrarAddress, reverseRecords]` | 32 addresses |
+| Resolver `identity_payments(requests)` | `[registryAddress, registrarAddress, destinations]` | 32 requests |
+| Primary `identity_records(addresses)` | `[registryAddress, primaryRecords]` | 16 addresses |
+
+`liveRecords`, `destinations` and `primaryRecords` use the corresponding row shapes above. Each `reverseRecords` row is `null` or `[nameString, nodeBytes, generationBigInt, paymentOrNull]`, where `paymentOrNull` is `null` or `[paymentDestination, explicitForwardBoolean]`. A missing payment does not turn an election into a verified result. Lookup checks the current Registrar generation, namespace pointers and full destination before returning a display name.
+
+These helpers preserve input order and duplicates. Their outputs are raw observations for the verification process. Apps should use Universal Lookup's public methods for identity answers.

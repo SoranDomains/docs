@@ -293,4 +293,4 @@ An atomic Registrar call maps a failed initializer to Registrar error `41` and
 aborts the whole operation.
 
 A contract rejection does not authorize changing the destination, dropping a memo,
-opening admission or charging different terms on a retry. A namespace template change requires a new deployment with matching contracts; it does not migrate old Registry records or change ownership guarantees.
+opening admission or charging different terms on a retry. Changing a Registry deployment template affects future contracts. Existing governed testnet contracts can receive compatible authorized upgrades at the same address; neither operation automatically changes their stored lifecycle policies. Choose those rules during [namespace activation](/owner/activating-a-namespace).
