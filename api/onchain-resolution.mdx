@@ -145,9 +145,9 @@ Each label must contain 1–63 ASCII letters, digits or interior hyphens. Reject
 | `name_metadata(name:String)` | Optional NameMetadata |
 | `name_status_version()` | Status capability `1` |
 | `name_status(name:String)` | Registration state and observation ledger/time |
-| `batch_read_version()` | Batch capability `2` |
-| `batch_read_limit()` | Up to `16` namespace identities |
-| `primary_batch_limit()` | Up to `8` Primary identities |
+| `batch_read_version()` | Batch capability `3` |
+| `batch_read_limit()` | Up to `32` namespace identities |
+| `primary_batch_limit()` | Up to `16` Primary identities |
 | `primary_names(identities:Vec<LookupIdentity>)` | Ordered cross-namespace election results |
 | `reverse_names(namespace:String,identities:Vec<LookupIdentity>)` | Ordered namespace election results |
 | `text(name:String,key:Symbol)` | Optional String |
@@ -186,7 +186,7 @@ The G/C `reverse` and `primary_name` results receive a current forward check, in
 
 ### History screens and multiple addresses
 
-Call `primary_names` for cross-namespace elections, or `reverse_names` for elections in one namespace. Check `batch_read_version() == 2`, then read the method-specific limit: `batch_read_limit()` is **16** for one namespace, and `primary_batch_limit()` is **8** across namespaces. Both preserve order and duplicates:
+Call `primary_names` for cross-namespace elections, or `reverse_names` for elections in one namespace. Check `batch_read_version() == 3`, then read the method-specific limit: `batch_read_limit()` is **32** for one namespace, and `primary_batch_limit()` is **16** across namespaces. Both preserve order and duplicates:
 
 ```text
 LookupIdentity = Direct(Address) | Muxed({ account: Address, id: u64 })
@@ -198,11 +198,11 @@ Use `Direct` for G/C and `Muxed` for the exact G-plus-ID route. `None` means no 
 
 The optimized native path shares namespace checks and reads records in groups. It still verifies current Registry routing, live Registrar generations and expiry, explicit G/C forward records, and both fields of an M destination. Repeated complete identities are verified once within the invocation and restored to their original positions. The input limit applies before deduplication.
 
-Compiled-contract tests cover 16 populated records in one namespace and 8 populated Primary records in eight namespaces, including maximum-length names and G, G with memo, C and M destinations. These limits are input bounds, not a guarantee for every dependency or network condition. Older or custom namespace contracts use the existing full verification path and can require smaller batches.
+Compiled-contract tests cover 32 populated records in one namespace and 16 populated Primary records across namespaces, including maximum-length names and G, G with memo, C and M destinations. These limits are input bounds, not a guarantee for every dependency or network condition. Older or custom namespace contracts use the existing full verification path and can require smaller batches.
 
 After a top-level host `Budget/ExceededLimit` error, halve the batch and retry. A one-item failure, restoration requirement, transport failure or ABI error remains a failure; never convert it to `None`. A successful batch gives all its results one ledger and timestamp. Separate calls can observe different ledgers.
 
-Lookup SDK 0.10.1 provides `primaryNames(addresses)` and `reverseMany(namespace, addresses)` for up to 256 inputs. They start at the deployed method limit, halve only after a leading host budget error, and retain each row's observation ledger/time. See [history examples](/sdk/reverse-and-primary#history-screens).
+Lookup SDK 0.10.2 provides `primaryNames(addresses)` and `reverseMany(namespace, addresses)` for up to 256 inputs. They start at the deployed method limit, halve only after a leading host budget error, and retain each row's observation ledger/time. See [history examples](/sdk/reverse-and-primary#history-screens).
 
 Deduplicate repeated addresses when your screen permits it. Key a short-lived display cache by network, Lookup contract and complete identity. Do not retain failed reads as permanent absence. Re-resolve payment instructions before payment; these methods return display names, not payment destinations.
 

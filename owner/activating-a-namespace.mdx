@@ -1,0 +1,96 @@
+---
+title: Activating your namespace
+description: Choose reclaim, transfer and expiry rules before deploying your namespace's Registrar.
+---
+
+After your namespace claim is awarded, activate it by deploying its Registrar. The namespace owner's wallet authorizes this transaction. Claiming a namespace and activating it are separate steps.
+
+You choose the Registrar's lifecycle policy at activation. You can then configure [automatic username claiming](/owner/automatic-claiming) or issue names through the [Owner SDK](/owner/issuing-from-code).
+
+## Choose your rules
+
+| Field | Meaning | Accepted values |
+| --- | --- | --- |
+| `reclaimable` | Whether the namespace owner may reclaim usernames | Boolean |
+| `transferable` | Whether holders may transfer usernames to another wallet | Boolean |
+| `default_term_secs` | Default username lifetime | `0` for no expiry, or `86400` through `3153600000` seconds |
+| `tradeable` | Stored trading preference for custom integrations | Boolean |
+| `trade_fee_bps` | Stored trade-fee preference; 100 basis points equals 1% | Integer from `0` through `10000` |
+
+The trading fields do not enable an on-chain username marketplace or collect a trade fee. To charge for username registration, configure the native claim fee's token, amount and recipient separately in [claim settings](/owner/automatic-claiming).
+
+Disabling transfers prevents holder-to-holder username transfers. It does not freeze holder-controlled payment destinations or remove the owner's authorized reclaim powers.
+
+There is no ordinary setter for these five lifecycle fields after activation. `configure_claims` changes admission and registration-fee settings, not this construction policy. Governed testnet contracts remain upgradeable, but uploading new code does not automatically change a stored policy. See [governance](/concepts/governance).
+
+## Activate through MCP
+
+In local mode, `activate_namespace` accepts either a complete policy object or a preset. For example, an app can permit owner reclaim while preventing holder transfers:
+
+```json
+{
+  "namespace": "acme",
+  "policy": {
+    "default_term_secs": "0",
+    "reclaimable": true,
+    "trade_fee_bps": 0,
+    "tradeable": false,
+    "transferable": false
+  },
+  "maxNetworkFeeStroops": "10000000"
+}
+```
+
+The fee limit in this example is a maximum network fee you authorize, not a fee quote. Review it for your transaction. To use renewable one-year usernames, set `default_term_secs` to `"31536000"`.
+
+The MCP checks all five fields in the prepared Registry call and the nested Registrar constructor authorization before signing. It also verifies the namespace, network, predicted contract address and fee limit. After the API confirms submission, the MCP checks the Registrar and policy independently on chain.
+
+`activated: true` with `policyVerified: true` means those checks passed. If the API reports activation but the on-chain verification cannot complete, the result has `activated: null` and `pendingVerification: true`. Check `namespace_status` before proceeding; do not activate again. This is different from a vanity-generation result with `pending: true`, where nothing has been signed yet.
+
+## Preset shorthands
+
+Both shorthands remain available. These are their complete effective values:
+
+| Preset | Reclaimable | Transferable | Default term | Tradeable | Trade fee |
+| --- | --- | --- | --- | --- | --- |
+| `reclaimable` | `true` | `true` | `0` | `false` | `0` |
+| `permanent` | `false` | `true` | `0` | `false` | `0` |
+
+The historical name `permanent` means non-reclaimable and no expiry here. It does not lock code. The governed testnet rejects permanent code locks. Use the full object when you want different rules.
+
+## Prepare through the API
+
+Send an authenticated `POST /console/registrar/deploy/prepare` request with the same `namespace` and `policy` object shown above. The session wallet must own that namespace. The API also accepts the two presets; omitting `policy` retains the `reclaimable` default.
+
+Supply exactly all five fields in an explicit object. Booleans must be JSON booleans. The term accepts a canonical decimal string or a whole JSON number within the stated bounds. Unknown fields, conflicting top-level overrides, missing policy fields and invalid values are rejected. For example, `{ "policy": "reclaimable", "transferable": false }` is invalid: put the setting inside a full policy object.
+
+A successful preparation returns an unsigned `xdr`, `predictedId`, `deploymentSaltVersion`, `namespace`, `network` and the normalized `policy`. The term in the returned policy is a decimal string. Compare the transaction's arguments with your original policy before wallet approval; do not rely only on the response's policy summary.
+
+After signing, use `POST /console/registrar/deploy/submit` with `signedXdr` and `predictedId`. A pending response requires confirmation of the existing transaction, not a new deployment. `POST /console/registrar/deploy/confirm` checks the already deployed Registrar and records its binding. The dashboard handles these steps and displays the policy read from the contract.
+
+## Call the Registry directly
+
+The on-chain call is:
+
+```rust
+Registry.deploy_registrar(
+    node: BytesN<32>,
+    treasury: Address,
+    policy: RegistrarPolicy,
+    salt: BytesN<32>,
+) -> Address
+```
+
+Here `node` is the namespace namehash and `salt` is your 32-byte nonce. The current Registry's `deployment_salt_version()` returns `1`. It derives the deployment salt as:
+
+```text
+SHA256(UTF8("soran:namespace-deploy:v1\0") || role || namespace_node || nonce)
+```
+
+`\0` is one zero byte. The role is one byte: `1` for Registrar and `2` for Resolver. The Registry then uses the normal Soroban contract-address derivation with that salt, its own address and the network. Call `predict_registrar(node, nonce)` to verify the address before deployment.
+
+The API and MCP use branded addresses matching `C[A-D]SORAN[A-Z2-7]{49}`. That prefix is a tooling convention; it is not a Registry requirement for a direct call.
+
+`deploy_registrar` records its own on-chain attestation. Do not follow it with `attest_registrar`: that separate method is for post-hoc attestation of a separately deployed contract and has different provenance rules. An API confirmation is not another on-chain attestation.
+
+Finally, read `Registry.registrar_of(node)` and the deployed Registrar's `policy()`. The Owner SDK exposes these as `owner.registrarOf(namespace)` and `owner.policy(namespace)`; its returned policy uses `defaultTermSecs` as a `bigint` and `tradeFeeBps` as a number. These reads do not change a policy.

@@ -31,10 +31,10 @@ Use these published versions together. Each supports Stellar SDK 17. Lookup read
 
 | Package | Current version |
 | --- | --- |
-| [Lookup](https://www.npmjs.com/package/@sorandomains/lookup) | **0.10.1** |
+| [Lookup](https://www.npmjs.com/package/@sorandomains/lookup) | **0.10.2** |
 | [Holder](https://www.npmjs.com/package/@sorandomains/holder) | **0.7.0** |
 | [Owner](https://www.npmjs.com/package/@sorandomains/owner) | **0.8.0** |
-| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.9.2** |
+| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.9.3** |
 
 ## Shared testnet contract addresses
 
@@ -99,9 +99,9 @@ Nova uses governed upgrades and its name policy is reclaimable. Example records 
 | Lookup `version()` and `destination_version()` | `2` |
 | Lookup `muxed_identity_version()` | `1` |
 | Lookup `name_status_version()` | `1` |
-| Lookup `batch_read_version()` | `2` |
-| Lookup `batch_read_limit()` | `16` namespace identities |
-| Lookup `primary_batch_limit()` | `8` Primary identities |
+| Lookup `batch_read_version()` | `3` |
+| Lookup `batch_read_limit()` | `32` namespace identities |
+| Lookup `primary_batch_limit()` | `16` Primary identities |
 | Resolver `payment_version()` and `destination_version()` | `2` |
 | Registrar `claim_version()` | `1` |
 | Resolver `initialization_version()` | `1` |
@@ -115,7 +115,7 @@ Lookup's muxed identity extension is active at the same contract address. See th
 
 The [9 September Lookup upgrade](https://stellar.expert/explorer/testnet/tx/34ac6a1189a83f6ea33692b4a9dca65324e147653b9ef8d74800c6eedc7ff907) keeps the same contract address, storage and existing methods. `name_status` distinguishes missing namespaces, missing Registrars, unregistered names, active names and expired records in one observation. Existing payment error codes remain compatible.
 
-The [10 September batch optimization](https://stellar.expert/explorer/testnet/tx/fbcd6892b216a859d1ecab7b49692df38f866ea820bf3a21045ef2251fac01e7) keeps all contract addresses unchanged. `reverse_names` accepts up to **16** G/C/full-M identities in one namespace; `primary_names` accepts up to **8** across namespaces. Current native contracts share verification work while still checking each live forward destination. Lookup 0.10.1 history helpers split calls when a host budget limit requires it and preserve each row's ledger/time. See [contract methods](/api/onchain-resolution#history-screens-and-multiple-addresses), [SDK examples](/sdk/reverse-and-primary#history-screens) and [exact JavaScript/XDR shapes](/reference/lookup-decoding#status-and-batch-shapes).
+The [10 September batch optimization](https://stellar.expert/explorer/testnet/tx/5c444700a524c0a2454ad94cd3822562e7774a5d16c219e6c0599046d6910c91) keeps all contract addresses unchanged. `reverse_names` accepts up to **32** G/C/full-M identities in one namespace; `primary_names` accepts up to **16** across namespaces. Current native contracts combine related reads and share namespace verification work while still checking each live forward destination. Lookup 0.10.2 history helpers split calls when a host budget limit requires it and preserve each row's ledger/time. See [contract methods](/api/onchain-resolution#history-screens-and-multiple-addresses), [SDK examples](/sdk/reverse-and-primary#history-screens) and [exact JavaScript/XDR shapes](/reference/lookup-decoding#status-and-batch-shapes).
 
 Live checks preserved the payment and elected-name answers for `nikcle.nova`, `robert.nova`, `mux.nova` and the forward-only contract example `cyclops.nova`. Generated TypeScript bindings also read the new methods successfully. Expiry boundaries and malformed dependency responses were checked in compiled-contract tests.
 
@@ -140,15 +140,15 @@ The 10 September governed migration also upgraded Allocator code in place and re
 | Nova claim app and Whois | [Open Nova](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/) |
 | SDK demonstration app | [Open Soran Studio](https://soran-studio.throbbing-cloud-0f8e.workers.dev/) |
 
-These services use the current deployment. Hosted MCP runs **0.9.2**; signing tools are [local-only](/agents/access#native-usernames-in-local-mode). Billing and marketplace features are disabled on this setup. Check [service status](/api/status) when integrating.
+These services use the current deployment. Hosted MCP runs **0.9.3**; signing tools are [local-only](/agents/access#native-usernames-in-local-mode). Billing and marketplace features are disabled on this setup. Check [service status](/api/status) when integrating.
 
-The 8 September console/API update checks [current namespace ownership](/platform/console#current-ownership-checks), preserves the transaction hash after an [interrupted submission](/api/overview#submission-responses), and lets you recover an interrupted renewal before attempting another. The console also checks a maximum network fee and a short transaction expiry before wallet approval. Its name-management page supports full muxed identities through Universal Lookup.
+The 8 September console/API update checks [current namespace ownership](/platform/console#current-ownership-checks), preserves the transaction hash after an [interrupted submission](/api/overview#submission-responses), and lets you recover an interrupted renewal before attempting another. Owners can now [set all five activation rules](/owner/activating-a-namespace), including disabling holder transfers or setting a default expiry term. The API and local MCP accept the same explicit policy, preserve the two preset defaults, and verify the requested rules before signing. The console also checks a maximum network fee and a short transaction expiry before wallet approval. Its name-management page supports full muxed identities through Universal Lookup.
 
 <span id="upcoming-updates" />
 
 ## Governed testnet deployment
 
-The 10 September migration preserves the Universal Lookup and Allocator addresses. Registry, Primary and Nova's Registrar and Resolver use the successor addresses above. Match them with Lookup **0.10.1**, Owner **0.8.0**, Holder **0.7.0** and MCP **0.9.2**.
+The 10 September migration preserves the Universal Lookup and Allocator addresses. Registry, Primary and Nova's Registrar and Resolver use the successor addresses above. Match them with Lookup **0.10.2**, Owner **0.8.0**, Holder **0.7.0** and MCP **0.9.3**.
 
 All six active contracts support authorized upgrades at the same address. Namespace child upgrades require the current namespace owner and protocol approval for the exact contract role and code hash. The governed testnet does not permit irreversible code locks. Name expiry and owner reclaim policy remain separate settings. See [governance](/concepts/governance).
 

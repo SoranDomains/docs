@@ -1,8 +1,8 @@
 {
   "network": "testnet",
   "rpcUrl": "https://soroban-testnet.stellar.org",
-  "verifiedAt": "2026-09-10T15:17:50.384Z",
-  "verifiedLedger": 4605980,
+  "verifiedAt": "2026-09-10T18:27:40.689Z",
+  "verifiedLedger": 4608263,
   "governance": "GAJCWWNMBKCSTQQISDFTHFTCEOGXYA37YTP3U3ZW7Q5CYQPHSW6TB4QX",
   "namespaceDeploymentSaltVersion": 1,
   "lookupVersion": 2,
@@ -11,8 +11,8 @@
   "resolverInitializationVersion": 1,
   "lookupMuxedIdentityVersion": 1,
   "lookupNameStatusVersion": 1,
-  "lookupBatchReadVersion": 2,
-  "lookupBatchReadLimit": 16,
+  "lookupBatchReadVersion": 3,
+  "lookupBatchReadLimit": 32,
   "allocatorRulingVersion": 1,
   "allocatorReopenVersion": 1,
   "allocatorUpgradeDelaySeconds": 0,
@@ -36,20 +36,29 @@
   "contracts": {
     "registry": {
       "id": "CCSORANDPQINYOYB5SVO45WJP2LBBYKC72HHUIRVXB4J6RUZKDAUW7G4",
-      "wasmHash": "5c38509d69fac48c68b1972049dabcd9ef9661e3b284c358775bdd71821c7270",
+      "wasmHash": "f8966c6c6fd15e3621497e4144de17bd6e15ecdc8ff600ffe4e962c51d2bdb21",
       "deploymentTransaction": "747b859a98b8ef8ba811cce8475b4cf45e74c104ce97cc4ec852cb3f453b76c1",
       "deploymentLedger": 4602289,
-      "codeVerifiedAt": "2026-09-10T15:17:50.384Z"
+      "codeVerifiedAt": "2026-09-10T18:27:40.689Z",
+      "upgradeHistory": [
+        {
+          "wasmHash": "5c38509d69fac48c68b1972049dabcd9ef9661e3b284c358775bdd71821c7270",
+          "transaction": "747b859a98b8ef8ba811cce8475b4cf45e74c104ce97cc4ec852cb3f453b76c1",
+          "ledger": 4602289
+        }
+      ],
+      "upgradeTransaction": "3a986298a63e55fee824303df240379eb56994b50c356b7ade6ea626903b5f5e",
+      "upgradeLedger": 4608215
     },
     "allocator": {
       "id": "CCSORANYFHUJUWETEQ7UWIDN4JTPV7NN5G6YUSSBZI57X7EQWVA63VMJ",
-      "wasmHash": "5998c24ec34154f9cf72db104384b225ea9ae05c0c7410d37c54dcf917c4b631",
+      "wasmHash": "89c09347db87fef77832d6a176933b76fd93124dbbc3a05734f2c7bd2a75f2d4",
       "deploymentTransaction": "6588ca3a8d09458e6aadeaf0173927dc10865b68c8531632d4368c109b85d46e",
       "deploymentLedger": 4534622,
       "deploymentWasmHash": "584d5dc1d82e34655d4130f4f0e93ae7b5cd75d6465484efb51b8525f13c3db0",
-      "upgradeTransaction": "41c9ffe731b32d87c614e7d24539558568a6af5062e0d6451651b8e8951339b8",
-      "upgradeLedger": 4602368,
-      "codeVerifiedAt": "2026-09-10T15:17:50.384Z",
+      "upgradeTransaction": "4ad921703d3584bb669ec5d6f40b8bd4f8fdb0db789d5233b88059876f97361f",
+      "upgradeLedger": 4608229,
+      "codeVerifiedAt": "2026-09-10T18:27:40.689Z",
       "upgradeHistory": [
         {
           "wasmHash": "9480a4f980de9df0a31652b0b64c54d5c5e1979745cc8c4fc486624b9c177e40",
@@ -68,66 +77,86 @@
           "transaction": "a9c77709a1a4e51fa4a5ca74647e332302f629ef53578bb3bc912fd7e29ca9c3",
           "ledger": 4575408,
           "codeVerifiedAt": "2026-09-08T20:54:03.390Z"
+        },
+        {
+          "wasmHash": "5998c24ec34154f9cf72db104384b225ea9ae05c0c7410d37c54dcf917c4b631",
+          "transaction": "41c9ffe731b32d87c614e7d24539558568a6af5062e0d6451651b8e8951339b8",
+          "ledger": 4602368
         }
       ]
     },
     "registrar": {
       "id": "CDSORANBRJUG4LLF2D26JZIKRGLKHVWHPEGRR4ZJKKLBSREEADD4MDC2",
-      "wasmHash": "3e6d4f2b289111ddad12428f5d63603e76fa8da91fb9d7e33c73e97835d8781f",
+      "wasmHash": "5c8ae72ea7370ccf19af52b9bbc0007362be94464651ccdf68a2bb1f478b6f2c",
       "deploymentTransaction": "ea6708f83344ded18025b121527ad6e7abb002dbed252dd36c1d3e2c20546c12",
       "deploymentLedger": 4603489,
-      "codeVerifiedAt": "2026-09-10T15:17:50.384Z",
+      "codeVerifiedAt": "2026-09-10T18:27:40.689Z",
       "upgradeHistory": [
         {
           "wasmHash": "26e03cd1d7fbfa46fe442406fb1b88022ec8cd8bd9123bed570f971fce596a14",
           "transaction": "ea6708f83344ded18025b121527ad6e7abb002dbed252dd36c1d3e2c20546c12",
           "ledger": 4603489
+        },
+        {
+          "wasmHash": "3e6d4f2b289111ddad12428f5d63603e76fa8da91fb9d7e33c73e97835d8781f",
+          "transaction": "97c3ef2515941d7bb8334c654d909d015480bdca2f3de05cd2fcd5c7473d4c61",
+          "ledger": 4605855
         }
       ],
-      "upgradeTransaction": "97c3ef2515941d7bb8334c654d909d015480bdca2f3de05cd2fcd5c7473d4c61",
-      "upgradeLedger": 4605855
+      "upgradeTransaction": "a45fb5a4fd9c9ee70cf6c43c863f11bf32394c01172aa9e090e917b78456200e",
+      "upgradeLedger": 4608221
     },
     "resolver": {
       "id": "CDSORANVZ5JS2VSVQ6VBYGE6A26NC736SL66HW7LZ7O4EE7BSMMDWFAX",
-      "wasmHash": "b6222048736f2519519a7a8ee8c57007193616c49ec3ea9f215deba82070f49a",
+      "wasmHash": "c6dfcd7bbf35943a13406888678334d0938d0fea54939906b00c2dc37b4a9a71",
       "deploymentTransaction": "a1ab05725745dfd4f2827129b25599dc9bc73995bc52c29268848f6c95575f7d",
       "deploymentLedger": 4603491,
-      "codeVerifiedAt": "2026-09-10T15:17:50.384Z",
+      "codeVerifiedAt": "2026-09-10T18:27:40.689Z",
       "upgradeHistory": [
         {
           "wasmHash": "5e7b4fb8d310d67ed6966a155e748d60be771422b3e8c34bbc14485f98525574",
           "transaction": "a1ab05725745dfd4f2827129b25599dc9bc73995bc52c29268848f6c95575f7d",
           "ledger": 4603491
+        },
+        {
+          "wasmHash": "b6222048736f2519519a7a8ee8c57007193616c49ec3ea9f215deba82070f49a",
+          "transaction": "db10941fa9ea58d5bf95db83900e5e449f5904ad37d55b3c08f8256cd8f1a953",
+          "ledger": 4605857
         }
       ],
-      "upgradeTransaction": "db10941fa9ea58d5bf95db83900e5e449f5904ad37d55b3c08f8256cd8f1a953",
-      "upgradeLedger": 4605857
+      "upgradeTransaction": "c3a1599ced2141dfc5914200da69612e7b37ec8a9b272c6a8ca6e4bea24b1d5f",
+      "upgradeLedger": 4608223
     },
     "primary": {
       "id": "CCSORAN7Y7ICQK2MBSVCJT3BUN5EHXKDKSTMGVB6QWSYXWMMLG2WIFJ6",
-      "wasmHash": "b783b0614c3ff423b47b3706a21abc6db9fdd49ab2ea2e2e5780f6fcc72dcf99",
+      "wasmHash": "cd1d4798be7c2a54115bc97ef83acd7b3bc26334419ee31d21d17b26cb891e7a",
       "deploymentTransaction": "def1397f65056a767a15c1d090f879e9e806536ab8411cae1ff3984fee8f1be0",
       "deploymentLedger": 4602308,
-      "codeVerifiedAt": "2026-09-10T15:17:50.384Z",
+      "codeVerifiedAt": "2026-09-10T18:27:40.689Z",
       "upgradeHistory": [
         {
           "wasmHash": "aa59205bff574e27469559cfcf39f1028eabc975c8f37591ea2f373682d918ee",
           "transaction": "def1397f65056a767a15c1d090f879e9e806536ab8411cae1ff3984fee8f1be0",
           "ledger": 4602308
+        },
+        {
+          "wasmHash": "b783b0614c3ff423b47b3706a21abc6db9fdd49ab2ea2e2e5780f6fcc72dcf99",
+          "transaction": "c1db89486868ae141394f7aa106134647c96283bd9a195e4ff92f69e40ec15f0",
+          "ledger": 4605859
         }
       ],
-      "upgradeTransaction": "c1db89486868ae141394f7aa106134647c96283bd9a195e4ff92f69e40ec15f0",
-      "upgradeLedger": 4605859
+      "upgradeTransaction": "362ae4e9de64c0d0746a8b2477e8de15a983a91860000220257f8686b47a9b5c",
+      "upgradeLedger": 4608225
     },
     "lookup": {
       "id": "CDSORANQAJK35UV2HR63CMB6M5NYISHMUBTB6EQY2CZ3Y7HJDIOHRJWA",
-      "wasmHash": "4233f2aee913b717f4b4bb150271d14bd707dc56a41b9a3a48fc603245e797c0",
+      "wasmHash": "b90d5a0ee983e4632ed912a974720ec6e0f539b3b421f20d6a2da6070fb2ba79",
       "deploymentTransaction": "d480c19edd9d101357432142a14e0d0e3e6b2c7706b01de8393cb94d6d6a63fc",
       "deploymentLedger": 4534628,
       "deploymentWasmHash": "67c2d2c7f9b80b2901426a31d4a85cf1cf56c4f70afd69d229dfe4b67db78041",
-      "upgradeTransaction": "fbcd6892b216a859d1ecab7b49692df38f866ea820bf3a21045ef2251fac01e7",
-      "upgradeLedger": 4605864,
-      "codeVerifiedAt": "2026-09-10T15:17:50.384Z",
+      "upgradeTransaction": "5c444700a524c0a2454ad94cd3822562e7774a5d16c219e6c0599046d6910c91",
+      "upgradeLedger": 4608249,
+      "codeVerifiedAt": "2026-09-10T18:27:40.689Z",
       "upgradeHistory": [
         {
           "wasmHash": "0d8ed0c9dd5f7ea4e8783ecb505f3da37ba643c632d85a52b3d9976fd11cea10",
@@ -145,6 +174,11 @@
           "wasmHash": "7a9560e0451164cce018163d017581d879b4632540d1e0edd3d6c8615808c56c",
           "transaction": "0af7e7f66edf3f6840e6e8563c7842e8245f057b3b81d28e8aabdd14c8594d2b",
           "ledger": 4602396
+        },
+        {
+          "wasmHash": "4233f2aee913b717f4b4bb150271d14bd707dc56a41b9a3a48fc603245e797c0",
+          "transaction": "fbcd6892b216a859d1ecab7b49692df38f866ea820bf3a21045ef2251fac01e7",
+          "ledger": 4605864
         }
       ]
     }
@@ -169,7 +203,7 @@
     "originalClaimReceiptsRetained": 34,
     "namespaceClaimWindowsPreserved": true
   },
-  "verificationScope": "Same-address batch upgrades, exact prior record/settings preservation and live populated batch reads. Historical migration commitments remain unchanged.",
+  "verificationScope": "Six same-address upgrades, canonical Wasm parity, fresh-state upgrade rehearsal, exact retained contract data and pending claim/escrow preservation, all four payment examples and live 32/16 batch reads with populated and empty rows. Historical migration commitments remain unchanged.",
   "status": "deployed",
   "networkPassphrase": "Test SDF Network ; September 2015",
   "lookupUpgradeDelaySeconds": 0,
@@ -201,16 +235,16 @@
     },
     {
       "name": "lookup",
-      "version": "0.10.1",
-      "shasum": "8ef9ddfd6221485d915c7bf2b78244ca08087e97",
-      "integrity": "sha512-X+Ac5iaXDi5pRa3I4yU4bOUU6S4h/SzInu0Vid20UocgD0loGoSAU7BtyPf40mQxZc++kxe1Qo/BEdxtHbnGXg==",
+      "version": "0.10.2",
+      "shasum": "4e6554015ebffb1c7e4197727faf6376e4d048ad",
+      "integrity": "sha512-sKZoVinn2pi9S4ALtnBA1Joa6y61whua8Gno9fwcW+ePN43tpX6F1KfCYYYjNFt3fhF85jwtX3PsmTE42Eh00Q==",
       "package": "@sorandomains/lookup"
     },
     {
       "name": "mcp",
-      "version": "0.9.2",
-      "shasum": "0cde03ecf8792b04fa4e629d35916bb78ec374bb",
-      "integrity": "sha512-WMUTmjjXqJg4xbgysU3T1vWx74jpP9ZMF8eVU4Zh9xx05G6TwVke0n9lkrr/TGfrCzmjp3SbUY7/3OxzsWmSvg==",
+      "version": "0.9.3",
+      "shasum": "4daed5992364cb1a68659bef6dc5c44ea8240399",
+      "integrity": "sha512-zwtlX932JtPu08VRimAZ2pSj4YgwuZkQwwOuEIslE4kwxJvy8t36m88mlSUTR6XVGw8uk9wqytlivhOfMyt8xw==",
       "package": "@sorandomains/mcp"
     }
   ],
@@ -231,39 +265,55 @@
     }
   },
   "hostedServices": {
-    "checkedAt": "2026-09-10T15:17:50.384Z",
+    "checkedAt": "2026-09-10T18:32:44.576Z",
     "services": {
       "api": {
         "url": "https://api.soran.domains",
-        "deploymentVersion": "390e3b02-adb7-44cd-abc6-69c53b40c0e2"
+        "deploymentVersion": "fab65661-0ef4-4e04-99c4-d5c2be7c9406"
       },
       "nova": {
         "url": "https://nova-claim-app.throbbing-cloud-0f8e.workers.dev",
-        "deploymentVersion": "802276a2-791a-46da-b02a-f7add67977cc"
+        "deploymentVersion": "8ad70809-9cd5-477a-bafc-c767e66256f2"
       },
       "studio": {
         "url": "https://soran-studio.throbbing-cloud-0f8e.workers.dev",
-        "deploymentVersion": "36a4b562-0b79-4fd9-9ac6-c7b2621deb09"
+        "deploymentVersion": "21c6dcaa-e99f-4724-be64-a356efae8516"
       },
       "console": {
         "url": "https://soran.domains",
-        "deploymentVersion": "c9cdd082-9237-444c-a55d-df46461b61dd"
+        "deploymentVersion": "20c99819-860c-4836-b19b-b47543859d54"
       },
       "mcp": {
         "url": "https://mcp.soran.domains/mcp",
-        "deploymentVersion": "2a6aee5e-2388-4e05-af83-bd6ad5aa0b82"
+        "deploymentVersion": "874a65ef-696e-47ed-b54a-4c4b142b94c9"
       }
     },
-    "mcpVersion": "0.9.2",
+    "mcpVersion": "0.9.3",
     "hostedWrites": false,
     "paymentChecks": 15
   },
-  "lookupPrimaryBatchReadLimit": 8,
+  "lookupPrimaryBatchReadLimit": 16,
   "batchVerification": {
-    "sourceDigest": "41936f7e47e95847a6cddbce7ca71450f53fc0644819e89e06e94990c8448e5e",
-    "contractTests": 588,
-    "reverseIdentities": 16,
-    "primaryIdentities": 8,
-    "recordsPreserved": 258
+    "sourceDigest": "4f374050b112062290376fba9df9c6aa52bed53b570fd4f2fa6a9b9a48e8dc8d",
+    "reverseIdentities": 32,
+    "primaryIdentities": 16,
+    "retainedContractDataEntries": 215,
+    "populatedReverse": 14,
+    "populatedPrimary": 13
+  },
+  "activationPolicy": {
+    "explicitFields": [
+      "default_term_secs",
+      "reclaimable",
+      "trade_fee_bps",
+      "tradeable",
+      "transferable"
+    ],
+    "presets": [
+      "reclaimable",
+      "permanent"
+    ],
+    "postActivationSetter": false,
+    "verifiedAt": "2026-09-10T18:32:44.576Z"
   }
 }

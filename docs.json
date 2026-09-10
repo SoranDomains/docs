@@ -68,6 +68,7 @@
       {
         "group": "Owner SDK",
         "pages": [
+          "owner/activating-a-namespace",
           "owner/issuing-from-code",
           "owner/automatic-claiming",
           "owner/lifecycle-and-transfers"
