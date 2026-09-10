@@ -7,7 +7,7 @@ A reverse lookup turns an address into a verified display name. Use `reverse` fo
 
 Use the five [live wallet examples](/live-examples#check-address-to-name-lookup) to test both directions. Each has an elected Nova reverse name and Primary name; the hello-world contract example is forward-only.
 
-Lookup 0.10.0 supports G/C account identities and complete M-address identities. M single reads require universal mode and a Lookup with `muxed_identity_version() == 1`; the current [testnet deployment](/reference/release-status) provides it.
+Lookup 0.10.1 supports G/C account identities and complete M-address identities. M single reads require universal mode and a Lookup with `muxed_identity_version() == 1`; the current [testnet deployment](/reference/release-status) provides it.
 
 ```ts
 const scoped = await soran.reverse("nova", address);
@@ -48,7 +48,7 @@ Use the [Holder SDK](/holder/managing-your-name#muxed-display-names) to create e
 
 ## History screens
 
-For several addresses in a history screen, use Lookup 0.10.0's history helpers:
+For several addresses in a history screen, use Lookup 0.10.1's history helpers:
 
 ```ts
 const addresses = [account, m420]; // preserves full G/C/M identities
@@ -63,9 +63,9 @@ for (const row of preferred) {
 }
 ```
 
-Each accepts up to **256 identities**, preserves order and duplicates, and attaches the ledger/time of each successful call to its rows. It checks the Lookup anchor and batch capability once, then requests at most **two identities per call**. Detailed election proofs can exceed the network budget even for two identities. On that specific host budget failure, the helper retries individually and keeps using individual calls for the remaining inputs. Ordinary contract errors appear as `kind: "error"`; restoration, transport, ABI and single-item budget failures reject the helper. Catch those failures and show an unavailable state.
+Each accepts up to **256 identities**, preserves order and duplicates, and attaches the ledger/time of each successful call to its rows. The helper checks the Lookup anchor and batch capability once, then requests up to **8 Primary identities** or **16 identities in one namespace** per call. A leading host budget failure halves the current batch until it fits. The smaller size is used for the remaining rows. Ordinary contract errors appear as `kind: "error"`; restoration, transport, ABI and single-item budget failures reject the helper. Catch those failures and show an unavailable state.
 
-Use `primaryBatch(addresses)` or `reverseBatch(namespace, addresses)` if you need one explicit contract invocation. They return `{ledger, timestamp, results}` and do not split a failed call. `batchReadLimit()` returns `2`. These are capability additions, not a promise that every pair fits, nor an all-history snapshot. The [contract reference](/api/onchain-resolution#history-screens-and-multiple-addresses) describes the raw ABI.
+Use `primaryBatch(addresses)` or `reverseBatch(namespace, addresses)` for one explicit contract invocation. They return `{ledger, timestamp, results}` and do not split a failed call. `primaryBatchReadLimit()` returns `8`; `batchReadLimit()` returns `16`. Older or custom namespace contracts can still need smaller batches. These helpers return elected display names, not an inventory of names owned by an address. The [contract reference](/api/onchain-resolution#history-screens-and-multiple-addresses) describes the raw ABI.
 
 G/C entries still have the underlying proof limitations below. A `none` result does not establish that no stored declaration exists. Re-resolve payment instructions before paying; a display-name result is not a destination.
 
