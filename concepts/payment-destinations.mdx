@@ -8,7 +8,7 @@ Resolve a Soran name to get its **destination address and memo together**. The a
 Keep the complete instruction when building a payment. Your wallet or transfer flow must support both the address type and its routing requirements.
 
 <Note>
-These examples use Lookup SDK **0.8.0** and Holder SDK **0.6.0** on the current testnet deployment. The same payment instructions are available through the [contract methods](/api/onchain-resolution), [HTTP API](/api/resolution) and app. See [release status](/reference/release-status) for addresses and versions.
+These examples use Lookup SDK **0.10.0** and Holder SDK **0.7.0** on the current testnet deployment. The same payment instructions are available through the [contract methods](/api/onchain-resolution), [HTTP API](/api/resolution) and app. See [release status](/reference/release-status) for addresses and versions.
 </Note>
 
 ## Support at a glance
@@ -135,7 +135,7 @@ const muxedId = muxed.id(); // "420", kept as a decimal string
 // Keep the full M address for payment; the base address is for account inspection.
 ```
 
-Each complete M address can have its own [reverse and Primary name](/sdk/reverse-and-primary). Lookup never falls back to the base G account or another ID. G/C elections instead identify the account without distinguishing customer memos. M elections require Lookup SDK 0.8.0, Holder SDK 0.6.0 and `muxed_identity_version() == 1`.
+Each complete M address can have its own [reverse and Primary name](/sdk/reverse-and-primary). Lookup never falls back to the base G account or another ID. G/C elections instead identify the account without distinguishing customer memos. M elections require Lookup SDK 0.10.0, Holder SDK 0.7.0 and `muxed_identity_version() == 1`.
 
 The base G account authorizes an M election. For an exchange-controlled account, the exchange signs. A customer M address does not give its user signing authority or separate name ownership. Changing a name's destination can invalidate an earlier election.
 

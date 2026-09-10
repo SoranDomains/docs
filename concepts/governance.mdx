@@ -3,7 +3,7 @@ title: "Governance and upgrades"
 description: "Who can change each contract and what an upgrade means for your integration."
 ---
 
-Soran contracts have different upgrade rules. Universal Lookup can change immediately after governance approves an exact code hash. Registry and Primary have no code-upgrade entry point. Namespace owners control eligible Registrar and Resolver upgrades until a [permanence lock](/concepts/ownership-guarantees) removes that ability.
+All six contracts in the governed testnet deployment support authorized code upgrades at the same address. Registry, Primary, Allocator and Universal Lookup use protocol governance. A namespace Registrar or Resolver also requires its current namespace owner. Irreversible code locks are disabled while this testnet design is being evaluated.
 
 The current testnet Allocator also has **no mandatory code-upgrade wait**. This policy was activated on 8 September 2026; see [release status](/reference/release-status#allocator-upgrade). Namespace claim, objection and reopening windows still apply.
 
@@ -36,12 +36,22 @@ The upgrade timing is separate from allocation rules. Claim windows and objectio
 
 | Contract | Upgrade boundary |
 | --- | --- |
-| Registry | No upgrade method in the current implementation; replacement requires a new deployment and configuration |
+| Registry | Governance authorizes the exact current and replacement Wasm hashes |
 | Allocator | Governance proposes one exact code hash; execution has zero mandatory delay |
-| Registrar and Resolver | The namespace owner can change eligible unlocked contracts; permanence and upgrade taint constrain that ability |
-| Primary | No code upgrade entry point in the current implementation |
+| Registrar and Resolver | Current namespace owner authorizes a role-specific implementation approved by Registry governance |
+| Primary | Registry governance authorizes the exact current and replacement Wasm hashes |
 | Universal Lookup | Governed exact-hash code replacement with zero mandatory delay |
 
-Replacing a Resolver creates separate storage; its records do not move automatically. An upgrade at the same address still needs compatible storage and authorization rules. Allocator upgrades must preserve existing claims, fees and credits. A permanently locked Resolver cannot be upgraded to add features.
+Replacing a Resolver creates separate storage; its records do not move automatically. An upgrade at the same address still needs compatible storage and authorization rules. Allocator upgrades must preserve existing claims, fees and credits. The governed testnet rejects new permanent code locks. Historical locked contracts retain their original restrictions.
 
 Use the matching Registry, Lookup and G/C Primary addresses from [release status](/reference/release-status). A familiar address or unchanged version number alone does not establish which code is running.
+
+## Registry, Primary and namespace upgrades
+
+Registry and Primary accept `upgrade(expected_hash, new_hash)`. The configured governance account must authorize the call, and the running Wasm must match `expected_hash`. These upgrades have no mandatory delay and retain the contract address and storage.
+
+For namespace contracts, governance first calls Registry's `approve_implementation(role, hash, true)`: role `0` is Registrar and role `1` is Resolver. The current namespace owner then authorizes the child's `upgrade(new_wasm_hash)`. Registry checks the current native pair and approved role/hash, then updates that namespace's recorded executable pin and upgrade counter atomically.
+
+`native_code(node)` exposes the expected Registrar and Resolver hashes for an existing namespace. `template_hashes()` describes defaults for new deployments. Changing factory defaults does not change existing namespace addresses. Revoking an implementation approval blocks future use; it does not undo a completed upgrade.
+
+Address stability does not remove governance trust or make every future storage change compatible. Inspect current code and read live payment instructions when using a name.

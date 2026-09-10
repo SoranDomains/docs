@@ -13,7 +13,7 @@ This page distinguishes three kinds of data:
 - **Request types:** the complete intent authorized for a claim, reserved assignment, transfer or renewal.
 - **Return values:** quotes and destination previews, which are not additional stored records.
 
-Match the code hashes and contract addresses in the [current deployment](/reference/release-status). A version getter alone does not establish storage compatibility. The current Registry's immutable template pair does not migrate earlier Registry records.
+Match the code hashes and contract addresses in the [current deployment](/reference/release-status). A version getter alone does not establish storage compatibility. Registry factory templates describe new deployments. Existing namespaces use their recorded native code pins; see [governed storage](/reference/contract-storage#governed-testnet-upgrade-storage).
 
 ## Encoding conventions
 
@@ -58,8 +58,7 @@ The required namespace record carries its epoch through ordinary writes. A trans
 back to a former owner receives a new epoch.
 
 `owner_epoch(node)` reads this field. `template_hashes()` returns Registrar then
-Resolver Wasm hashes from immutable configuration. `native_contracts(node)` reads
-existing records and attestations; it adds no storage key.
+Resolver Wasm hashes for new deployments. In governed mode, `native_contracts(node)` verifies the existing namespace against its `NativeV1(node)` code pins and attestations. Approved upgrades update those pins atomically.
 
 This extra required field changes the Registry record schema. An old four-field
 record is not a native-claim record with an implied epoch. Use the old schema only

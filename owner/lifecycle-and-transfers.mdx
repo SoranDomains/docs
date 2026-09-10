@@ -56,17 +56,11 @@ Clearing or selecting an incompatible Resolver does not establish a safe default
 
 A permanent Registry Resolver pointer cannot change. Holder records within that fixed Resolver remain mutable.
 
-## Make the namespace permanent
+## Code upgrades and permanence
 
-1. Read `policy`, `isPermanent` and the current routing. A non-reclaimable zero-term policy is still unlocked until the permanence transition completes.
-2. Review the [ownership guarantees](/concepts/ownership-guarantees) and the irreversible effect.
-3. Authorize the transition:
+The governed testnet keeps contracts upgradeable and rejects `makePermanent`. You can use a non-reclaimable, no-expiry policy, but it does not remove governance or owner upgrade authority. See [ownership guarantees](/concepts/ownership-guarantees).
 
-```ts
-await owner.makePermanent("acme", { confirmIrreversible: true });
-```
-
-The contract requires a zero-term policy, clean provenance and correct current wiring. The transition freezes eligible namespace code and routing and disables reclaim. Holder-controlled payment records and Universal Lookup governance remain mutable.
+An approved code upgrade retains the Registrar or Resolver address and storage. Selecting a different Resolver is a routing change and does not automatically copy its records. See [governance and upgrades](/concepts/governance).
 
 ## Storage availability
 
