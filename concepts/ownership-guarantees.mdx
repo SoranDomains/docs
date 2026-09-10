@@ -1,26 +1,24 @@
 ---
 title: "Ownership guarantees"
-description: "Understand what a holder owns and what a permanent namespace protects."
+description: "Understand reclaim, expiry, upgrades and historical permanent namespaces."
 ---
 
-A name's ownership rules come from its namespace. Before accepting a name, check whether the owner can reclaim it, whether it expires and whether the namespace has completed its permanent lock.
+A name's ownership rules come from its namespace. Before accepting a name, check whether the owner can reclaim it, whether it expires and who can authorize a contract upgrade.
 
 | State | Meaning |
 | --- | --- |
 | Reclaimable | The namespace owner can reclaim names under the contract policy |
 | Finite-term | A name expires when ledger time is strictly greater than its nonzero `expires_at` |
 | No expiry | `expires_at == 0`; there is no ownership deadline |
-| Permanent | Registry verified and locked the namespace's eligible Registrar and Resolver, preventing owner reclaim and later code or routing changes |
+| Permanent (historical deployments) | Registry verified and locked the namespace's eligible Registrar and Resolver, preventing owner reclaim and later code or routing changes |
 
 These properties can overlap. A reclaimable name can have no expiry date, for example. **No expiry does not mean permanent:** the owner may still have reclaim or upgrade powers.
 
-## `make_permanent`: the one-way door
+## Governed testnet policy
 
-An eligible namespace owner calls `make_permanent` to give up those powers irreversibly. The transaction disables reclaimability, freezes the Registrar and Resolver code, and locks Registry's Resolver pointer together. If an eligibility check fails, none of these changes takes effect.
+The current testnet does not permit `make_permanent` or irreversible Resolver locks. All active contracts remain upgradeable through the [governance process](/concepts/governance). A non-reclaimable, no-expiry policy does not remove those upgrade powers.
 
-Registry checks that both contracts were deployed from its pinned code, remain correctly connected and have never been upgraded. The Registrar must also have a zero default term. A finite-term namespace cannot pass this transition, and restoring original code after an upgrade does not restore eligibility.
-
-Until this lock succeeds, eligible contracts remain under owner upgrade control.
+The `permanent` field remains in the ABI for historical deployments and compatibility. Historical permanent locks retain their original meaning; do not present them as an option available on the governed testnet.
 
 ## Verify the full namespace state
 
@@ -35,8 +33,8 @@ const name = await soran.nameMetadata("alice.nova");
 
 Use namespace and name metadata to display ownership status. [`assurance()`](/sdk/assurance) has a narrower purpose: it checks Resolver provenance, not the full ownership guarantee or Lookup's own code.
 
-## What permanence does not freeze
+## Holder records and historical locks
 
-Holders can still update their payment addresses, memos and profiles. They can also transfer names where the policy permits. Permanence fixes the rules and routing; it does not freeze holder-controlled records.
+Holders can still update their payment addresses, memos and profiles. They can also transfer names where the policy permits. On historical permanently locked deployments, the lock fixes the rules and routing; it does not freeze holder-controlled records.
 
 Storage still needs upkeep or restoration. Universal Lookup has its own [governance rules](/concepts/governance) and can be upgraded without a mandatory delay, even for reads of permanent namespaces.

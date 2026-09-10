@@ -1,0 +1,229 @@
+---
+title: "Migration storage"
+description: "On-chain lineage, import records and election continuity for the governed testnet deployment."
+---
+
+The governed testnet adds migration records alongside the existing [contract storage](/reference/contract-storage). These records identify the source contracts and the imported state. They do not replace the ordinary name, payment or claim-receipt formats.
+
+Most integrations should use the [contract read methods](/api/onchain-resolution). This page is for explorers and developers decoding storage directly. A migration record is historical evidence; always resolve current payments through Universal Lookup.
+
+## Encoding
+
+Keys use Soroban contract-enum encoding. For example, the symbol-only key `StateV1` decodes as `["StateV1"]`; `NamespaceV1(node)` decodes as `["NamespaceV1", nodeBytes]`. Rust enum names such as `MigrationKey` are not included in the encoded key. The contract address and storage durability distinguish entries.
+
+Structs decode to objects with the field names below. `u64` becomes a JavaScript `bigint`. A `Vec<T>` becomes an array; bounded optional vectors contain zero or one value. `Option<T>` uses Soroban option encoding, with absence decoded as `null`. See [exact decoding shapes](/reference/lookup-decoding) for the distinction between options and named `None` enum variants.
+
+## Registry lineage
+
+| Key | Storage | Value |
+| --- | --- | --- |
+| `StateV1` | Instance | `MigrationState` |
+| `NamespaceV1(node)` | Persistent | `MigrationNamespace` |
+
+`migration_status()` and `migration_namespace(node)` expose these records. `sealed` closes the one-time import. The namespace record retains the source Registrar, source Resolver and their code hashes, which lets clients verify the origin of historical claims.
+
+```rust
+struct MigrationPlan {
+    source_registry: Address,
+    source_registry_hash: BytesN<32>,
+    namespace_root: BytesN<32>,
+    namespace_count: u32,
+    ownership_sequence: u64,
+    primary_source: Address,
+    primary_source_hash: BytesN<32>,
+    primary_target: Address,
+    primary_target_hash: BytesN<32>,
+    primary_root: BytesN<32>,
+    primary_count: u32,
+}
+
+struct MigrationNamespace {
+    label: Bytes,
+    owner: Address,
+    owner_epoch: u64,
+    source_registrar: Address,
+    source_registrar_hash: BytesN<32>,
+    source_resolver: Address,
+    source_resolver_hash: BytesN<32>,
+    treasury: Address,
+    policy: RegistrarPolicy,
+    pending_transfer: Vec<Pending>,
+    registrar_root: BytesN<32>,
+    registrar_count: u32,
+    resolver_root: BytesN<32>,
+    resolver_count: u32,
+}
+
+struct MigrationState {
+    plan: MigrationPlan,
+    imported: Vec<BytesN<32>>,
+    completed: Vec<BytesN<32>>,
+    sealed: bool,
+    primary_initialized: bool,
+}
+```
+
+`RegistrarPolicy` and `Pending` keep the shapes documented in [Registry storage](/reference/contract-storage). `pending_transfer` contains zero or one pending namespace transfer. Roots commit to the reviewed import sets; counts describe those sets.
+
+## Registrar imports
+
+| Key | Storage | Value |
+| --- | --- | --- |
+| `ExportTargetV1` | Instance | Target Registry `Address`, present on a frozen source |
+| `RegistryCapableV1` | Instance | `bool` |
+| `ImportV1` | Instance | `RegistrarMigration` |
+| `ImportedV1(selectorHash)` | Persistent | `bool` |
+| `MutatedV1` | Instance | `bool`, records ordinary mutation before import |
+
+`selectorHash` is SHA-256 of the Soroban XDR encoding of `MigrationSelector`: `Globals`, `Label(Bytes)` or `Wallet(Address)`. The imported values use the existing Config, name, pending-transfer, reservation and wallet-usage keys.
+
+```rust
+struct RegistrarMigration {
+    source: Address,
+    source_registry: Address,
+    source_hash: BytesN<32>,
+    root: BytesN<32>,
+    expected: u32,
+    imported: u32,
+    globals: bool,
+    sealed: bool,
+}
+```
+
+Original `ReceiptV1` entries stay on the frozen source Registrar. A missing receipt on the current Registrar does not prove a historical claim failed. Holder SDK recovery follows the sealed lineage and checks the original receipt. It does not replay the old transaction against the new contract.
+
+## Resolver imports
+
+| Key | Storage | Value |
+| --- | --- | --- |
+| `ExportTargetV1` | Instance | Target Registry `Address`, present on a frozen source |
+| `RegistryCapableV1` | Instance | `bool` |
+| `ImportV1` | Instance | `ImportState` |
+| `ImportedV1(recordKeyHash)` | Persistent | `bool` |
+| `FrozenReverseV1(address)` | Persistent | `FrozenReverse`, on a source Resolver |
+
+`recordKeyHash` is SHA-256 of the Soroban XDR encoding of `MigrationRecordKey`: `Addr(node)`, `Text(node, key)`, `Reverse(address)` or `Configured(node, generation)`. Imported address, text, reverse and payment-configuration records retain their ordinary encodings.
+
+```rust
+struct ImportState {
+    source: Address,
+    root: BytesN<32>,
+    expected: u32,
+    imported: u32,
+    sealed: bool,
+}
+
+struct FrozenReverse {
+    name: String,
+    expires_at: u64,
+    authority_hash: BytesN<32>,
+}
+```
+
+A frozen reverse record comes from a positive source proof. It preserves the name, ownership expiry and authority code hash needed to check a historical election. It does not give a base G account the identity of a muxed M destination.
+
+## Primary imports
+
+| Key | Storage | Value |
+| --- | --- | --- |
+| `StateV1` | Instance | `PrimaryMigrationState` |
+| `MutatedV1` | Instance | `bool` |
+
+```rust
+struct PrimaryMigrationEntry {
+    address: Address,
+    source_name: Option<String>,
+    name: Option<String>,
+}
+
+struct PrimaryMigrationState {
+    source: Address,
+    source_registry: Address,
+    root: BytesN<32>,
+    expected: u32,
+    entries: Vec<PrimaryMigrationEntry>,
+    sealed: bool,
+}
+```
+
+`source_name` records the source Primary answer. `name` records the election accepted by the successor. The latter can be absent when the corrected Resolver cannot prove the old election. The import cannot invent a wallet election. Both the source answer and current forward verification are checked again when the migration closes.
+
+## Allocator coordination
+
+| Key | Storage | Value |
+| --- | --- | --- |
+| `PreparationV1` | Instance | `RegistryMigrationPreparation` |
+| `StateV1` | Instance | `CutoverState` |
+
+```rust
+struct RegistryMigrationPreparation {
+    target_registry: Address,
+    target_registry_hash: BytesN<32>,
+    source_registry: Address,
+    source_registry_hash: BytesN<32>,
+    source_registrar: Address,
+    source_registrar_hash: BytesN<32>,
+    source_resolver: Address,
+    source_resolver_hash: BytesN<32>,
+}
+
+struct CutoverState {
+    plan: RegistryCutover,
+    id: BytesN<32>,
+    sealed: bool,
+}
+
+struct RegistryCutover {
+    target_registry: Address,
+    registry_hash: BytesN<32>,
+    registrar_hash: BytesN<32>,
+    resolver_hash: BytesN<32>,
+    lookup: Address,
+    lookup_hash: BytesN<32>,
+    namespace: Bytes,
+    registry_plan: RegistryMigrationPlan,
+    muxed: Vec<MigrationMuxedRoute>,
+}
+
+struct MigrationMuxedRoute {
+    account: Address,
+    id: u64,
+}
+```
+
+`RegistryMigrationPlan` has the same fields and encoding as Registry's `MigrationPlan` above. Existing namespace claims, original objection deadlines, fee receipts and credits keep their storage formats. A code-upgrade delay is separate from a namespace claim window.
+
+## Universal Lookup coordination
+
+| Key | Storage | Value |
+| --- | --- | --- |
+| `CompletedV1` | Instance | `bool` |
+| `StageV1` | Instance | `CutoverStage` |
+| `RouteV1(account, id)` | Persistent | `StagedMuxedRoute` |
+
+```rust
+struct CutoverStage {
+    plan: RegistryCutover,
+    source_registrar: Address,
+    source_registrar_hash: BytesN<32>,
+    source_resolver: Address,
+    source_resolver_hash: BytesN<32>,
+    target_registrar: Address,
+    target_resolver: Address,
+    routes: Vec<MigrationMuxedRoute>,
+    ready: u32,
+}
+
+struct StagedMuxedRoute {
+    route: MigrationMuxedRoute,
+    reverse: Vec<MuxedIdentityRecord>,
+    primary: Vec<MuxedIdentityRecord>,
+    replacement: Vec<MuxedIdentityRecord>,
+    source_live: Vec<MuxedIdentityRecord>,
+    ready: bool,
+}
+```
+
+`RegistryCutover` and `MigrationMuxedRoute` use the shapes above. `MuxedIdentityRecord` uses the [existing muxed identity shape](/reference/contract-storage#muxed-identity-storage). Each route includes the full `u64` routing ID. G-account elections and different IDs on the same account stay independent.
+
+After completion, normal reads use Lookup's current Registry and Primary anchors. Staged records describe the migration, not a separate public resolution endpoint.

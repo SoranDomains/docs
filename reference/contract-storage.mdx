@@ -57,7 +57,7 @@ name_node  = H(ns_node || H(name_label_bytes))       // Registrar / Resolver nam
 
 ## Registry
 
-Stores who owns a namespace and which contracts serve it. Registry code is immutable.
+Stores who owns a namespace and which contracts serve it. Registry code supports governance-authorized upgrades on the current testnet.
 
 ### Storage keys
 
@@ -296,7 +296,7 @@ Generation starts at `0` for first issuance and increases on reissue, accepted t
 
 ### Ownership policy
 
-Policy terms are either `0` or `86400`–`3153600000` seconds. `trade_fee_bps` is `0`–`10000`; it is a basis-point field, not proof that a marketplace feature is enabled. Making a namespace permanent is one-way, requires no-expiry terms, disables reclaim and freezes Registrar upgrades.
+Policy terms are either `0` or `86400`–`3153600000` seconds. `trade_fee_bps` is `0`–`10000`; it is a basis-point field, not proof that a marketplace feature is enabled. The governed testnet rejects permanent code locking. Historical deployments retain their one-way permanence rules.
 
 ### Native claim state
 
@@ -409,7 +409,7 @@ All PrimaryRec fields are an election-time snapshot. `primary_of` checks the Reg
 
 Universal Lookup's `primary_name` independently rechecks the returned name against current forward resolution. Its `reverse` path also verifies the complete native destination and refuses a muxed destination as an account-identity proof. Do not replace these checks with a raw PrimaryRec or an isolated Resolver address record that exposes only a muxed destination's base G account.
 
-`set_primary` extends the record and instance/code. `clear_primary` removes the current entry, not its historical transactions. `touch_primary(address)` extends the entry if present and maintains instance/code. Primary has no Wasm-upgrade entry point or general storage migration method.
+`set_primary` extends the record and instance/code. `clear_primary` removes the current entry, not its historical transactions. `touch_primary(address)` extends the entry if present and maintains instance/code. The governed Primary supports `upgrade(expected_hash, new_hash)` under Registry governance. The one-time migration interface verifies source elections before sealing.
 
 ## Lookup
 
@@ -521,7 +521,7 @@ For independent upkeep, use the per-contract methods described above or Stellar'
 
 ## Read raw keys with Stellar RPC
 
-This Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.9.0`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It only reads state. Use an active name from the [live examples](/live-examples), or one you have issued.
+This Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.10.0`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It only reads state. Use an active name from the [live examples](/live-examples), or one you have issued.
 
 ```typescript
 import { Address, nativeToScVal, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";
@@ -603,3 +603,27 @@ for (const entry of instance.storage ?? []) {
 ```
 
 The second snippet continues the first snippet's `server` and `deployment` variables. It reads Config **inside** instance storage; querying `persistent(registry, key("Config"))` would look for a different, unused application entry. RPC returns current ledger data and TTL metadata, not a complete historical archive. [getLedgerEntries reference](https://developers.stellar.org/docs/data/apis/rpc/api-reference/methods/getLedgerEntries)
+
+## Governed testnet upgrade storage
+
+Existing name and payment keys keep their encodings. Governed upgrades add separate keys:
+
+| Contract | Key | Storage | Value |
+| --- | --- | --- | --- |
+| Registry | `UpgradeKey::AuthorityV1` | Instance | Governance `Address` |
+| Registry | `UpgradeKey::ApprovedV1(role, hash)` | Persistent | `bool`; role `0` is Registrar, `1` is Resolver |
+| Registry | `UpgradeKey::NativeV1(node)` | Persistent | `NativeCode` |
+| Registrar / Resolver | `UpgradeModeKey::GovernedV1` | Instance | `bool` |
+
+```rust
+struct NativeCode {
+    registrar: BytesN<32>,
+    resolver: BytesN<32>,
+    registrar_updates: u32,
+    resolver_updates: u32,
+}
+```
+
+Use `native_code(node)` for an existing namespace's expected executables. `template_hashes()` returns defaults for new factories. Primary's upgrade authority follows its configured Registry. Approved code changes retain addresses; replacing a contract creates separate storage.
+
+The [migration storage reference](/reference/migration-storage) documents the additive lineage, import markers and election records across all six contracts.

@@ -34,7 +34,7 @@ Initial storage rent can exceed that limit. Review the estimate before explicitl
 
 `native_contracts` checks the required namespace record, Registry-deployed
 attestations, clean provenance, selected Resolver pointer and current Wasm hashes
-against the Registry's immutable templates. It does not call the Registrar or
+against the Registry's per-namespace code pins in governed mode, or factory templates on historical deployments. It does not call the Registrar or
 Resolver. This permits its use while either contract is already executing.
 
 A namespace owner's ownership epoch changes on every completed ownership
