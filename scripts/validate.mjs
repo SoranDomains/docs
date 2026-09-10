@@ -71,6 +71,19 @@ const nav = navigationPages(config.navigation);
 for (const name of nav) if (!contents.has(resolve(root,`${name}.mdx`))) fail.push(`docs.json: missing navigation page ${name}`);
 for (const page of pages) if (!nav.includes(relative(root,page).replace(/\.mdx$/,''))) fail.push(`docs.json: unlisted page ${relative(root,page)}`);
 const deployment=JSON.parse(await readFile(resolve(root,'reference/deployments/testnet.json'),'utf8'));
+const publishedVersions = new Map(deployment.publishedPackages.map(p => [p.name, p.version]));
+const historicalPages = new Set(['reference/legacy-contract-storage.mdx']);
+for (const [p, body] of contents) {
+  if (historicalPages.has(relative(root, p))) continue;
+  const versionReferences = [
+    ...body.matchAll(/@sorandomains\/(lookup|owner|holder|mcp)@(\d+\.\d+\.\d+)\b/g),
+    ...body.matchAll(/\b(Lookup|Owner|Holder|MCP)(?: SDK)?[\s*]+(\d+\.\d+\.\d+)\b/g),
+  ];
+  for (const [, role, version] of versionReferences) {
+    const current = publishedVersions.get(role.toLowerCase());
+    if (version !== current) fail.push(`${relative(root,p)}: ${role} ${version} differs from published version ${current}`);
+  }
+}
 if (deployment.status !== 'deployed' || deployment.network !== 'testnet') fail.push('deployment manifest: unexpected release status');
 if (deployment.namespaceDeploymentSaltVersion !== 1) fail.push('deployment manifest: expected namespace-bound salt version 1');
 for (const version of ['lookupVersion','lookupDestinationVersion','resolverPaymentVersion','resolverDestinationVersion']) {

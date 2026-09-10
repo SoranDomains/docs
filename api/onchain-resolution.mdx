@@ -196,7 +196,7 @@ Use `Direct` for G/C and `Muxed` for the exact G-plus-ID route. `None` means no 
 
 **Two is an input limit, not a guarantee that every pair fits.** Populated elections require repeated verification across contracts. Even two can exceed the network's memory allowance. After a top-level host `Budget/ExceededLimit` error, retry each identity separately. A one-item failure, restoration requirement, transport failure or ABI error remains a failure; never convert it to `None`. A batch that returns gives all its results one ledger and timestamp. Separate calls can observe different ledgers.
 
-Lookup SDK 0.9.0 provides `primaryNames(addresses)` and `reverseMany(namespace, addresses)` for up to 256 inputs. They use these bounded calls, switch to individual reads after a batch budget failure, and retain each row's observation ledger/time. See [history examples](/sdk/reverse-and-primary#history-screens).
+Lookup SDK 0.10.0 provides `primaryNames(addresses)` and `reverseMany(namespace, addresses)` for up to 256 inputs. They use these bounded calls, switch to individual reads after a batch budget failure, and retain each row's observation ledger/time. See [history examples](/sdk/reverse-and-primary#history-screens).
 
 Deduplicate repeated addresses when your screen permits it. Key a short-lived display cache by network, Lookup contract and complete identity. Do not retain failed reads as permanent absence. Re-resolve payment instructions before payment; these methods return display names, not payment destinations.
 
