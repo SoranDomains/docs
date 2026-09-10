@@ -90,6 +90,27 @@ Nova is a working example namespace used by the [claim app](https://nova-claim-a
 
 Nova uses governed upgrades and its name policy is reclaimable. Example records can change; testnet names are demonstrations, not promises of permanent ownership.
 
+## Orange namespace contracts
+
+The [claim app](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/) also offers **`.orange`** in the namespace selector. It is owned by a separate wallet and has its own Registrar, Resolver and username availability. Its namespace claim passed the original 24-hour window.
+
+<AccordionGroup>
+  <Accordion title="Orange Registrar — name issuance and claim rules">
+    ```text wrap
+    CASORANR53NHAVQHIJ6HABWO6Z6HZF4GHLUXL4UTHFAZHLKK67KCG6TL
+    ```
+  </Accordion>
+  <Accordion title="Orange Resolver — payment destinations and profile records">
+    ```text wrap
+    CDSORANE4PINQFRAI7MJESCWXJLMR2M2FNRODUP5OGMQ5XWBWTV5AUGW
+    ```
+  </Accordion>
+</AccordionGroup>
+
+Orange initially offers free, open username claims with no per-wallet limit. Claimants pay Stellar network fees. Names have no automatic expiry, can be transferred and may be reclaimed by the namespace owner. Registration runs on chain and needs no owner approval for each username. Read a fresh claim quote before signing because the owner can change admission and pricing settings.
+
+Use the same Universal Lookup address for both namespaces. Try `nikcle.orange`, `robert.orange`, `mux.orange` and `cyclops.orange` in the [live examples](/live-examples#try-another-namespace).
+
 <span id="lookup-muxed-identity-upgrade" />
 
 ## Contract interface versions
