@@ -432,7 +432,7 @@ struct PendingUpgrade { wasm_hash: BytesN<32>, execute_after: u64 }
 
 The instance keys above hold configuration and upgrades. The [muxed identity keys](#muxed-identity-storage) below hold persistent elections. Lookup does not copy payment records or memo instructions. Resolution structs, namespace/name metadata and the internal Provenance mirror are ABI data, not additional storage entries. An absent optional anchor is not a failed read; decoding or RPC failures must be handled separately.
 
-The status and batch read extensions add **no storage keys or migrations**. `NameStatus`, `RegisteredName`, `LookupIdentity`, `IdentityName` and `BatchNames` are argument/return types only. Their ledger/time values come from the invocation. `name_status_version()`, `batch_read_version()` and `batch_read_limit()` are code-defined getters. See [their ABI and exact decoded shapes](/reference/lookup-decoding#status-and-batch-shapes).
+The status and batch read extensions add **no storage keys or migrations**. `NameStatus`, `RegisteredName`, `LookupIdentity`, `IdentityName` and `BatchNames` are argument/return types only. Their ledger/time values come from the invocation. `name_status_version()`, `batch_read_version()`, `batch_read_limit()` and `primary_batch_limit()` are code-defined getters. See [their ABI and exact decoded shapes](/reference/lookup-decoding#status-and-batch-shapes).
 
 `version()` and `destination_version()` are code-defined getters; neither has a stored DataKey. ABI 2 selects complete `Direct`/`Muxed` destinations. A successful native Resolver payment-version `1` response uses its direct-payment interface; version `2` requires destination-version `2`. Failed or unknown capability responses do not justify a legacy fallback. The old Address-returning methods cannot represent a muxed ID and refuse that result.
 
@@ -521,7 +521,7 @@ For independent upkeep, use the per-contract methods described above or Stellar'
 
 ## Read raw keys with Stellar RPC
 
-This Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.10.0`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It only reads state. Use an active name from the [live examples](/live-examples), or one you have issued.
+This Node example uses `@stellar/stellar-sdk@17.0.1` and `@sorandomains/lookup@0.10.1`. It reads a Registry namespace record and the Resolver's raw address, payment text and generation marker. It only reads state. Use an active name from the [live examples](/live-examples), or one you have issued.
 
 ```typescript
 import { Address, nativeToScVal, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";
@@ -627,3 +627,24 @@ struct NativeCode {
 Use `native_code(node)` for an existing namespace's expected executables. `template_hashes()` returns defaults for new factories. Primary's upgrade authority follows its configured Registry. Approved code changes retain addresses; replacing a contract creates separate storage.
 
 The [migration storage reference](/reference/migration-storage) documents the additive lineage, import markers and election records across all six contracts.
+
+
+### Bulk identity read helpers
+
+The optimized Lookup uses these read-only helpers internally. They add no storage keys. Callers should use Lookup’s `reverse_names` and `primary_names` for verified display names: the raw snapshots below are not independently verified identity answers.
+
+| Contract / method | Exact `scValToNative` result |
+| --- | --- |
+| Registrar `identity_read_version()` | `1` |
+| Registrar `identity_context()` | `[registryAddress, namespaceNodeBytes, 1]` |
+| Registrar `live_records(nodes)` | Array of `null` or `[holderAddress, generationBigInt, builtinAddress]`; at most 16 nodes |
+| Resolver `identity_read_version()` | `1` |
+| Resolver `identity_context()` | `[registryAddress, registrarAddress, 1]` |
+| Resolver `reverse_records(addresses)` | Array of `null` or `[nameString, nodeBytes, generationBigInt]`; at most 16 addresses |
+| Resolver `identity_destinations(requests)` | Array of `null` or `[paymentDestination, explicitForwardBoolean]`; at most 16 requests |
+| Primary `identity_read_version()` | `1` |
+| Primary `primary_records(addresses)` | Array of `null` or `[nameString, namespaceNodeBytes]`; at most 8 addresses |
+
+Each destination request is `[nodeBytes, generationBigInt, builtinAddress]`. Its result uses the [existing destination enum](/reference/lookup-decoding). The supplied generation and fallback address are inputs, so the result alone is not proof of a live record. Lookup obtains them independently from the current Registrar and checks each election against current namespace routing. `explicitForwardBoolean` identifies an explicit forward address at that generation; G/C reverse verification requires it.
+
+These optional tuple results encode absence as Soroban `Void`, decoded to JavaScript `null`. Lookup’s public `IdentityName::None` is a different enum and decodes to `["None"]`. Input counts above the raw helper limit reject the whole call (`BatchTooLarge`: Registrar `8`, Resolver `31`, Primary `13`).
