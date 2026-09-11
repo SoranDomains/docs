@@ -193,6 +193,14 @@
           "codeVerifiedAt": "2026-09-10T18:27:40.689Z"
         }
       ]
+    },
+    "funding": {
+      "id": "CBSORANSFWTCIVMMJEZPQAGASGKYQUC2KAUHMGTENTG5FOBYOQTQZ5CD",
+      "wasmHash": "5cec6614d2082c22fe73a96775123f5f622cfdfbd31a7c800261ad7a2bb75933",
+      "deploymentTransaction": "27984e617be4437d636a69e603908a0412a009386d336a6e8bfc1d3fd76c3322",
+      "deploymentLedger": 4625614,
+      "version": 1,
+      "upgradeAuthority": "GAJCWWNMBKCSTQQISDFTHFTCEOGXYA37YTP3U3ZW7Q5CYQPHSW6TB4QX"
     }
   },
   "upgradePolicy": {
@@ -379,5 +387,16 @@
     "ordinaryWritesRenewSharedCode": false,
     "maintenanceMaxCodeExtensionLedgers": 17280,
     "sameAddresses": true
+  },
+  "sponsorship": {
+    "fundingDeployed": true,
+    "hostedServiceEnabled": false,
+    "settlement": "fixed quote, on successful action only",
+    "supportedActions": [
+      "claim",
+      "reverse",
+      "primary"
+    ],
+    "automaticMaintenance": false
   }
 }
