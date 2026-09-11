@@ -33,6 +33,14 @@ Reading a name through RPC simulation does not submit a transaction or charge an
 
 The [Lookup upgrade](https://stellar.expert/explorer/testnet/tx/57b77ddfbcd3aa34eb71b41a03c412449a09cca567826b532de63b9ed2cd4d1c) and [Primary upgrade](https://stellar.expert/explorer/testnet/tx/42169053b6d19d516970cf54095b6d249cff7e9499b6c1fbdbfaa9b218c96d33) are confirmed. Existing records, contract methods and SDK versions are unchanged. See [storage lifetime](/reference/contract-storage#ttl-and-restoration).
 
+## Namespace-funded sponsorship
+
+The Funding contract is deployed on testnet. **Hosted sponsorship is not enabled yet.** The normal claim and display-name flows continue to use their existing fee payer.
+
+When enabled, a namespace owner can fund successful username claims, reverse elections and primary-name elections. The relayer pays Stellar's network fee; the Funding contract settles the agreed charge from the owner's position only when the action succeeds. A separate username price remains payable by the claimant. Sponsorship does not include account creation or automatic contract maintenance.
+
+The [Funding deployment](https://stellar.expert/explorer/testnet/tx/27984e617be4437d636a69e603908a0412a009386d336a6e8bfc1d3fd76c3322) is confirmed. Existing naming contract addresses are unchanged.
+
 ## SDK versions
 
 Use these published versions together. Each supports Stellar SDK 17. Lookup reads names; Holder claims and manages them; Owner configures namespaces; MCP provides access for agents.
@@ -75,9 +83,15 @@ The other shared contracts handle namespace routing, G/C Primary elections and n
     ```
     This contract handles namespace applications, objections and settlement.
   </Accordion>
+  <Accordion title="Funding — optional namespace sponsorship">
+    ```text wrap
+    CBSORANSFWTCIVMMJEZPQAGASGKYQUC2KAUHMGTENTG5FOBYOQTQZ5CD
+    ```
+    This testnet contract holds owner funding and enforces sponsorship limits. Hosted sponsorship is not enabled yet.
+  </Accordion>
 </AccordionGroup>
 
-The [deployment manifest](https://raw.githubusercontent.com/SoranDomains/docs/main/reference/deployments/testnet.json) contains all six contract IDs, Wasm hashes, deployment transactions, ledgers, governance and namespace-fee configuration. Use addresses from this one deployment together. A `SORAN` prefix alone does not authenticate a contract.
+The [deployment manifest](https://raw.githubusercontent.com/SoranDomains/docs/main/reference/deployments/testnet.json) contains all seven contract IDs, Wasm hashes, deployment transactions, ledgers, governance and namespace-fee configuration. Use addresses from this one deployment together. A `SORAN` prefix alone does not authenticate a contract.
 
 ## Nova namespace contracts
 
