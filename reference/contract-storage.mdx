@@ -470,7 +470,7 @@ ID `0` is a real muxed key; it does not address a G-account record. ID `18446744
 
 These records capture an election-time snapshot. Reads recheck the same Registrar, Resolver, generation and complete current M payment. A transferred or reissued name needs a fresh election even if its new payment uses the same M address. An M Primary additionally requires the same verified reverse snapshot in its name's namespace. A raw stored value alone is not proof that the election is currently valid.
 
-Election and clear calls require the base G account's authorization. Clear removes only the exact key and leaves transaction history. `touch_reverse_muxed(namespace,account,id)` and `touch_primary_muxed(account,id)` are permissionless: each extends one existing entry and Lookup's instance/code, without creating an entry or validating its proof. `keep_alive()` alone maintains instance/code, not every election. Archived keys require restoration; an unavailable read is not an empty election.
+Election and clear calls require the base G account's authorization. They maintain the instance without renewing shared code. Clear removes only the exact key and leaves transaction history. `touch_reverse_muxed(namespace,account,id)` and `touch_primary_muxed(account,id)` are permissionless: each maintains one existing entry and Lookup's instance, plus bounded code renewal as described below, without creating an entry or validating its proof. `keep_alive()` maintains the instance and performs bounded code renewal; it does not maintain every election. Archived keys require restoration; an unavailable read is not an empty election.
 
 Versioned semantics are identified by these event topics and data:
 
@@ -487,16 +487,20 @@ The `set` events preserve `record.version = 1`; clear events preserve the exact 
 
 Ownership expiry uses Unix **seconds** in stored values. Storage TTL uses **ledger numbers** in Stellar's TTL entries and RPC `liveUntilLedgerSeq`. An ownership term of zero is not an infinite storage TTL. Ordinary reads do not provide a persistent keeper service, and read simulations do not commit storage changes.
 
-Registry, Allocator, Registrar, Resolver and Primary use these dynamic extension parameters:
+Registry, Allocator, Registrar and Resolver use these dynamic extension parameters. Primary retains the same parameters for its records and instance:
 
 ```text
 extend_to = min(3_000_000, storage.max_ttl())
 threshold = min(2_500_000, saturating_sub(extend_to, 1))
 ```
 
-Lookup uses `threshold = min(2_500_000, max_ttl)` and `extend_to = min(3_000_000, max_ttl)`. These are ledger targets, not a promised number of days. A bump only extends an entry below its threshold; it can be a no-op for an already-long TTL. Instance extension checks the instance and Wasm-code TTLs separately. [Instance TTL semantics](https://docs.rs/soroban-sdk/26.1.0/soroban_sdk/storage/struct.Instance.html#method.extend_ttl)
+Lookup uses `threshold = min(2_500_000, max_ttl)` and `extend_to = min(3_000_000, max_ttl)` for its records and instance. These are ledger targets, not a promised number of days. A threshold-based bump only extends an entry below its threshold; it can be a no-op for an already-long TTL.
 
-Code and instance TTLs are independent. A replacement Wasm can have a shorter lifetime than the existing instance, and extending it can add cost to the next write. Include both in storage upkeep.
+Code and instance TTLs are independent. The combined instance-extension operation checks both separately. [Instance TTL semantics](https://docs.rs/soroban-sdk/26.1.0/soroban_sdk/storage/struct.Instance.html#method.extend_ttl)
+
+Lookup and Primary ordinary display-name writes use **instance-only extension**. They retain the existing record and instance targets without extending shared Wasm code. A newly uploaded replacement can therefore have a shorter code lifetime than the instance, without making the next display-name writer fund a long code renewal.
+
+Explicit maintenance handles code separately: Lookup's `keep_alive`, `touch_reverse_muxed` and `touch_primary_muxed`, and Primary's `touch_primary`, extend code by **at most 17,280 additional ledgers per call**, capped at the configured target and network maximum. Repeated calls can accumulate extensions. The caller pays transaction costs and any storage rent; the ledger bound is not a fixed XLM price. Record and instance extension remains threshold-based and can cost more when those entries need renewal. This update does not change the other contracts' extension behavior or introduce sponsorship.
 
 Persistent entries and contract instances can archive and later be restored. Archival does not establish that a namespace is unowned, a name has expired, a rejection/credit never existed, or a payment needs no memo. A raw `getLedgerEntries` result that omits a key is not a sufficient payment or ownership decision. A transaction accessing archived persistent data must include the required restoration work or fail; RPC simulation can identify what is needed. Restoration costs and subsequent TTL extension are distinct from name-renewal or claim fees. [Stellar state archival](https://developers.stellar.org/docs/learn/fundamentals/contract-development/storage/state-archival)
 

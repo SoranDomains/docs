@@ -34,6 +34,12 @@ Lookup discovers each namespace's Registrar and Resolver. You do not need Nova's
 
 Use the IDs together. [Testnet configuration](/reference/release-status) lists the network, fees, package versions and deployment manifest. Mainnet is not available yet.
 
+## Reading and writing fees
+
+An RPC read uses simulation without submitting a transaction, so it does not charge an on-chain fee. Calling Lookup inside a submitted transaction still contributes to that transaction's resource costs.
+
+Display-name setters and clears in Lookup and Primary pay transaction costs and any required record or instance storage rent. They do not renew shared Wasm code. Explicit maintenance calls handle code renewal, paid by their transaction's fee payer. Maintenance extends code by at most 17,280 ledgers per call, within the configured target and network limit. See [storage lifetime](/reference/contract-storage#ttl-and-restoration). Simulate each write before approval; fees vary with network and storage state.
+
 ## Read through Soroban RPC
 
 This unsigned example checks the Registry anchor and ABI, then reads `alice.nova`. It does not submit a transaction or make a payment. Use an active name from the [live examples](/live-examples), or one you have issued.
@@ -218,11 +224,11 @@ Universal Lookup stores opt-in display names for a **base G account plus its exa
 | `set_reverse_muxed(account:Address,id:u64,name:String)` | Elect a namespace display name; base G account authorizes |
 | `reverse_muxed(namespace:String,account:Address,id:u64)` | `Option<String>`, exact current M display name |
 | `clear_reverse_muxed(namespace:String,account:Address,id:u64)` | Remove that namespace's M election; base G authorizes |
-| `touch_reverse_muxed(namespace:String,account:Address,id:u64)` | Extend that existing record and Lookup lifetime; permissionless |
+| `touch_reverse_muxed(namespace:String,account:Address,id:u64)` | Maintain the existing record and instance; bounded code renewal; permissionless |
 | `set_primary_muxed(account:Address,id:u64,name:String)` | Elect an existing verified M reverse as Primary; base G authorizes |
 | `primary_name_muxed(account:Address,id:u64)` | `Option<String>`, exact current M Primary name |
 | `clear_primary_muxed(account:Address,id:u64)` | Remove that M Primary election; base G authorizes |
-| `touch_primary_muxed(account:Address,id:u64)` | Extend that existing record and Lookup lifetime; permissionless |
+| `touch_primary_muxed(account:Address,id:u64)` | Maintain the existing record and instance; bounded code renewal; permissionless |
 
 All setters, clears and touches return `Result<(), Error>`. The argument named `account` must be a classic G account. A M address is decoded into that G account and `id`; it is not passed as `Address`. The base G account authorizes all selection and clearing arguments. If a custodian controls G, that custodian signs; a deposit customer cannot authorize it merely by holding a name or receiving an M address.
 
