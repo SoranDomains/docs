@@ -3,7 +3,7 @@ title: "Testnet and contract addresses"
 description: "Current contract addresses, SDK versions, endpoints and fees for integrating with Soran."
 ---
 
-Soran is available on **Stellar testnet**. Mainnet is not available yet. The governed contract deployment and matching client releases are dated **10 September 2026**. The deployment manifest records the confirmed transactions and verification scope.
+Soran is available on **Stellar testnet**. Mainnet is not available yet. Lookup and Primary received a storage-cost update on **11 September 2026**, at their existing addresses. The matching client releases remain those published on **10 September 2026**. The deployment manifest records the confirmed transactions and verification scope.
 
 <span id="verified-claim-behavior" />
 
@@ -24,6 +24,14 @@ For a working integration, start with the [quickstart](/quickstart) or try the [
 The namespace application fee goes into Allocator escrow. Award pays the configured recipient; rejection or stuck cancellation refunds 100%; withdrawal or expiry refunds 80%. See [namespace claim outcomes](/concepts/claiming-a-namespace).
 
 A username fee goes directly to the owner's configured treasury when the claim succeeds. There is no username approval escrow or mandatory annual Soran ownership fee. Transaction and storage costs are separate. Read the namespace's current quote before showing a price; see [automatic claiming](/owner/automatic-claiming).
+
+## Display-name transaction costs
+
+Setting or clearing a display name in Lookup or Primary no longer renews the shared Wasm code. These writes still pay Stellar transaction costs and any required record or instance storage rent. Explicit maintenance renews the shared code in bounded increments, paid by whoever submits that maintenance transaction. This update does not add automatic fee sponsorship.
+
+Reading a name through RPC simulation does not submit a transaction or charge an on-chain fee. A lookup invoked inside a submitted transaction contributes to that transaction's resource costs. Always simulate writes for a current fee estimate.
+
+The [Lookup upgrade](https://stellar.expert/explorer/testnet/tx/57b77ddfbcd3aa34eb71b41a03c412449a09cca567826b532de63b9ed2cd4d1c) and [Primary upgrade](https://stellar.expert/explorer/testnet/tx/42169053b6d19d516970cf54095b6d249cff7e9499b6c1fbdbfaa9b218c96d33) are confirmed. Existing records, contract methods and SDK versions are unchanged. See [storage lifetime](/reference/contract-storage#ttl-and-restoration).
 
 ## SDK versions
 

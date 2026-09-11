@@ -129,7 +129,9 @@ await me.clearPrimaryMuxed(muxedAddress);
 
 The four M election methods write to Universal Lookup. Authorization binds the name or namespace, base G and exact u64 ID. They leave payment instructions unchanged. ID `"0"` is distinct from the base G account. A transfer or reissue advances generation and requires a fresh election.
 
-Operators can maintain existing elections with the contract's permissionless `touch_reverse_muxed` and `touch_primary_muxed` calls. A touch does not create an election or make stale proof valid. See the [contract ABI](/api/onchain-resolution#muxed-identity-extension) and [stored records](/reference/contract-storage#muxed-identity-storage).
+Setting or clearing a display name in Lookup or Primary pays network costs and any required record or instance storage rent. These calls do not renew shared Wasm code. Your transaction's fee payer still pays for the write; this update does not automatically sponsor it. Check the simulated fee before signing.
+
+Operators can maintain existing elections with the contract's permissionless `touch_reverse_muxed` and `touch_primary_muxed` calls. A touch maintains the existing record and instance and renews code by at most 17,280 ledgers per call, paid by its transaction's fee payer. It does not create an election or make stale proof valid. See the [contract ABI](/api/onchain-resolution#muxed-identity-extension) and [stored records](/reference/contract-storage#muxed-identity-storage).
 
 ## Name transfer
 
