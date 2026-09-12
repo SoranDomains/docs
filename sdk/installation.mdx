@@ -89,12 +89,12 @@ See [reference](/sdk/reference) for methods, result types and typed failures.
 
 ## Write-client fee limit
 
-Owner **0.8.0** and Holder **0.7.0** include a shared per-transaction fee ceiling. Use the matching [release configuration](/reference/release-status).
+Owner **0.9.0** and Holder **0.8.0** include a shared per-transaction fee ceiling. Use the matching [release configuration](/reference/release-status).
 
 Add `maxNetworkFeeStroops` to either write client's configuration to cap the total network fee for each transaction, including storage restoration:
 
 ```ts
-// Options for Owner 0.8.0 or Holder 0.7.0.
+// Options for Owner 0.9.0 or Holder 0.8.0.
 const feeOptions = {
   maxNetworkFeeStroops: 50_000_000n, // 5 XLM per transaction
 };

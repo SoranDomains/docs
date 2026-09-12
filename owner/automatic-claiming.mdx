@@ -5,7 +5,7 @@ description: "Configure on-chain username registration, pricing, receiving walle
 
 Let users claim a username during signup or in account settings, inside your own application. You configure registration once; each user authorizes their own name, receiving details and fee.
 
-This guide uses **Owner 0.8.0** and **Holder 0.7.0** with the [native-claim testnet deployment](/reference/release-status). Older contracts need compatible native-claim support; updating a frontend alone does not add it.
+This guide uses **Owner 0.9.0** and **Holder 0.8.0** with the [native-claim testnet deployment](/reference/release-status). Older contracts need compatible native-claim support; updating a frontend alone does not add it.
 
 1. [Configure registration](#owner-sdk-example) with the Owner SDK.
 2. [Build the signup flow](#claim-from-your-application) with the Holder SDK.
@@ -53,7 +53,7 @@ awaiting manual owner approval.
 
 Free registration means a zero username fee. Contract execution and storage rent still cost XLM, and initial storage rent can be higher than later actions. Review the current transaction estimate.
 
-Owner 0.8.0 and Holder 0.7.0 default to a **5 XLM network-fee limit** per
+Owner 0.9.0 and Holder 0.8.0 default to a **5 XLM network-fee limit** per
 transaction, including storage restoration. This limit is separate from the
 namespace's username price; it is not the amount charged. An estimate above the
 limit is rejected before wallet signing. Applications can explicitly set
@@ -132,7 +132,7 @@ permitted contract operations.
 Install the matching packages:
 
 ```bash
-npm install @sorandomains/owner@0.8.0 @sorandomains/holder@0.7.0 @stellar/stellar-sdk@^17
+npm install @sorandomains/owner@0.9.0 @sorandomains/holder@0.8.0 @stellar/stellar-sdk@^17
 ```
 
 Supply the [native-claim deployment](/reference/release-status) explicitly. The illustrative namespace `acme` must be one your operator wallet owns.
@@ -291,7 +291,7 @@ if (receipt) {
 
 ### What recovery verifies
 
-Holder 0.7.0 checks Registrar attestation and deployed code after each receipt read or transaction confirmation. It requires RPC ledger context at least as recent as the result, including for a `null` receipt.
+Holder 0.8.0 checks Registrar attestation and deployed code after each receipt read or transaction confirmation. It requires RPC ledger context at least as recent as the result, including for a `null` receipt.
 
 Missing, older or mismatched context stops recovery. Retain the original request and transaction hash. These checks depend on your configured RPC reporting state and ledgers honestly.
 

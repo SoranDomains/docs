@@ -18,7 +18,7 @@ Use the [current deployment addresses](/reference/release-status) and the [store
 
 ## Network fees
 
-Network execution and storage fees are separate from any username price, including a zero price. Owner 0.8.0 and Holder 0.7.0 default `maxNetworkFeeStroops` to `50_000_000n` (5 XLM) per transaction, including storage restoration. Native operations also respect `maxNativeFeeStroops`; when both options are set, the lower limit applies. They reject a higher estimate before signing. See [write-client fee limits](/sdk/installation#write-client-fee-limit).
+Network execution and storage fees are separate from any username price, including a zero price. Owner 0.9.0 and Holder 0.8.0 default `maxNetworkFeeStroops` to `50_000_000n` (5 XLM) per transaction, including storage restoration. Native operations also respect `maxNativeFeeStroops`; when both options are set, the lower limit applies. They reject a higher estimate before signing. See [write-client fee limits](/sdk/installation#write-client-fee-limit).
 
 Initial storage rent can exceed that limit. Review the estimate before explicitly choosing a higher limit; this does not change the on-chain username price.
 
