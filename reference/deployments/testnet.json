@@ -390,13 +390,16 @@
   },
   "sponsorship": {
     "fundingDeployed": true,
-    "hostedServiceEnabled": false,
+    "hostedServiceEnabled": true,
     "settlement": "fixed quote, on successful action only",
     "supportedActions": [
       "claim",
       "reverse",
       "primary"
     ],
-    "automaticMaintenance": false
+    "automaticMaintenance": false,
+    "pricingMode": "market-quote",
+    "unusedDifference": "retained-by-soran",
+    "optIn": true
   }
 }
