@@ -39,6 +39,8 @@ The Funding contract is deployed on testnet. **Hosted sponsorship is not enabled
 
 When enabled, a namespace owner can fund successful username claims, reverse elections and primary-name elections. The relayer pays Stellar's network fee; the Funding contract settles the agreed charge from the owner's position only when the action succeeds. A separate username price remains payable by the claimant. Sponsorship does not include account creation or automatic contract maintenance.
 
+The revised pricing uses a fixed quote based on live Stellar fee estimates. The agreed amount is charged only when the action succeeds, and Soran retains any savings against the actual network fee. There is no separate refund transaction or later debit. This pricing update is still being verified before hosted activation.
+
 The [Funding deployment](https://stellar.expert/explorer/testnet/tx/27984e617be4437d636a69e603908a0412a009386d336a6e8bfc1d3fd76c3322) is confirmed. Existing naming contract addresses are unchanged.
 
 ## SDK versions
