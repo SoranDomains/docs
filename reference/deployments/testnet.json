@@ -241,16 +241,16 @@
   "publishedPackages": [
     {
       "name": "owner",
-      "version": "0.8.0",
-      "shasum": "7c5b10aedd88f7a23d661005d77f857b42da04e8",
-      "integrity": "sha512-bapSfgBtZhdsRIee09o1wdKQa7CANvfjwDLwjJtrObziHK0IV2JyU/hMHJkQHlDo1WK2MjALvKZ/iA4UqpCiMQ==",
+      "version": "0.9.0",
+      "shasum": "32e088391b055ed2e2324784375784c420f305b6",
+      "integrity": "sha512-P/DyoFbGzyNmh8Pr9fWSjlPMNou4u7TpMSmROymoIT+38nehJ8ubzlay4SmQ4s/IwP67HFvVSaW0vk+DGfoV8A==",
       "package": "@sorandomains/owner"
     },
     {
       "name": "holder",
-      "version": "0.7.0",
-      "shasum": "db2d3eb692abcbc0e2e51f199ea9349ebbcbf14a",
-      "integrity": "sha512-P0dtc7zrmfxb9l4fjtq2RD7ovzLatjILya5gXiar3d5EwJq1luRvkL6JWWkyyKZ2W2ZBw318iM5G0Bz8b1CiBw==",
+      "version": "0.8.0",
+      "shasum": "06da4f39eca1b98e8b46a1a2d07fa7a738fa4e51",
+      "integrity": "sha512-Z4ivk7qhREgTfTH6NQEuog4i+/K0yyFfgzCIvYZv6CktlMECD6+ZBrgsRo9nmIJvsCqHFLq0XL1q4bvlRlcKhw==",
       "package": "@sorandomains/holder"
     },
     {
