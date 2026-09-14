@@ -54,6 +54,8 @@ Use these published versions together. Each supports Stellar SDK 17. Lookup read
 | [Owner](https://www.npmjs.com/package/@sorandomains/owner) | **0.9.0** |
 | [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.9.4** |
 
+**Next local MCP release (candidate `0.9.5`):** adds local `deploy_namespace_resolver` and read-only `confirm_namespace_resolver`, including official vanity-address preparation and acceptance of existing attested Resolvers without the prefix. npm publication is pending; the currently published version remains 0.9.4. See [Resolver setup](/owner/activating-a-namespace#complete-resolver-setup).
+
 MCP 0.9.4 selects the requested namespace in its private API session, sends the required namespace header, and preserves transaction identifiers after an uncertain submission. Update the pinned local package and restart the MCP process before retrying an activation that failed with `namespace_required`. See [activation and recovery](/owner/activating-a-namespace#activate-through-mcp).
 
 ## Shared testnet contract addresses

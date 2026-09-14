@@ -69,11 +69,20 @@ Tools combine different sources. Payment reads come from chain contracts; discov
 3. Call `claim_namespace` with the reviewed `expectedFee` and an explicit `maxNetworkFeeStroops` ceiling. The local signer independently verifies the on-chain policy and exact claim/token authorization.
 4. Follow `claim_status` until the objection and award conditions resolve. A keeper may execute an eligible claim; a countdown alone does not prove an award.
 5. Call `activate_namespace` with the reviewed policy and network-fee ceiling. The signer checks the policy, predicted contract address, namespace and address scheme before signing.
-6. Choose Manual mode for `issue_name` / `issue_batch`, or configure public registration and use `claim_username`. Public mode blocks ordinary owner issuance, including while claims are paused. Holder tools manage names the wallet holds.
+6. With the upcoming local MCP release, call `deploy_namespace_resolver` with the namespace and a reviewed `maxNetworkFeeStroops`. Wait for `resolverReady: true` before continuing. See [Resolver setup](/owner/activating-a-namespace#complete-resolver-setup).
+7. Choose Manual mode for `issue_name` / `issue_batch`, or configure public registration and use `claim_username`. Public mode blocks ordinary owner issuance, including while claims are paused. Holder tools manage names the wallet holds.
 
 `withdraw_claim` also requires a network-fee ceiling. Namespace fee refunds follow [claim outcomes](/concepts/claiming-a-namespace): delivery is attempted, with protected pull credit for undelivered amounts. Objection bonds and reserved direct claims are separate.
 
 See [Activating your namespace](/owner/activating-a-namespace) for the complete policy object, preset values, API preparation and direct contract calls.
+
+### Resolver setup in the upcoming MCP release
+
+The MCP release candidate (`0.9.5`) adds `deploy_namespace_resolver` and `confirm_namespace_resolver` in local signer mode. Check [release status](/reference/release-status) before installing this version. Registrar activation and Resolver setup are separate owner-signed transactions.
+
+The deployment tool uses the official vanity-address search and Registry factory. A queued/mining result means no deployment transaction was submitted; retry after `retryAfterMs`. An uncertain submission retains `predictedId` and `txHash`: pass them to `confirm_namespace_resolver` to read the binding without signing or resubmitting.
+
+An existing native Resolver is accepted regardless of its cosmetic `C?SORAN` prefix. The tool verifies Registry ownership, the selected/attested Resolver and the Registry's native contract check. A cleared or mismatched pointer stops setup so the owner can review and restore the attested Resolver with `set_resolver`.
 
 ### Pending activation
 
