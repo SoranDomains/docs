@@ -262,12 +262,12 @@
     },
     {
       "name": "mcp",
-      "version": "0.9.4",
-      "shasum": "427659e31ab06750ee9c83ffed3a78f9af2a8464",
-      "integrity": "sha512-1H1mWNMIIS7ruW8R612ZgRk8NFV9bQgaEdDzO3HvYCY4DvzKi+ar2yYari5tsCOtnMMnDA/gx9duuWe2h+k+Xg==",
+      "version": "0.9.5",
+      "shasum": "9d4334320477c2afb16b65763be8fb0f379e27aa",
+      "integrity": "sha512-fcqZkqotzIy2KTQmKq2iCc+y093teOAZd89Rn/QqlOQ+Hq3gQ3R8Dr14io4D355yLb6zOf9O+qavLGHxjhoaEw==",
       "package": "@sorandomains/mcp",
-      "publishedAt": "2026-09-13T18:54:18.954Z",
-      "verifiedAt": "2026-09-14T21:32:38.051Z"
+      "publishedAt": "2026-09-14T22:04:57.083Z",
+      "verifiedAt": "2026-09-14T22:05:24.822Z"
     }
   ],
   "clientVerification": {

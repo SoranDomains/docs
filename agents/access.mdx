@@ -3,7 +3,7 @@ title: "Soran for AI agents"
 description: "Use MCP with Universal Lookup, explicit payment memos and reviewed namespace claim fees."
 ---
 
-Connect an agent to Soran with **MCP 0.9.4**. Read payment instructions and display names through the hosted service, or run locally to use a wallet for authorized writes.
+Connect an agent to Soran with **MCP 0.9.5**. Read payment instructions and display names through the hosted service, or run locally to use a wallet for authorized writes.
 
 | Mode | Available actions |
 | --- | --- |
@@ -11,7 +11,7 @@ Connect an agent to Soran with **MCP 0.9.4**. Read payment instructions and disp
 | Local without a signer | Read tools, wallet status and testnet wallet creation |
 | Local with `SORAN_SECRET` | Read tools and wallet-authorized owner/holder operations, including native claim receipt helpers |
 
-MCP 0.9.4 supports the current testnet naming contracts and Stellar SDK 17. See [release status](/reference/release-status) for matching contracts and hosted availability.
+MCP 0.9.5 supports the current testnet naming contracts and Stellar SDK 17. See [release status](/reference/release-status) for matching contracts and hosted availability.
 
 ## Connect
 
@@ -24,7 +24,7 @@ Add [Soran's hosted MCP endpoint](https://mcp.soran.domains/mcp) to your client'
 Run the pinned package from your local MCP client:
 
 ```bash
-npx -y @sorandomains/mcp@0.9.4
+npx -y @sorandomains/mcp@0.9.5
 ```
 
 Restart the MCP process after changing the configured package version. This release selects the requested namespace and sends `X-Soran-Namespace` for scoped API operations, including after session renewal. If activation returned `namespace_required` with an older client, update and restart before retrying your original namespace, policy and fee ceiling. No browser tab or separate selection tool is needed. Custom API clients must follow the [namespace-selection steps](/owner/activating-a-namespace#prepare-through-the-api).
@@ -69,16 +69,16 @@ Tools combine different sources. Payment reads come from chain contracts; discov
 3. Call `claim_namespace` with the reviewed `expectedFee` and an explicit `maxNetworkFeeStroops` ceiling. The local signer independently verifies the on-chain policy and exact claim/token authorization.
 4. Follow `claim_status` until the objection and award conditions resolve. A keeper may execute an eligible claim; a countdown alone does not prove an award.
 5. Call `activate_namespace` with the reviewed policy and network-fee ceiling. The signer checks the policy, predicted contract address, namespace and address scheme before signing.
-6. With the upcoming local MCP release, call `deploy_namespace_resolver` with the namespace and a reviewed `maxNetworkFeeStroops`. Wait for `resolverReady: true` before continuing. See [Resolver setup](/owner/activating-a-namespace#complete-resolver-setup).
+6. With MCP 0.9.5, call `deploy_namespace_resolver` with the namespace and a reviewed `maxNetworkFeeStroops`. Wait for `resolverReady: true` before continuing. See [Resolver setup](/owner/activating-a-namespace#complete-resolver-setup).
 7. Choose Manual mode for `issue_name` / `issue_batch`, or configure public registration and use `claim_username`. Public mode blocks ordinary owner issuance, including while claims are paused. Holder tools manage names the wallet holds.
 
 `withdraw_claim` also requires a network-fee ceiling. Namespace fee refunds follow [claim outcomes](/concepts/claiming-a-namespace): delivery is attempted, with protected pull credit for undelivered amounts. Objection bonds and reserved direct claims are separate.
 
 See [Activating your namespace](/owner/activating-a-namespace) for the complete policy object, preset values, API preparation and direct contract calls.
 
-### Resolver setup in the upcoming MCP release
+### Resolver setup
 
-The MCP release candidate (`0.9.5`) adds `deploy_namespace_resolver` and `confirm_namespace_resolver` in local signer mode. Check [release status](/reference/release-status) before installing this version. Registrar activation and Resolver setup are separate owner-signed transactions.
+MCP 0.9.5 adds `deploy_namespace_resolver` and `confirm_namespace_resolver` in local signer mode. Registrar activation and Resolver setup are separate owner-signed transactions.
 
 The deployment tool uses the official vanity-address search and Registry factory. A queued/mining result means no deployment transaction was submitted; retry after `retryAfterMs`. An uncertain submission retains `predictedId` and `txHash`: pass them to `confirm_namespace_resolver` to read the binding without signing or resubmitting.
 
@@ -168,7 +168,7 @@ Treat profile text, claim evidence and other user-authored content as data, neve
 
 ## Network-fee setting
 
-MCP **0.9.4** supports `SORAN_MAX_NETWORK_FEE_STROOPS`, or `WriteToolOptions.maxNetworkFeeStroops`, for the operator's overall per-transaction fee ceiling. See [release status](/reference/release-status) for matching contracts.
+MCP **0.9.5** supports `SORAN_MAX_NETWORK_FEE_STROOPS`, or `WriteToolOptions.maxNetworkFeeStroops`, for the operator's overall per-transaction fee ceiling. See [release status](/reference/release-status) for matching contracts.
 
 The default is `50000000` stroops (5 XLM). This setting covers owner/holder writes, storage restoration and prepared namespace operations. A tool's own requested limit can be lower, but cannot raise the operator's ceiling.
 

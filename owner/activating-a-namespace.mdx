@@ -25,7 +25,7 @@ There is no ordinary setter for these five lifecycle fields after activation. `c
 
 ## Activate through MCP
 
-Use **MCP 0.9.4** in your local client and restart the MCP process after updating its package version. This release selects the requested namespace in its private API session and sends the required namespace header. Older clients can return `namespace_required` even when your wallet owns the namespace. See [local connection](/agents/access#local-connection).
+Use **MCP 0.9.5** in your local client and restart the MCP process after updating its package version. This release selects the requested namespace in its private API session and sends the required namespace header. Older clients can return `namespace_required` even when your wallet owns the namespace. See [local connection](/agents/access#local-connection).
 
 In local mode, `activate_namespace` accepts either a complete policy object or a preset. For example, an app can permit owner reclaim while preventing holder transfers:
 
@@ -131,7 +131,7 @@ Universal Lookup follows the Registry's on-chain bindings regardless of whether 
 
 Registrar activation is the first step. Native username claiming and payment records also need the namespace's Resolver.
 
-The MCP release candidate (`0.9.5`) adds this local owner tool; check [release status](/reference/release-status) for publication availability:
+MCP **0.9.5** adds this local owner tool:
 
 ```json
 {
