@@ -3,7 +3,7 @@ title: "Testnet and contract addresses"
 description: "Current contract addresses, SDK versions, endpoints and fees for integrating with Soran."
 ---
 
-Soran is available on **Stellar testnet**. Mainnet is not available yet. Lookup and Primary received a storage-cost update on **11 September 2026**, at their existing addresses. The matching client releases remain those published on **10 September 2026**. The deployment manifest records the confirmed transactions and verification scope.
+Soran is available on **Stellar testnet**. Mainnet is not available yet. Lookup and Primary received a storage-cost update on **11 September 2026**, at their existing addresses. MCP received a namespace-selection and submission-recovery update on **13 September 2026**. The deployment manifest records contract verification and package/service checks separately.
 
 <span id="verified-claim-behavior" />
 
@@ -52,7 +52,9 @@ Use these published versions together. Each supports Stellar SDK 17. Lookup read
 | [Lookup](https://www.npmjs.com/package/@sorandomains/lookup) | **0.10.2** |
 | [Holder](https://www.npmjs.com/package/@sorandomains/holder) | **0.8.0** |
 | [Owner](https://www.npmjs.com/package/@sorandomains/owner) | **0.9.0** |
-| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.9.3** |
+| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.9.4** |
+
+MCP 0.9.4 selects the requested namespace in its private API session, sends the required namespace header, and preserves transaction identifiers after an uncertain submission. Update the pinned local package and restart the MCP process before retrying an activation that failed with `namespace_required`. See [activation and recovery](/owner/activating-a-namespace#activate-through-mcp).
 
 ## Shared testnet contract addresses
 
@@ -185,7 +187,7 @@ The 10 September governed migration also upgraded Allocator code in place and re
 | Nova claim app and Whois | [Open Nova](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/) |
 | SDK demonstration app | [Open Soran Studio](https://soran-studio.throbbing-cloud-0f8e.workers.dev/) |
 
-These services use the current deployment. Hosted MCP runs **0.9.3**; signing tools are [local-only](/agents/access#native-usernames-in-local-mode). Billing and marketplace features are disabled on this setup. Check [service status](/api/status) when integrating.
+These services use the current deployment. Hosted MCP identifies itself as **0.9.4**, checked on **14 September 2026**; signing tools are [local-only](/agents/access#native-usernames-in-local-mode). Billing and marketplace features are disabled on this setup. Check [service status](/api/status) when integrating.
 
 The 8 September console/API update checks [current namespace ownership](/platform/console#current-ownership-checks), preserves the transaction hash after an [interrupted submission](/api/overview#submission-responses), and lets you recover an interrupted renewal before attempting another. Owners can now [set all five activation rules](/owner/activating-a-namespace), including disabling holder transfers or setting a default expiry term. The API and local MCP accept the same explicit policy, preserve the two preset defaults, and verify the requested rules before signing. The console also checks a maximum network fee and a short transaction expiry before wallet approval. Its name-management page supports full muxed identities through Universal Lookup.
 
@@ -193,7 +195,7 @@ The 8 September console/API update checks [current namespace ownership](/platfor
 
 ## Governed testnet deployment
 
-The 10 September migration preserves the Universal Lookup and Allocator addresses. Registry, Primary and Nova's Registrar and Resolver use the successor addresses above. Match them with Lookup **0.10.2**, Owner **0.9.0**, Holder **0.8.0** and MCP **0.9.3**.
+The 10 September migration preserves the Universal Lookup and Allocator addresses. Registry, Primary and Nova's Registrar and Resolver use the successor addresses above. Match them with Lookup **0.10.2**, Owner **0.9.0**, Holder **0.8.0** and MCP **0.9.4**.
 
 All six active contracts support authorized upgrades at the same address. Namespace child upgrades require the current namespace owner and protocol approval for the exact contract role and code hash. The governed testnet does not permit irreversible code locks. Name expiry and owner reclaim policy remain separate settings. See [governance](/concepts/governance).
 

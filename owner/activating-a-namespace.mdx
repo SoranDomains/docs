@@ -25,6 +25,8 @@ There is no ordinary setter for these five lifecycle fields after activation. `c
 
 ## Activate through MCP
 
+Use **MCP 0.9.4** in your local client and restart the MCP process after updating its package version. This release selects the requested namespace in its private API session and sends the required namespace header. Older clients can return `namespace_required` even when your wallet owns the namespace. See [local connection](/agents/access#local-connection).
+
 In local mode, `activate_namespace` accepts either a complete policy object or a preset. For example, an app can permit owner reclaim while preventing holder transfers:
 
 ```json
@@ -45,7 +47,7 @@ The fee limit in this example is a maximum network fee you authorize, not a fee 
 
 The MCP checks all five fields in the prepared Registry call and the nested Registrar constructor authorization before signing. It also verifies the namespace, network, predicted contract address and fee limit. After the API confirms submission, the MCP checks the Registrar and policy independently on chain.
 
-`activated: true` with `policyVerified: true` means those checks passed. If the API reports activation but the on-chain verification cannot complete, the result has `activated: null` and `pendingVerification: true`. Check `namespace_status` before proceeding; do not activate again. This is different from a vanity-generation result with `pending: true`, where nothing has been signed yet.
+`activated: true` with `policyVerified: true` means those checks passed. If submission or verification remains unresolved, use `confirm_namespace_activation` with the namespace, your original policy as `expectedPolicy`, and any returned `predictedId` and `txHash`. It checks the existing deployment without signing or submitting another transaction. Keep the original reviewed policy; do not change it to match an unexpected on-chain value. See [pending activation](/agents/access#pending-activation) for the distinct address-generation and transaction-recovery responses.
 
 ## Preset shorthands
 
@@ -60,7 +62,34 @@ The historical name `permanent` means non-reclaimable and no expiry here. It doe
 
 ## Prepare through the API
 
-Send an authenticated `POST /console/registrar/deploy/prepare` request with the same `namespace` and `policy` object shown above. The session wallet must own that namespace. The API also accepts the two presets; omitting `policy` retains the `reclaimable` default.
+The session wallet must own the namespace. Select it before preparing a deployment, using the bearer token returned by wallet sign-in:
+
+```http
+POST /console/session/namespace
+Authorization: Bearer <session-token>
+Content-Type: application/json
+
+{"namespace":"acme"}
+```
+
+Check that the response has `ok: true` and `namespace: "acme"`. Selection changes only the session's current namespace; it does not grant ownership.
+
+Send `POST /console/registrar/deploy/prepare` with the same token, the `namespace` and `policy` object shown above, and these headers:
+
+```http
+Authorization: Bearer <session-token>
+Content-Type: application/json
+X-Soran-Namespace: acme
+```
+
+Include `X-Soran-Namespace` on every namespace-scoped request, including deployment prepare, submit and confirm. Its value must match the selected session namespace and any `namespace` field in the body. A body field alone does not replace the header. Select the namespace again after renewing a session, and serialize selection with its following request when sharing a session across concurrent operations.
+
+| Response | Meaning and recovery |
+| --- | --- |
+| `400 namespace_required` | The namespace header is missing or invalid. Send `X-Soran-Namespace`; this error alone does not establish an ownership failure. |
+| `409 namespace_changed` | The header, session selection or body namespace disagree. Confirm the intended namespace, select it in the same session, and retry with matching values. |
+
+The API also accepts the two policy presets; omitting `policy` retains the `reclaimable` default.
 
 Supply exactly all five fields in an explicit object. Booleans must be JSON booleans. The term accepts a canonical decimal string or a whole JSON number within the stated bounds. Unknown fields, conflicting top-level overrides, missing policy fields and invalid values are rejected. For example, `{ "policy": "reclaimable", "transferable": false }` is invalid: put the setting inside a full policy object.
 
@@ -70,7 +99,7 @@ After signing, use `POST /console/registrar/deploy/submit` with `signedXdr` and 
 
 ## Call the Registry directly
 
-The on-chain call is:
+You can activate through the Registry directly with the namespace owner's signature. This factory call requires no additional governance signature or console submission:
 
 ```rust
 Registry.deploy_registrar(
@@ -91,6 +120,8 @@ SHA256(UTF8("soran:namespace-deploy:v1\0") || role || namespace_node || nonce)
 
 The API and MCP use branded addresses matching `C[A-D]SORAN[A-Z2-7]{49}`. That prefix is a tooling convention; it is not a Registry requirement for a direct call.
 
-`deploy_registrar` records its own on-chain attestation. Do not follow it with `attest_registrar`: that separate method is for post-hoc attestation of a separately deployed contract and has different provenance rules. An API confirmation is not another on-chain attestation.
+`deploy_registrar` records its own on-chain attestation. Do not follow it with `attest_registrar`: that separate method is for post-hoc attestation of a separately deployed contract and has different provenance rules. It requires the namespace owner's authorization, matching Registry/namespace anchors and the Registry's pinned Registrar code. An API confirmation is not another on-chain attestation.
 
 Finally, read `Registry.registrar_of(node)` and the deployed Registrar's `policy()`. The Owner SDK exposes these as `owner.registrarOf(namespace)` and `owner.policy(namespace)`; its returned policy uses `defaultTermSecs` as a `bigint` and `tradeFeeBps` as a number. These reads do not change a policy.
+
+Universal Lookup follows the Registry's on-chain bindings regardless of whether you submitted the factory call through the console. Native payment resolution also requires the namespace's Resolver, an active name and configured payment records. Deploying the Registrar alone does not complete that setup. If the console has not recorded the deployment yet, use the scoped API confirmation route or `confirm_namespace_activation` to recover it without deploying again.
