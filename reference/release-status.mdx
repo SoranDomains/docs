@@ -52,9 +52,11 @@ Use these published versions together. Each supports Stellar SDK 17. Lookup read
 | [Lookup](https://www.npmjs.com/package/@sorandomains/lookup) | **0.10.2** |
 | [Holder](https://www.npmjs.com/package/@sorandomains/holder) | **0.8.0** |
 | [Owner](https://www.npmjs.com/package/@sorandomains/owner) | **0.9.0** |
-| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.9.4** |
+| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.9.5** |
 
-MCP 0.9.4 selects the requested namespace in its private API session, sends the required namespace header, and preserves transaction identifiers after an uncertain submission. Update the pinned local package and restart the MCP process before retrying an activation that failed with `namespace_required`. See [activation and recovery](/owner/activating-a-namespace#activate-through-mcp).
+**MCP 0.9.5** adds local `deploy_namespace_resolver` and read-only `confirm_namespace_resolver`, including official vanity-address preparation and acceptance of existing attested Resolvers without the prefix. See [Resolver setup](/owner/activating-a-namespace#complete-resolver-setup).
+
+MCP 0.9.5 selects the requested namespace in its private API session, sends the required namespace header, and preserves transaction identifiers after an uncertain submission. Update the pinned local package and restart the MCP process before retrying an activation that failed with `namespace_required`. See [activation and recovery](/owner/activating-a-namespace#activate-through-mcp).
 
 ## Shared testnet contract addresses
 
@@ -195,7 +197,7 @@ The 8 September console/API update checks [current namespace ownership](/platfor
 
 ## Governed testnet deployment
 
-The 10 September migration preserves the Universal Lookup and Allocator addresses. Registry, Primary and Nova's Registrar and Resolver use the successor addresses above. Match them with Lookup **0.10.2**, Owner **0.9.0**, Holder **0.8.0** and MCP **0.9.4**.
+The 10 September migration preserves the Universal Lookup and Allocator addresses. Registry, Primary and Nova's Registrar and Resolver use the successor addresses above. Match them with Lookup **0.10.2**, Owner **0.9.0**, Holder **0.8.0** and MCP **0.9.5**.
 
 All six active contracts support authorized upgrades at the same address. Namespace child upgrades require the current namespace owner and protocol approval for the exact contract role and code hash. The governed testnet does not permit irreversible code locks. Name expiry and owner reclaim policy remain separate settings. See [governance](/concepts/governance).
 

@@ -25,7 +25,7 @@ There is no ordinary setter for these five lifecycle fields after activation. `c
 
 ## Activate through MCP
 
-Use **MCP 0.9.4** in your local client and restart the MCP process after updating its package version. This release selects the requested namespace in its private API session and sends the required namespace header. Older clients can return `namespace_required` even when your wallet owns the namespace. See [local connection](/agents/access#local-connection).
+Use **MCP 0.9.5** in your local client and restart the MCP process after updating its package version. This release selects the requested namespace in its private API session and sends the required namespace header. Older clients can return `namespace_required` even when your wallet owns the namespace. See [local connection](/agents/access#local-connection).
 
 In local mode, `activate_namespace` accepts either a complete policy object or a preset. For example, an app can permit owner reclaim while preventing holder transfers:
 
@@ -125,3 +125,34 @@ The API and MCP use branded addresses matching `C[A-D]SORAN[A-Z2-7]{49}`. That p
 Finally, read `Registry.registrar_of(node)` and the deployed Registrar's `policy()`. The Owner SDK exposes these as `owner.registrarOf(namespace)` and `owner.policy(namespace)`; its returned policy uses `defaultTermSecs` as a `bigint` and `tradeFeeBps` as a number. These reads do not change a policy.
 
 Universal Lookup follows the Registry's on-chain bindings regardless of whether you submitted the factory call through the console. Native payment resolution also requires the namespace's Resolver, an active name and configured payment records. Deploying the Registrar alone does not complete that setup. If the console has not recorded the deployment yet, use the scoped API confirmation route or `confirm_namespace_activation` to recover it without deploying again.
+
+
+## Complete Resolver setup
+
+Registrar activation is the first step. Native username claiming and payment records also need the namespace's Resolver.
+
+MCP **0.9.5** adds this local owner tool:
+
+```json
+{
+  "tool": "deploy_namespace_resolver",
+  "arguments": {
+    "namespace": "yourbrand",
+    "maxNetworkFeeStroops": "50000000"
+  }
+}
+```
+
+The tool selects the namespace in its private API session, prepares through `/console/resolver/deploy/prepare`, independently checks the predicted Resolver address and signed arguments, then submits through `/console/resolver/deploy/submit`. The Registry factory deploys, attests and selects the Resolver in one transaction. No separate governance attestation is needed for this factory flow.
+
+If address generation returns `queued` or `mining`, retry the same deployment tool after `retryAfterMs`. No deployment transaction has been submitted yet. If submission instead returns `pending: true`, retain the exact `predictedId` and `txHash` and call:
+
+```text
+confirm_namespace_resolver({ namespace: "yourbrand", predictedId, txHash })
+```
+
+Confirmation reads the Registry directly without signing or resubmitting. It reports `resolverReady: true` only after checking ownership, the selected/attested Resolver and the Registry's native contract verification. Keep the identifiers while verification is pending. Both identifiers are optional if the original response was lost; the Registry can discover its Resolver. The supplied transaction hash is retained as a recovery reference, not independently checked as a transaction receipt by this tool.
+
+The **`C?SORAN` address prefix is cosmetic**. An existing clean, attested native Resolver without it is valid and is accepted with `alreadyConfigured: true`; no replacement is prepared. A cleared or mismatched pointer stops setup and identifies the attested Resolver to review and restore using `set_resolver`.
+
+After resolution is ready, configure public registration with `configure_native_claims`, or issue names in Manual mode. Hosted MCP remains read-only.
