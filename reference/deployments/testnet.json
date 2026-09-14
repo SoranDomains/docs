@@ -262,10 +262,12 @@
     },
     {
       "name": "mcp",
-      "version": "0.9.3",
-      "shasum": "4daed5992364cb1a68659bef6dc5c44ea8240399",
-      "integrity": "sha512-zwtlX932JtPu08VRimAZ2pSj4YgwuZkQwwOuEIslE4kwxJvy8t36m88mlSUTR6XVGw8uk9wqytlivhOfMyt8xw==",
-      "package": "@sorandomains/mcp"
+      "version": "0.9.4",
+      "shasum": "427659e31ab06750ee9c83ffed3a78f9af2a8464",
+      "integrity": "sha512-1H1mWNMIIS7ruW8R612ZgRk8NFV9bQgaEdDzO3HvYCY4DvzKi+ar2yYari5tsCOtnMMnDA/gx9duuWe2h+k+Xg==",
+      "package": "@sorandomains/mcp",
+      "publishedAt": "2026-09-13T18:54:18.954Z",
+      "verifiedAt": "2026-09-14T21:32:38.051Z"
     }
   ],
   "clientVerification": {
@@ -308,9 +310,10 @@
         "deploymentVersion": "874a65ef-696e-47ed-b54a-4c4b142b94c9"
       }
     },
-    "mcpVersion": "0.9.3",
+    "mcpVersion": "0.9.4",
     "hostedWrites": false,
-    "paymentChecks": 15
+    "paymentChecks": 15,
+    "mcpVersionVerifiedAt": "2026-09-14T21:32:38.051Z"
   },
   "lookupPrimaryBatchReadLimit": 16,
   "batchVerification": {
