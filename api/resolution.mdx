@@ -57,7 +57,7 @@ Returns current payment instructions with selected name and profile records:
 | Field | Meaning |
 | --- | --- |
 | `name`, `node` | Canonical full name and its hex namehash |
-| `holder` | Address that holds the name |
+| `holder` | Address that holds the name; for a subname, its parent holder |
 | `address`, `payment` | Effective destination and complete address/memo pair |
 | `generation` | Ownership generation as a decimal string, or `null` when unavailable |
 | `text` | `avatar` and `url` values; either can be `null` |
@@ -180,3 +180,5 @@ GET /v1/names/{namespace}/{label}/history?limit=100
 ```
 
 Returns a descending, cursor-paginated timeline with transaction/event IDs, chain time, ingestion time and coverage. Continue with the returned cursor for the same name. See [events and coverage](/api/events).
+
+This route requires an indexed name row. A child name can exist and resolve on chain while its indexed history is absent; `404 name_not_found` here does not prove that the child is unregistered. Check current metadata or the [subname API](/api/subnames) for its state.

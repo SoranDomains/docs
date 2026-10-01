@@ -60,9 +60,9 @@ The core SDKs below were published and verified on 1 October 2026. They require 
 | [Lookup](https://www.npmjs.com/package/@sorandomains/lookup) | **0.11.0** |
 | [Holder](https://www.npmjs.com/package/@sorandomains/holder) | **0.10.0** |
 | [Owner](https://www.npmjs.com/package/@sorandomains/owner) | **0.12.0** |
-| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.9.6** |
+| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.10.0** |
 
-MCP is released separately. Published **MCP 0.9.6** and the hosted read-only server were verified on 1 October. The package retains its own pinned SDK dependencies; the new core SDK releases do not automatically add tools to MCP. Its current tools accept `label.namespace` names and do not expose dedicated subname or additional-network address operations.
+Published **MCP 0.10.0** uses the core SDK versions above and also requires Node.js 22.12 or newer. Its resolution, metadata, identity and history tools accept one child level such as `mail.alice.yourbrand`. Local profile and payment tools also support children, with authorization from the parent holder. Use the SDKs for child creation, removal, subname-policy changes and additional-network address operations; MCP does not expose dedicated tools for these actions. See [child-name support](/agents/access#child-names).
 
 The local MCP package includes namespace activation, Resolver setup and submission recovery. See [agent access](/agents/access) and [Resolver setup](/owner/activating-a-namespace#complete-resolver-setup).
 
@@ -200,6 +200,8 @@ Those upgrades added case-specific rulings, removed the mandatory wait for new g
 
 The 10 September governed migration also upgraded Allocator code in place and retained its escrow. Namespace claim and objection windows, the 5,000 XLM fee and refund entitlements remain unchanged. See [governance and upgrades](/concepts/governance#allocator-upgrade-flow).
 
+[1 October storage maintenance](https://stellar.expert/explorer/testnet/tx/d3b2860542986e3f7a5eb4c36b602912e9c1f596470992d87a63d725abb76055) renewed Allocator code storage without changing its executable code. The HTTP API includes this maintenance update; contract addresses, application fees and claim windows stayed unchanged.
+
 ## Hosted services
 
 | Service | Address |
@@ -211,7 +213,7 @@ The 10 September governed migration also upgraded Allocator code in place and re
 | Nova claim app and Whois | [Open Nova](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/) |
 | SDK demonstration app | [Open Soran Studio](https://soran-studio.throbbing-cloud-0f8e.workers.dev/) |
 
-The console and HTTP API include the 1 October subname and network-address interfaces. Hosted MCP identifies itself as **0.9.6**, verified on **1 October 2026**; signing tools are [local-only](/agents/access#native-usernames-in-local-mode). Hosted MCP has a separate release cycle from the core SDKs. Billing and marketplace features are available only when enabled on a deployment. Check [service status](/api/status) when integrating.
+The console and HTTP API include the 1 October subname and network-address interfaces. Hosted MCP runs **0.10.0**, verified independently of npm publication on **1 October 2026**, and exposes the read tools for child names. Signing tools are [local-only](/agents/access#native-usernames-in-local-mode). Package releases and hosted-service updates have separate verification records in the manifest. Billing and marketplace features are available only when enabled on a deployment. Check [service status](/api/status) when integrating.
 
 Namespace activation, [current ownership checks](/platform/console#current-ownership-checks) and [submission recovery](/api/overview#submission-responses) remain available. Always use the selected namespace’s live policy and contract capabilities.
 

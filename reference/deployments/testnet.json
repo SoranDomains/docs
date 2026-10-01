@@ -327,7 +327,8 @@
       "integrity": "sha512-tLy0P2JJeC6ub8+zWYdYE+c4fCFR98UZG83fXh90RWYtl3lRmF4XRGa1kmwU1uF1RWx2OW9NouSe+g7/AFkzhQ==",
       "package": "@sorandomains/owner",
       "publishedAt": "2026-10-01T11:48:06.647Z",
-      "verifiedAt": "2026-10-01T11:56:49.958Z"
+      "verifiedAt": "2026-10-01T11:56:49.958Z",
+      "registryCheckedAt": "2026-10-01T12:45:08.000Z"
     },
     {
       "name": "holder",
@@ -336,7 +337,8 @@
       "integrity": "sha512-znVi8maRBlJk/X1qprBZVGVGVK6mX3d2ImuL+fpMRVmTTzTX9yFY75QB3+bIT+YYbhV5y/mAXAReEAPhXOks1A==",
       "package": "@sorandomains/holder",
       "publishedAt": "2026-10-01T11:49:44.618Z",
-      "verifiedAt": "2026-10-01T11:56:49.958Z"
+      "verifiedAt": "2026-10-01T11:56:49.958Z",
+      "registryCheckedAt": "2026-10-01T12:45:08.000Z"
     },
     {
       "name": "lookup",
@@ -345,21 +347,23 @@
       "integrity": "sha512-kGstaH8Ub2Le/rHH9ORjD2fX1xJ/cC818U+Z9mTOf0sWc/hCCAvdu2M6jwgt/JiHRkzgVfEMq6QxeYUaatA+gw==",
       "package": "@sorandomains/lookup",
       "publishedAt": "2026-10-01T11:46:41.976Z",
-      "verifiedAt": "2026-10-01T11:56:49.958Z"
+      "verifiedAt": "2026-10-01T11:56:49.958Z",
+      "registryCheckedAt": "2026-10-01T12:45:08.000Z"
     },
     {
       "name": "mcp",
-      "version": "0.9.6",
-      "shasum": "df30dfd022c6749a137befa1de4519e94b64c3f2",
-      "integrity": "sha512-vbqi3xpiTdvXzRMkVkR/TWsitAOSZPUHB5hSZUQ/rAleuUosmWU8Du5DHcE+aoVwjP9Z3yOSMgJpZYbuDSmifQ==",
+      "version": "0.10.0",
+      "shasum": "aa2bbc693fba460e6c6e560896fd1f52d0b8ed00",
+      "integrity": "sha512-iJqMQsd29vHo7jABoxyOZHs8gzhFopFTdOlbVYeXopPQLIx27SXs1pZu7tq10VkZSrh/NtCBeXFR87Xg1yhsGg==",
       "package": "@sorandomains/mcp",
-      "publishedAt": "2026-09-29T18:22:50.220Z",
-      "verifiedAt": "2026-10-01T12:04:14.000Z",
+      "publishedAt": "2026-10-01T12:15:28.309Z",
+      "verifiedAt": "2026-10-01T12:15:32.294Z",
       "bundledSdkVersions": {
-        "lookup": "0.10.3",
-        "owner": "0.10.1",
-        "holder": "0.9.1"
-      }
+        "lookup": "0.11.0",
+        "owner": "0.12.0",
+        "holder": "0.10.0"
+      },
+      "registryCheckedAt": "2026-10-01T12:45:08.000Z"
     }
   ],
   "clientVerification": {
@@ -382,9 +386,9 @@
     "services": {
       "api": {
         "url": "https://api.soran.domains",
-        "deploymentVersion": "85bb6516-3f15-407d-9453-96492913775b",
-        "checkedAt": "2026-10-01T09:03:31.804Z",
-        "scope": "Subname and network-address interfaces deployed; namespace contract upgrades and policy activation remain owner-controlled."
+        "deploymentVersion": "26d0e064-e7f1-4c57-923d-863dcdc96829",
+        "checkedAt": "2026-10-01T12:17:21.603295+00:00",
+        "scope": "Subname and network-address interfaces plus bounded Allocator storage maintenance. Namespace contract upgrades and policy activation remain owner-controlled."
       },
       "nova": {
         "url": "https://nova-claim-app.throbbing-cloud-0f8e.workers.dev",
@@ -404,14 +408,16 @@
       },
       "mcp": {
         "url": "https://mcp.soran.domains/mcp",
-        "checkedAt": "2026-10-01T12:04:14.000Z",
-        "verification": "MCP initialize response: soran 0.9.6"
+        "checkedAt": "2026-10-01T12:37:46.110Z",
+        "verification": "Hosted MCP 0.10.0: initialize, read-only tool list and live reads verified.",
+        "deploymentVersion": "9c5b5421-9d03-4cf8-91c3-c148b14ac07a",
+        "versionCheckedAt": "2026-10-01T12:45:08.000Z"
       }
     },
-    "mcpVersion": "0.9.6",
+    "mcpVersion": "0.10.0",
     "hostedWrites": false,
     "paymentChecks": 15,
-    "mcpVersionVerifiedAt": "2026-10-01T12:04:14.000Z",
+    "mcpVersionVerifiedAt": "2026-10-01T12:45:08.000Z",
     "paymentChecksVerifiedAt": "2026-09-10T18:32:44.576Z"
   },
   "lookupPrimaryBatchReadLimit": 16,
@@ -600,6 +606,20 @@
       "package": "@sorandomains/mcp",
       "publishedAt": "2026-09-14T22:04:57.083Z",
       "verifiedAt": "2026-09-14T22:05:24.822Z"
+    },
+    {
+      "name": "mcp",
+      "version": "0.9.6",
+      "shasum": "df30dfd022c6749a137befa1de4519e94b64c3f2",
+      "integrity": "sha512-vbqi3xpiTdvXzRMkVkR/TWsitAOSZPUHB5hSZUQ/rAleuUosmWU8Du5DHcE+aoVwjP9Z3yOSMgJpZYbuDSmifQ==",
+      "package": "@sorandomains/mcp",
+      "publishedAt": "2026-09-29T18:22:50.220Z",
+      "verifiedAt": "2026-10-01T12:04:14.000Z",
+      "bundledSdkVersions": {
+        "lookup": "0.10.3",
+        "owner": "0.10.1",
+        "holder": "0.9.1"
+      }
     }
   ],
   "sdkRuntime": {
@@ -608,8 +628,9 @@
       "stellarSdk": ">=17 <18"
     },
     "mcp": {
-      "node": ">=20",
-      "sdkDependencies": "Pinned by the published MCP package; independent of the current core SDK releases."
+      "node": ">=22.12.0",
+      "stellarSdk": ">=17 <18",
+      "sdkDependencies": "Published MCP 0.10.0 pins Lookup 0.11.0, Owner 0.12.0 and Holder 0.10.0."
     }
   },
   "hostedServiceHistory": [
@@ -641,6 +662,51 @@
       "hostedWrites": false,
       "paymentChecks": 15,
       "mcpVersionVerifiedAt": "2026-09-14T21:32:38.051Z"
+    },
+    {
+      "services": {
+        "api": {
+          "url": "https://api.soran.domains",
+          "deploymentVersion": "85bb6516-3f15-407d-9453-96492913775b",
+          "checkedAt": "2026-10-01T09:03:31.804Z",
+          "scope": "Subname and network-address interfaces deployed; namespace contract upgrades and policy activation remain owner-controlled."
+        },
+        "nova": {
+          "url": "https://nova-claim-app.throbbing-cloud-0f8e.workers.dev",
+          "deploymentVersion": "8ad70809-9cd5-477a-bafc-c767e66256f2",
+          "checkedAt": "2026-09-10T18:32:44.576Z"
+        },
+        "studio": {
+          "url": "https://soran-studio.throbbing-cloud-0f8e.workers.dev",
+          "deploymentVersion": "21c6dcaa-e99f-4724-be64-a356efae8516",
+          "checkedAt": "2026-09-10T18:32:44.576Z"
+        },
+        "console": {
+          "url": "https://soran.domains",
+          "deploymentVersion": "632c75ab-a6fe-4187-bcc5-9a6df099c4e7",
+          "checkedAt": "2026-10-01T09:03:31.804Z",
+          "scope": "Subname and network-address interfaces deployed; namespace contract upgrades and policy activation remain owner-controlled."
+        },
+        "mcp": {
+          "url": "https://mcp.soran.domains/mcp",
+          "checkedAt": "2026-10-01T12:04:14.000Z",
+          "verification": "MCP initialize response: soran 0.9.6"
+        }
+      },
+      "mcpVersion": "0.9.6",
+      "hostedWrites": false,
+      "paymentChecks": 15,
+      "mcpVersionVerifiedAt": "2026-10-01T12:04:14.000Z",
+      "paymentChecksVerifiedAt": "2026-09-10T18:32:44.576Z"
     }
-  ]
+  ],
+  "allocatorStorageMaintenance": {
+    "verifiedAt": "2026-10-01T12:17:21.603295+00:00",
+    "contractId": "CCSORANYFHUJUWETEQ7UWIDN4JTPV7NN5G6YUSSBZI57X7EQWVA63VMJ",
+    "wasmHash": "2fa6b1b6f3a201585932c7e5cef797cbe08ec84d26418e82613e5ef0b5437a79",
+    "transaction": "d3b2860542986e3f7a5eb4c36b602912e9c1f596470992d87a63d725abb76055",
+    "ledger": 4966640,
+    "codeChanged": false,
+    "scope": "Allocator code storage was renewed. This maintenance did not upgrade contract code or change claim fees, windows or namespace policies."
+  }
 }

@@ -47,6 +47,8 @@ The address above illustrates the format; replace it with your intended destinat
 
 A successful preparation returns `ok`, unsigned `xdr`, `holder`, `signer`, `namespace`, `resolverId` and `network` (the Soroban network passphrase). Preparing does not save the record. Review the intended name, destination network, address, Resolver, signing account and transaction costs before the current holder signs.
 
+The hosted record and policy preparation routes support G holder/owner authority. A C holder or namespace owner requires a separate contract-wallet integration; these routes do not accept an authorization adapter.
+
 Submit the signed transaction with `POST /records/submit` and `{ "signedXdr": "..." }`. A `202` pending response requires checking the original `txHash`; see [submission handling](/api/overview#submission-responses).
 
 ## Prepare a namespace policy
@@ -74,7 +76,7 @@ The array replaces the full allowlist. The response includes unsigned `xdr`, `si
 | `403 not_namespace_owner` | Session wallet cannot change the namespace policy |
 | `400 wallet_session_required` | Policy preparation needs a wallet-backed session |
 | `409 namespace_changed` | Session selection, header or body namespace disagree |
-| `409 contract_holder_requires_adapter` / `contract_owner_requires_adapter` | This preparation flow needs a compatible contract-wallet adapter |
+| `409 contract_holder_requires_adapter` / `contract_owner_requires_adapter` | The hosted route cannot prepare this C-authorized operation |
 | `503 chain_unavailable` | The service could not establish current contract state |
 
 Inactive names and missing namespaces also produce errors. Preserve those errors separately from a successful `address: null`.

@@ -54,6 +54,8 @@ await me.clearChainAddress("alice.nova", "ethereum");
 
 Only the current holder can authorize these writes. The SDK validates the selected network and address format before submitting. A name ownership change prevents the previous holder's records from resolving.
 
+In Holder 0.10.0, `setChainAddress` and `clearChainAddress` use the G transaction signer's address as the caller. These methods do not support a C holder through the SDK's `contractWallet` adapter. A contract-wallet integration must supply the correct holder authorization directly to the contract.
+
 Stellar uses [`resolvePayment`](/sdk/resolving-names), which preserves required memos and muxed IDs. Additional network records do not execute payments or bridge assets. Your application sends through its chosen network integration after resolving and reviewing the destination.
 
 ## Handle unavailable results

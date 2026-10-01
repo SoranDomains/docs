@@ -13,13 +13,17 @@ Have the recipient's complete receiving address for the selected **mainnet** rea
 
 ## Use the app
 
+This flow requires a classic G-account holder, or a G-account parent holder for a subname. A C-contract holder needs a separate contract-authorization integration; a fee-paying G account cannot edit on its behalf merely by connecting a wallet.
+
 1. Open [Soran's lookup](https://soran.domains/lookup), find your name and open its public record.
 2. In **Network addresses**, choose **Manage network addresses** and connect the holder wallet.
 3. Find the enabled network and enter its mainnet receiving address.
 4. Choose **Review & save**, review the transaction cost and approve the wallet request.
-5. Check the refreshed record. Use **Copy address** to recheck and copy the saved destination.
+5. Check the refreshed record. **Refresh network addresses** reads the saved values again.
 
 Repeat for each network you want to publish. Choose **Remove address** to clear an existing record.
+
+Public visitors can use **Copy address** to recheck and copy a saved destination. That button appears when the record is being viewed, rather than edited by the holder.
 
 If the section says no networks are enabled, the namespace owner must [enable them in the console's **Settings**](/owner/feature-settings). Older namespace contracts may also need an update. A wallet connected as the recipient has no editing authority unless it also holds the name.
 

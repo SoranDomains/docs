@@ -20,6 +20,8 @@ Find your name through [Soran's lookup](https://soran.domains/lookup) and open i
 
 Choose **Manage this name** in **Payment and identity**, then **Connect your wallet**. The holder can change Stellar payment instructions. The wallet controlling the receiving address can choose its display and primary names. **Network addresses** and **Subnames** have their own management controls on the same page.
 
+The app's wallet editing flow uses a classic G account. A name held by a C contract needs an integration that supplies that contract's authorization; connecting its fee-paying G wallet does not make the G wallet the holder.
+
 Profile fields use the Holder SDK or a configured MCP integration. The examples below use **Holder 0.10.0**. Check [release status](/reference/release-status) for package and namespace contract requirements.
 
 ## Connect your wallet
@@ -52,7 +54,7 @@ const me = new SoranHolder({
 
 Use one matching [deployment configuration](/reference/release-status). `walletSigner` implements `publicKey()` and `signTransaction(xdr, options)`. A backend can use `keypairSigner` with a securely supplied secret. Keep signing keys out of frontend configuration.
 
-This adapter uses a classic G transaction-source account. A contract-owned name needs a compatible contract authorization integration. M destinations are payment routes, not signer identities.
+This example uses a classic G transaction-source account. For a contract-held name, supply the Holder SDK's `contractWallet` adapter as well as a G transaction payer. The C wallet authorizes supported actions using the format its deployed `__check_auth` accepts. M destinations are payment routes, not signer identities.
 
 ## Claim a username
 
@@ -61,6 +63,8 @@ This adapter uses a classic G transaction-source account. A contract-owned name 
 3. Authorize `claim`. Issuance, fee, destination and receipt succeed together.
 
 See the [signup and recovery examples](/owner/automatic-claiming#claim-from-your-application). Claiming `alice.nova` is separate from applying for the top-level namespace `nova`.
+
+Both G accounts and C contract wallets can claim on compatible Registrars. C claiming requires `contract_claim_version() == 1`; choosing a C receiving destination alone does not make that contract the claimant or upgrade an older Registrar.
 
 ## Address and memo together
 
@@ -97,7 +101,7 @@ G supports `none`, `id`, `text` and `hash` memos. M and C support `none` only. P
 
 ## Profile records
 
-Use `setProfile` to publish standard fields such as your avatar, description, website and social handles, including on a subname you control. It submits one transaction per key, in order; earlier confirmed writes remain if a later field fails. The current holder authorizes the records, while the information itself is self-published. Published MCP 0.9.6 supports profile publishing on ordinary `name.namespace` names only.
+Use `setProfile` to publish standard fields such as your avatar, description, website and social handles, including on a subname you control. It submits one transaction per key, in order; earlier confirmed writes remain if a later field fails. The current holder authorizes the records, while the information itself is self-published. Published MCP 0.10.0 also supports these writes on ordinary names and subnames through a configured local signer; hosted MCP is read-only.
 
 `clearText` retracts a field by writing an empty value; it does not erase blockchain history. Standard profile readers treat empty text as unset. Payment memos use `setPayment`, not text records. Follow [Publish your profile](/holder/profile) for the complete example and read-back step.
 
@@ -190,12 +194,15 @@ Use `renewName` with a `RenewIntent` binding the holder, generation, existing ex
 | Rule | Holder renewal behavior |
 | --- | --- |
 | Earliest renewal | Last `min(30 days, term)` of a finite lease |
-| After expiry | Allowed only while the recorded generation has not been reissued; no guaranteed grace period |
+| After expiry | Allowed while the same recorded ownership generation remains, subject to reservation rules |
+| Exclusive renewal grace | Owner-configured, from 0 to 90 days; defaults to 0 and protects eligible expiries from reissue |
 | Extension | One immutable term from `max(now, expiry)`, no more than 100 years from execution |
 | Fees | No separate username renewal fee; network/storage costs apply |
 | Independence | Public-claim pause, app eligibility and namespace ownership epochs do not block renewal |
 
 Zero-term names and stale generations are ineligible. Renewal preserves generation and reactivates its stored receiving instructions. Owner reclaim rights still follow namespace policy.
+
+An eligible grace period delays reissue; it does not keep an expired name resolving or transferable. Enabling grace protects expiries at or after activation, not names already expired then. A reserved name cannot be renewed by the old holder once it becomes reissuable. Read the current Registrar's grace settings before relying on a renewal window.
 
 Subnames have no separate renewal. Renewing the same parent ownership restores its valid subnames; a reissued parent does not restore the former holder's children.
 

@@ -37,7 +37,7 @@ await me.createSubname("pay.alice.nova", destinationAddress, {
 });
 ```
 
-The expected generations bind your transaction to the parent and child state you reviewed. An already active child cannot be recreated. If ownership or child state changes before submission, refresh and review the new state before preparing another transaction.
+The expected generations bind your transaction to the parent and child state you reviewed. A child that is active in the current parent generation cannot be recreated. A new parent holder can recreate a child whose stored binding belongs to an older parent generation, using its previous child generation. If ownership or child state changes before submission, refresh and review the new state before preparing another transaction.
 
 Removal also requires both generations:
 
@@ -49,6 +49,8 @@ await me.removeSubname("pay.alice.nova", {
   generation: current.generation,
 });
 ```
+
+Removal requires a live parent and a child bound to that parent's current generation. It remains available when the namespace suspends subnames, but it cannot remove a former holder's stale binding; recreation is the path to a fresh child under the new holder.
 
 ## List and resolve children
 

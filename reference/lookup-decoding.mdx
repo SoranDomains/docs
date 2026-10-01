@@ -62,7 +62,7 @@ The optional values are not encoded as `["Some", value]` or `["None"]`. A paymen
 
 A muxed result uses `result: ["NativePayment", ["Muxed", { account: G, id: 420n }]]`. The legacy shape is `result: ["LegacyAddress", G]`; this leaves memo capability **unknown**, so it is not a complete payment instruction. The current deployment does not enable legacy routing. Legacy vectors exist to test decoder compatibility.
 
-`scValToNative` decodes an ScVal; it does not establish that the result conforms to this ABI. A String and a Symbol can both become JavaScript strings, for example. Check simulation success and restoration first, then validate variant arity, field names, wire types, address types and memo bounds. The reference decoder below validates the XDR boundary before returning the native shape. See Stellar's [custom type encoding](https://developers.stellar.org/docs/learn/encyclopedia/contract-development/types/custom-types).
+`scValToNative` decodes an ScVal; it does not establish that the result conforms to this ABI. A String and a Symbol can both become JavaScript strings, for example. Check simulation success and restoration first, then validate variant arity, field names, wire types, address types and memo bounds. The reference decoder below validates the XDR boundary before returning the native shape. See Stellar's [custom type encoding](https://developers.stellar.org/docs/learn/fundamentals/contract-development/types/custom-types).
 
 ## Status and batch shapes
 

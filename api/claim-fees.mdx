@@ -13,15 +13,15 @@ Read the quote before preparing an announcement. After settlement, use the recei
 GET /v1/claim-fee
 ```
 
-Reads the Allocator's current `claim_fee_policy` and verifies that its token is the network's native XLM asset contract.
+Reads the Allocator's current `claim_fee_policy` and checks its token against the API deployment's accepted configuration. The current testnet policy uses native XLM. Other deployments can explicitly configure a different accepted token; an unexpected token fails the read.
 
 | Field | Meaning |
 | --- | --- |
 | `allocatorId` | Allocator contract |
-| `token` | Native XLM asset contract |
+| `token` | Fee token contract from the verified policy |
 | `amount` | Integer token base units, as a decimal string |
 | `recipient` | Configured fee recipient |
-| `decimals`, `asset` | `7`, `"XLM"` |
+| `decimals`, `asset` | The current API returns `7`; the label is `"XLM"` for native XLM or the deployment's configured asset label (default `"TOKEN"`) |
 | `network` | Stellar network passphrase |
 | `rounding` | `"floor"` |
 
@@ -62,7 +62,7 @@ Replace every uppercase placeholder with the corresponding quote value. `basis` 
 
 The response contains `ok`, unsigned `xdr`, `claimant`, `fee` and `network`. The claimant is the authenticated wallet. Preparing the transaction does not submit the announcement or collect the fee.
 
-Before signing, independently verify the network, Allocator, claimant, label, evidence, exact native-token transfer and accepted network-fee ceiling. The API checks that `expectedFee` matches the current quote, but that check does not replace your wallet's transaction review.
+Before signing, independently verify the network, Allocator, claimant, label, evidence, exact quoted-token transfer and accepted network-fee ceiling. The API checks that `expectedFee` matches the current quote, but that check does not replace your wallet's transaction review.
 
 | Error | Meaning |
 | --- | --- |

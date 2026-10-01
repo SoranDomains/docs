@@ -109,6 +109,8 @@ Releasing a reservation does not revoke an issued name. Reservations do not bloc
 
 Users can receive at a G address with or without a supported memo, a complete M address, or a C contract. A required memo or embedded M ID stays part of the destination. The SDK claim signer still uses a G transaction-source account. See [destination examples](/concepts/payment-destinations).
 
+The examples below use a G claimant. Current contracts also accept C claimants when `contract_claim_version() == 1`; Holder's `contractWallet` adapter supplies their authorization while a separate G signer submits. This requires a compatible wallet integration and does not extend the browser preparation routes automatically. See [write-client configuration](/sdk/installation).
+
 Signing in again does not claim another name or charge again. An existing holder
 can link their name without making another paid claim. Keep a stable internal app
 account ID: transferring a username must never give its new holder access to the
@@ -259,7 +261,7 @@ To use different receiving instructions, change the destination passed to
 | C receiving contract | `{ address: recipientC, memo: { type: "none" } }` |
 
 Use the recipient's actual route. An M address contains a base G account and a
-64-bit ID; that ID is not a transaction memo. The name holder and fee payer remain
+64-bit ID; that ID is not a transaction memo. In this G-account example, the name holder and username-fee payer remain
 the user's G account even when the receiving destination differs.
 
 ## Recover before replacing a request
@@ -368,7 +370,7 @@ Configure all four limits explicitly; the SDK does not choose them for you:
 | `approvalWindowSecs` | Window length, at most one year |
 | `approvalTtlSecs` | Approval lifetime, at most one hour |
 
-The SDK also limits approval credentials to 60 future ledgers. A compromised approver can admit attacker-controlled wallets within those budgets. Its admission signature cannot debit another user's wallet, change an existing holder's payment route or undo a completed permanent claim.
+The SDK also limits approval credentials to 60 future ledgers. A compromised approver can admit attacker-controlled wallets within those budgets. Its admission signature cannot debit another user's wallet, change an existing holder's payment route or undo a completed claim.
 
 For a stable invitation cohort, use `buildClaimAllowlist` and publish its complete
 root through `configureClaims`. Keep the complete wallet list and distribute each
@@ -382,9 +384,9 @@ Payment updates and permitted transfers do not need the app approval service.
 `acceptNameTransferWithDestination` lets a recipient accept and initialize their
 chosen receiving details in one transaction, preserving the name's expiry.
 
-Finite-term holders can [renew their name](/holder/managing-your-name#renew-a-finite-name) without a separate username renewal fee. Renewal is independent of claim pause, reservations and app approval, but still follows the immutable term, generation and lease limits.
+Finite-term holders can [renew their name](/holder/managing-your-name#renew-a-finite-name) without a separate username renewal fee. Renewal is independent of claim pause and app approval, but still follows the immutable term, generation and lease limits. Reservation does not prevent renewal of a live name or one still protected by applicable grace.
 
-There is no guaranteed grace period after expiry: renewal remains possible only until reissuance. `renewalPreview` shows the stored destination that renewal will reactivate. Zero-term names cannot renew, and policy-based owner reclaim rights remain.
+The owner can configure up to 90 days of renewal grace; it defaults to zero and applies only to expiries covered by the current activation cutoff. Grace prevents ordinary reissue but does not keep an expired name resolving. After grace, renewal can still succeed before reissue, except for a now-reissuable label the owner has reserved. See the [exact renewal rules](/api/native-claiming#renew-a-name). `renewalPreview` shows the stored destination that renewal will reactivate. Zero-term names cannot renew, and policy-based owner reclaim rights remain.
 
 See the [native contract API](/api/native-claiming) and
 [native claim storage reference](/reference/successor-claim-storage) for exact types,

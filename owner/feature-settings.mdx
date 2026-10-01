@@ -54,6 +54,8 @@ Subnames remain controlled by the parent holder and follow the parent's lifetime
 
 The current on-chain namespace owner signs policy changes. Console admin and issuer roles do not grant that authority. Namespace ownership also does not grant permission to edit a holder's records.
 
+The console preparation flow and Owner SDK examples use a classic G-account owner. A C-contract owner requires its own contract-authorization integration; the HTTP preparation routes return `contract_owner_requires_adapter` for that case.
+
 After signing, refresh the live policy before inviting holders to use the feature. If submission is pending, check the original transaction before signing another change.
 
 Continue with [network address integration](/sdk/network-addresses) or [subname integration](/sdk/subnames).

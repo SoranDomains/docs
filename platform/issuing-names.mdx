@@ -21,7 +21,7 @@ The console searches for a `C?SORAN...` address when preparing a new Registrar o
 
 You can follow progress or cancel before signing. Search time varies, and you can restart a canceled or failed search. The contract exists only after its deployment transaction is confirmed.
 
-Address preparation computes candidate nonces locally without your signing key. Registry still verifies the owner and derives the [namespace-specific contract address](/concepts/names-and-namespaces#namespace-contract-addresses).
+The preparation service searches public nonces without your signing key. Registry still verifies the owner and derives the [namespace-specific contract address](/concepts/names-and-namespaces#namespace-contract-addresses).
 
 Individual names are records within these contracts. Existing contract addresses do not change. Direct callers may choose ordinary addresses, so verify Registry routing rather than a `SORAN` prefix.
 

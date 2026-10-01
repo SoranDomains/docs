@@ -3,7 +3,7 @@ title: "Webhooks"
 description: "Receive signed notifications when names and supported hosted services change."
 ---
 
-Webhooks send namespace events to your backend. In the console's **Developers** tab, enter a public HTTPS endpoint, choose your events and save the signing secret shown at creation. Private or internal endpoints are rejected.
+Webhooks send namespace events to your backend. Open **Developer tools** in the console, enter a public HTTPS endpoint, choose your events and save the signing secret shown at creation. Private or internal endpoints are rejected.
 
 ## Event types
 
@@ -64,7 +64,7 @@ Pass the **raw body bytes** from your HTTP framework. Parsing and re-serializing
 
 ### Rotating the secret
 
-Rotate a lost or exposed secret in **Developers**. Save the new secret when it is shown. In-flight requests may still carry the old signature, so account for that overlap and continue deduplicating by delivery ID. Authorized owners and admins can rotate secrets even when billing restricts new webhook creation.
+Rotate a lost or exposed secret in **Developer tools**. Save the new secret when it is shown. In-flight requests may still carry the old signature, so account for that overlap and continue deduplicating by delivery ID. Authorized owners and admins can rotate secrets even when billing restricts new webhook creation.
 
 ## Retries and timeouts
 

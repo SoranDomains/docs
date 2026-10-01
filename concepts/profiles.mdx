@@ -44,7 +44,7 @@ The receiving address authorizes its display-name election, and the name must re
 
 ## Your records follow your control of the name
 
-The holder publishes profile records through the Holder SDK or a configured MCP integration. The current Soran app provides display-name and primary-name controls; profile-field publishing uses those developer tools. For subname profiles, use the Holder SDK: published MCP 0.9.6 accepts ordinary `name.namespace` names only.
+The holder publishes profile records through the Holder SDK or a configured local MCP integration. The current Soran app provides display-name and primary-name controls; profile-field publishing uses those developer tools. Published MCP 0.10.0 also accepts subname profiles, with authorization from the parent holder. The hosted MCP service is read-only. See [agent access](/agents/access#child-names).
 
 If ownership changes, the former holder's records stop appearing as the new holder's profile. An expired name does not provide an active identity. For a [subname](/concepts/subnames), the parent holder controls its profile.
 

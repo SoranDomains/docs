@@ -47,7 +47,7 @@ Content-Type: application/json
 
 `generation` is `null` only when no child record has ever been stored. Recreation uses the previous child's generation. Removal uses `action: "remove"`, the current child generation and no `address` field.
 
-Preparation returns `ok`, unsigned `xdr`, `name`, `holder`, `signer`, `registrarId`, `namespace` and `network`. Review the name, generations, destination, contract, network and fees before the parent holder signs. Submit with `POST /records/submit` and `{ "signedXdr": "..." }`.
+Preparation returns `ok`, unsigned `xdr`, `name`, `holder`, `signer`, `registrarId`, `namespace` and `network`. This route requires a G parent holder; a C receiving destination is still permitted. Review the name, generations, destination, contract, network and fees before the parent holder signs. Submit with `POST /records/submit` and `{ "signedXdr": "..." }`.
 
 ## Change namespace policy
 
@@ -68,4 +68,4 @@ The response returns unsigned `xdr`, `signer`, `registrarId`, `namespace`, `netw
 
 `409 subname_generation_mismatch` requires fresh state and review. Creation can return `subname_creation_disabled`, `subnames_suspended` or `name_taken`; an inactive parent returns `404 parent_inactive`. Capability mismatch returns `409 subnames_unsupported`, while dependency failures remain errors such as `503 chain_unavailable`.
 
-Policy changes require the owner's wallet: `403 not_namespace_owner` rejects other accounts; `400 wallet_session_required` rejects sessions without a wallet. Contract-owned holders or namespaces need an appropriate authorization adapter. A pending submission requires [checking the original transaction](/api/overview#submission-responses), not creating a replacement immediately.
+Policy changes require the owner's wallet: `403 not_namespace_owner` rejects other accounts; `400 wallet_session_required` rejects sessions without a wallet. The hosted prepare routes require G holders and owners. They return `409 contract_holder_requires_adapter` or `contract_owner_requires_adapter` for C authority; use a separate compatible contract-wallet integration, since these routes do not accept an adapter. A pending submission requires [checking the original transaction](/api/overview#submission-responses), not creating a replacement immediately.

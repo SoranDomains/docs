@@ -14,6 +14,12 @@ A name's ownership rules come from its namespace. Before accepting a name, check
 
 These properties can overlap. A reclaimable name can have no expiry date, for example. **No expiry does not mean permanent:** the owner may still have reclaim or upgrade powers.
 
+## Expiry and renewal grace
+
+Namespace owners can configure up to 90 days of renewal grace; the default is zero. Applicable grace protects an expired name from ordinary reissue while its recorded holder renews. It does not extend active resolution, transfer rights or storage lifetime, and it does not remove an owner's reclaim power. An expired name and its children stop resolving until a permitted renewal reactivates them.
+
+Protection begins with names expiring at or after the policy's activation timestamp. Positive duration changes retain that cutoff; disabling and re-enabling creates a new one. Check the current duration and activation timestamp rather than assuming every expired name receives the same protection. See [renewal rules](/api/native-claiming#renew-a-name).
+
 ## Governed testnet policy
 
 The current testnet does not permit `make_permanent` or irreversible Resolver locks. The active naming contracts support authorized upgrades through the [governance process](/concepts/governance). A non-reclaimable, no-expiry policy does not remove those upgrade powers.

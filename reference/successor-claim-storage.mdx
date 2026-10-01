@@ -76,9 +76,11 @@ and ownership generation. Claim state uses a separate `ClaimKey` enum:
 | Key | Storage | Value | Fresh absence |
 | --- | --- | --- | --- |
 | `ClaimKey::ConfigV1` | Instance | `ClaimConfig` | Unconfigured/manual; public claiming unavailable |
-| `ClaimKey::PolicyVersionV1` | Instance | `u64` | `0`, before any configuration or reservation change |
+| `ClaimKey::PolicyVersionV1` | Instance | `u64` | `0`, before any configuration, reservation or grace change |
 | `ClaimKey::GrantEpochV1` | Instance | `u64` | `0`, before any configuration or enable/pause change |
 | `ClaimKey::ApprovalUsageV1` | Instance | `ApprovalUsage` | All fields `0`, before any approved claim |
+| `ClaimKey::RenewalGraceV1` | Instance | `u64` | `0` seconds of renewal protection |
+| `ClaimKey::RenewalGraceEffectiveFromV1` | Instance | `u64` | No activation cutoff; no expiry is protected |
 
 ### Persistent claim records
 
@@ -160,8 +162,10 @@ a G approver distinct from the namespace owner, fee recipient and claimant, plus
 zero. `wallet_limit = 0` means unlimited cumulative public claims.
 
 Configuration stamps the current owner epoch. Configure and enable/pause operations
-advance both policy and grant epochs. Reservations advance the policy version,
+advance both policy and grant epochs. Reservations and renewal-grace changes advance the policy version,
 including when changed before public claiming is first configured.
+
+Grace is an additive policy, not a field appended to `ClaimConfig` or `Name`. `RenewalGraceV1` accepts 0–7,776,000 seconds. Enabling stores the current ledger timestamp in `RenewalGraceEffectiveFromV1`; only expiries at or after that timestamp qualify. Positive duration changes retain the cutoff. Disabling removes it, and re-enabling starts a new activation. A legacy nonzero duration without the cutoff does not protect expired names. Grace prevents ordinary reissue while leaving the ownership expiry and resolution rules unchanged.
 
 An ownership transfer does **not** rewrite this stored configuration. Its enabled
 flag may remain `true`, but it is ineffective when `ClaimConfig.owner_epoch` differs
@@ -227,6 +231,8 @@ struct RequestContext {
 ### Public claim
 
 A public claim binds the label, claimant, destination, current policy and exact fee.
+
+Registrar `contract_claim_version() == 1` adds G and C claimant support without changing this intent's shape or the original `claim_version() == 1`. A C claimant authorizes through its contract wallet; the approver and fee recipient remain G identities under the current configuration rules.
 
 ```rust
 struct ClaimIntent {
@@ -389,7 +395,7 @@ enum ClaimResult {
 The SDK converts either absence representation to `null` at its respective API.
 
 Quote availability, reservation and enablement are separate facts. An expired
-record still supplies its prior generation/expiry. A quote's `available` flag
+record still supplies its prior generation/expiry, and applicable grace can keep it unavailable for reissue. A quote's `available` flag
 is not proof that the requesting wallet satisfies admission or quota rules.
 
 Receipts are stored under the receiving holder's identity for reserved assignment,
@@ -470,6 +476,7 @@ or use indexed events to select entries; verify values against the contracts.
 | Event topics | Data |
 | --- | --- |
 | `(Symbol("claimcfg"))` | `ClaimConfig` |
+| `(Symbol("grace"))` | `(secs: u64, policy_version: u64)` |
 | `(Symbol("reserved"), name_node)` | `(label, reserved, policy_version)` |
 | `(Symbol("claim_v1"), namespace_node, holder)` | `(request_id, ClaimReceipt)` |
 

@@ -15,8 +15,8 @@ Match the contract's current Wasm hash to the [deployment manifest](https://raw.
 | --- | --- | --- |
 | [Registry](#registry) | Namespace ownership, routing and attestations | Required ownership epoch; salt version `1` |
 | [Allocator](#allocator) | Namespace applications, objections and fee escrow | Stored schema `4` |
-| [Registrar](#registrar) | Issued names, policy, transfers and claim receipts | Native claim version `1` |
-| [Resolver](#resolver) | Payment destinations, profiles and G/C reverse names | Payment/destination version `2`; initializer `1` |
+| [Registrar](#registrar) | Issued names, subnames, policy, transfers and claim receipts | Native claim `1`; contract claim `1`; subname `1` |
+| [Resolver](#resolver) | Payment destinations, network addresses, profiles and G/C reverse names | Payment/destination `2`; initializer `1`; multichain `1` |
 | [Primary](#primary) | G/C cross-namespace display names | No stored version key |
 | [Lookup](#lookup) | Configuration and exact-M display names | ABI/destination `2`; muxed identity `1` |
 
@@ -92,7 +92,7 @@ struct Pending { to: Address, expires: u64 }
 
 ### Provenance and ownership epochs
 
-`Clean` and `Tainted` are single-symbol vectors. There are no current `RegistrarTainted` or `ResolverTainted` storage keys: both statuses are fields of `Record`. Ordinary owner/pointer updates preserve them. `Tainted` marks provenance ineligible for permanence, including an upgrade or post-hoc Registrar attestation; restoring an earlier Wasm hash does not clear it. A fresh `Clean` field does not prove a contract has been attested. Resolver attestation and the current resolver pointer must be distinguished.
+`Clean` and `Tainted` are single-symbol vectors. There are no current `RegistrarTainted` or `ResolverTainted` storage keys: both statuses are fields of `Record`. Ordinary owner/pointer updates preserve them. `Tainted` marks provenance ineligible for historical permanence, including historical upgrade paths or post-hoc Registrar attestation; restoring an earlier Wasm hash does not clear it. Approved governed upgrades instead update `NativeV1(node)` hashes and counters without setting the taint flag. `Clean` therefore proves neither attestation nor absence of upgrades. Resolver attestation and the current resolver pointer must be distinguished.
 
 `Record.owner_epoch` receives the next global ownership sequence on allocation, reserved award and accepted namespace transfer. An absent sequence is an error, not zero; overflow fails. Epochs can skip numbers for one namespace. Returning to a former owner does not reactivate their previous claim configuration. `owner_epoch`, `template_hashes` and `native_contracts` are read methods, not storage keys.
 
@@ -303,16 +303,53 @@ Policy terms are either `0` or `86400`–`3153600000` seconds. `trade_fee_bps` i
 | Key | Storage | Value | Fresh absence |
 | --- | --- | --- | --- |
 | `ClaimKey::ConfigV1` | Instance | `ClaimConfig` | Unconfigured/manual; public claiming unavailable |
-| `ClaimKey::PolicyVersionV1` | Instance | `u64` | `0`, before any configuration or reservation change |
+| `ClaimKey::PolicyVersionV1` | Instance | `u64` | `0`, before any configuration, reservation or grace change |
 | `ClaimKey::GrantEpochV1` | Instance | `u64` | `0`, before any configuration or enable/pause change |
 | `ClaimKey::ApprovalUsageV1` | Instance | `ApprovalUsage` | All fields `0`, before any approved claim |
+| `ClaimKey::RenewalGraceV1` | Instance | `u64` | `0` seconds |
+| `ClaimKey::RenewalGraceEffectiveFromV1` | Instance | `u64` | No expiry receives protection |
 | `ClaimKey::ReservedV1(name_node)` | Persistent | `bool` | Never reserved; an explicit release stores `false` |
 | `ClaimKey::UsageV1(holder)` | Persistent | `ClaimUsage` | Both fields `0`, before that holder's first public/reserved issue |
 | `ClaimKey::ReceiptV1(holder, request_id)` | Persistent | `ClaimReceipt` | No committed operation under this ID |
 
-These seven versioned keys coexist with the original name/configuration keys. Public claim and reserved-assignment usage is cumulative; configuration changes do not erase history. Request receipts preserve the exact historical operation and are not proof of current ownership. See [stored types, defaults, TTL and receipt encoding](/reference/successor-claim-storage) for the complete definitions.
+These versioned keys coexist with the original name/configuration keys. Public claim and reserved-assignment usage is cumulative; configuration changes do not erase history. Request receipts preserve the exact historical operation and are not proof of current ownership. Grace stores a separate duration and activation cutoff, without changing `Name` or `ClaimConfig`. See [stored types, defaults, TTL and receipt encoding](/reference/successor-claim-storage) for the complete definitions.
 
-Name writes extend the name entry and instance/code. Transfer proposal writes extend the proposal entry. `touch(label)` extends the Name entry only; `keep_alive()` maintains instance/code. Neither is a blanket renewal of every PendingTransfer. Renewal changes the ownership clock; a TTL extension does not.
+Name writes extend the name entry and instance without buying shared-code rent. Transfer proposal writes extend the proposal entry. `touch(label)` extends the Name entry only; `keep_alive()` maintains the instance and buys bounded code retention. Neither is a blanket renewal of every PendingTransfer. Renewal changes the ownership clock; a TTL extension does not.
+
+### Subname storage
+
+`subname_version() == 1` adds separate keys; it does not append fields to the original `Name` record.
+
+| Key | Storage | Value |
+| --- | --- | --- |
+| `SubnameKey::PolicyV1` | Instance | `SubnamePolicy`; absent means `CreationDisabled` |
+| `SubnameKey::CountV1` | Instance | `u32` count of stored child keys, including tombstones; absent means `0` |
+| `SubnameKey::SubnameV1(child_node)` | Persistent | `SubnameRecord` |
+| `SubnameKey::ParentCountV1(parent_node)` | Persistent | `u32` number of indexed child labels |
+| `SubnameKey::ParentLabelsV1(parent_node, page)` | Persistent | `Vec<Bytes>` of up to 16 child labels; `page` is `u32` |
+
+```rust
+enum SubnamePolicy { Enabled, CreationDisabled, Suspended }
+struct SubnameRecord {
+    parent_node: BytesN<32>,
+    parent_generation: u64,
+    generation: u64,
+    address: Address,
+    active: bool,
+}
+struct SubnameChange {
+    parent: Bytes,
+    label: Bytes,
+    action: Symbol,
+    record: SubnameRecord,
+}
+```
+
+The child node is `SHA256(parent_node || SHA256(child_label))`. First creation uses child generation `0`; recreation increments it. Removal retains the record with `active = false`, preserving generation history and the enumeration label. The stored `active` bit is insufficient for live resolution: the parent must remain active in the recorded parent generation, and policy must allow use. Resolver records use the child's own generation. Children have no independent holder or expiry field.
+
+`touch_subname(parent, label)` maintains the existing child, parent name, parent count and instance. `touch_subname_page(parent, page)` maintains one existing label page, parent count, parent name and instance. Neither changes policy, authority or ownership clocks, and the page call does not maintain every child record.
+
+Policy changes emit `(Symbol("subpol_v1"))` with `SubnamePolicy`. Creation and removal emit `(Symbol("sub_v1"), child_node, child_generation)` with `SubnameChange`; `action` is `create` or `remove`. Events are historical observations, not proof of current child activity.
 
 ## Resolver
 
@@ -328,6 +365,9 @@ Stores holder-controlled destinations and profile records. Records are bound to 
 | `DataKey::Reverse(address)` | Persistent | `RevRec` | Address-authorized display-name declaration |
 | `DataKey::Provenance` | Instance | `Provenance` | One-time Registry/namespace deployment binding, when bound |
 | `DataKey::PaymentConfigured(name_node, generation)` | Persistent | `bool` (`true`) | Marker that this ownership generation requires complete payment metadata |
+| `DataKey::ChainPolicy` | Instance | `Vec<u32>` | Enabled coin types; absent means empty |
+| `DataKey::ChainAddress(name_node, coin_type)` | Persistent | `ChainAddressRecord` | Binary network destination bound to a generation |
+| `DataKey::ChainAddressCount` | Instance | `u32` | Stored network-address key count, including disabled/stale records; absent means `0` |
 
 ```rust
 struct Config { authority: Address, admin: Address, registry: Address }
@@ -335,9 +375,18 @@ struct AddrRec { addr: Address, generation: u64 }
 struct TextRec { value: String, generation: u64 }
 struct RevRec { node: BytesN<32>, name: String, generation: u64 }
 struct Provenance { registry: Address, node: BytesN<32> }
+struct ChainAddressRecord { address: Bytes, generation: u64 }
 ```
 
 `Config.authority` is the Registrar. `admin` remains in the layout but is not the current upgrade-authority source; current authority follows the Registrar's live owner lookup. `Provenance` is instance data and cannot expire independently of Config.
+
+### Network address storage
+
+`multichain_version() == 1` identifies the typed network interface. Policies contain up to 14 distinct supported coin types. Payloads are binary, not text strings: EVM addresses use 20 bytes, Bitcoin uses a supported scriptPubKey, Solana uses 32 bytes, and XRP/Tron retain their required network prefixes. Use the [matching SDK codecs](/sdk/network-addresses) for exact encodings.
+
+Reads require an active name, matching generation and enabled coin type. Disabling a network hides its records without deleting them. Clearing removes the selected key and decreases the stored-key count; archival and ownership changes do not decrease it. A stale record is not a current destination.
+
+Policy changes emit `(Symbol("chain_pol"))` with `Vec<u32>`. Both setting and clearing emit `(Symbol("chain_v1"), name_node, generation)` with the `u32` coin type. Read the current record and policy to distinguish them; the event is not a payment instruction. `touch_chain_address(name, coin_type)` maintains an existing record and invokes the Resolver's bounded code/instance upkeep.
 
 ### Payment storage
 
@@ -383,9 +432,9 @@ An untouched generation can resolve its current effective address with no memo. 
 
 Profile keys are symbols of 1–32 letters, digits or underscores. Values are public strings. Retraction writes an empty string; it does not delete the ledger entry or erase history. Standard profile readers treat empty values as unset. `AddrRec` and `TextRec` are current only when their generation matches the Registrar's current active name.
 
-Reverse records contain plaintext `label.namespace`, its node and generation. A raw reverse entry is only a declaration: verified reads also check the current generation and forward match. Legacy reverse records without the `name` string, or with a differently typed `name`, are not current `RevRec` values; the destination address must authorize a new valid declaration. The older two-field Resolver Config is likewise not the current three-field layout. This deployment was created fresh; do not assume an older Resolver can adopt it through a Wasm swap alone.
+Reverse records contain a plaintext two- or three-label name, its node and generation. A raw reverse entry is only a declaration: verified reads also check the current generation and forward match. Legacy reverse records without the `name` string, or with a differently typed `name`, are not current `RevRec` values; the destination address must authorize a new valid declaration. The older two-field Resolver Config is likewise not the current three-field layout. This deployment was created fresh; do not assume an older Resolver can adopt it through a Wasm swap alone.
 
-`put` extends the modified persistent record and instance/code. `keep_alive()` maintains instance/code. `touch_node(node)`, `touch_text(node, key)` and `touch_reverse(address)` extend their existing entry plus instance/code. `touch_payment(name)` covers the current-generation marker, address, payment text and instance/code together; maintaining the address alone does not maintain its payment metadata. None of these changes ownership or payment content.
+`put` extends the modified persistent record and instance without buying shared-code rent. `keep_alive()` maintains the instance and buys bounded code retention. `touch_node(node)`, `touch_text(node, key)` and `touch_reverse(address)` extend their existing entry plus instance/code. `touch_payment(name)` covers the current-generation marker, address, payment text and instance/code together; maintaining the address alone does not maintain its payment metadata. None of these changes ownership or payment content.
 
 ## Primary
 
@@ -409,7 +458,7 @@ All PrimaryRec fields are an election-time snapshot. `primary_of` checks the Reg
 
 Universal Lookup's `primary_name` independently rechecks the returned name against current forward resolution. Its `reverse` path also verifies the complete native destination and refuses a muxed destination as an account-identity proof. Do not replace these checks with a raw PrimaryRec or an isolated Resolver address record that exposes only a muxed destination's base G account.
 
-`set_primary` extends the record and instance/code. `clear_primary` removes the current entry, not its historical transactions. `touch_primary(address)` extends the entry if present and maintains instance/code. The governed Primary supports `upgrade(expected_hash, new_hash)` under Registry governance. The one-time migration interface verifies source elections before sealing.
+`set_primary` extends the record and instance without buying shared-code rent. `clear_primary` removes the current entry, not its historical transactions. `touch_primary(address)` extends the entry if present and maintains the instance with bounded code retention. The governed Primary supports `upgrade(expected_hash, new_hash)` under Registry governance. The one-time migration interface verifies source elections before sealing.
 
 ## Lookup
 
@@ -498,9 +547,9 @@ Lookup uses `threshold = min(2_500_000, max_ttl)` and `extend_to = min(3_000_000
 
 Code and instance TTLs are independent. The combined instance-extension operation checks both separately. [Instance TTL semantics](https://docs.rs/soroban-sdk/26.1.0/soroban_sdk/storage/struct.Instance.html#method.extend_ttl)
 
-Lookup and Primary ordinary display-name writes use **instance-only extension**. They retain the existing record and instance targets without extending shared Wasm code. A newly uploaded replacement can therefore have a shorter code lifetime than the instance, without making the next display-name writer fund a long code renewal.
+Registrar name writes, Resolver payment/profile writes and Lookup/Primary ordinary display-name writes use **instance-only extension**. They retain the existing record and instance targets without extending shared Wasm code. A newly uploaded replacement can therefore have a shorter code lifetime than the instance, without making the next display-name writer fund a long code renewal.
 
-Explicit maintenance handles code separately: Lookup's `keep_alive`, `touch_reverse_muxed` and `touch_primary_muxed`, and Primary's `touch_primary`, extend code by **at most 17,280 additional ledgers per call**, capped at the configured target and network maximum. Repeated calls can accumulate extensions. The caller pays transaction costs and any storage rent; the ledger bound is not a fixed XLM price. Record and instance extension remains threshold-based and can cost more when those entries need renewal. This update does not change the other contracts' extension behavior or introduce sponsorship.
+Explicit maintenance handles code separately: Registrar `keep_alive`; Resolver `keep_alive` and its address/text/reverse/network-address touch paths; Lookup `keep_alive`, `touch_reverse_muxed` and `touch_primary_muxed`; and Primary `touch_primary` extend code by **at most 17,280 additional ledgers per call**, capped at the configured target and network maximum. Resolver `touch_payment` invokes the bounded code helper twice, through its address and payment-text touch calls, so it can add up to 34,560 code ledgers before the target cap. Repeated calls can accumulate extensions. The caller pays transaction costs and any storage rent; the ledger bound is not a fixed XLM price. Record and instance extension remains threshold-based and can cost more when those entries need renewal. Registry and Allocator retain their own contract extension behavior; these methods do not introduce sponsorship.
 
 Persistent entries and contract instances can archive and later be restored. Archival does not establish that a namespace is unowned, a name has expired, a rejection/credit never existed, or a payment needs no memo. A raw `getLedgerEntries` result that omits a key is not a sufficient payment or ownership decision. A transaction accessing archived persistent data must include the required restoration work or fail; RPC simulation can identify what is needed. Restoration costs and subsequent TTL extension are distinct from name-renewal or claim fees. [Stellar state archival](https://developers.stellar.org/docs/learn/fundamentals/contract-development/storage/state-archival)
 
