@@ -1,0 +1,44 @@
+---
+title: "Frequently asked questions"
+description: "Answers about names, identity, payments, and feature availability."
+---
+
+## Is Soran available on mainnet?
+
+The current Soran deployment is on **Stellar testnet**. Check [release status](/reference/release-status) for installed contracts, published packages, and hosted services. Additional blockchain address records use the supported networks' mainnet address formats; that does not make Soran's registry a mainnet deployment.
+
+## Is a namespace an Internet domain?
+
+A Soran namespace is part of Soran's on-chain naming system. It is not automatically a DNS top-level domain or a website address. The ICANN comparison describes the coordination of distinct namespaces within a shared system.
+
+## What is the difference between a namespace and a name?
+
+In `alice.nova`, `nova` is the namespace and `alice` is the name within it. A namespace owner sets issuance rules. A holder controls a name under those rules. [Learn the naming hierarchy](/concepts/names-and-namespaces).
+
+## Can one name receive on several blockchains?
+
+A holder can publish a separate address for each network their namespace enables. An app requests the selected network's address. The sending wallet handles the payment on that network. Soran does not bridge or exchange funds. [See supported networks](/concepts/multichain-addresses#supported-networks).
+
+## Why can't I add a network address or create a subname?
+
+Your namespace may need compatible contract updates or owner enablement. Subname policy can allow creation, stop new creation, or suspend subnames. Network records require that particular network to be enabled. [Read the feature settings guide](/owner/feature-settings).
+
+## Who controls a subname?
+
+The holder of `alice.nova` controls `shop.alice.nova`. Sending payments to another wallet does not give that wallet control. One extra child level is supported. Children cannot be sold, transferred, or renewed independently. [Read the lifecycle rules](/concepts/subnames).
+
+## Does a social link prove who someone is?
+
+Profile records show what the current holder published. A Twitter or GitHub handle is not independent verification of that account. Primary and display names verify a name-to-address relationship, rather than a person's real-world identity. [Learn about profiles](/concepts/profiles).
+
+## Can I lose a name that has no expiry?
+
+No expiry alone does not establish permanent ownership. Namespace policies and the current contracts determine which changes remain possible. Always review [ownership guarantees](/concepts/ownership-guarantees) and [governance](/concepts/governance).
+
+## Is there an annual fee?
+
+Soran has no mandatory annual ownership fee. Namespace applications, owner-set username prices, and network or storage costs are separate. Optional managed billing applies only when enabled on a deployment. [Understand namespace applications](/concepts/claiming-a-namespace).
+
+## Do I need a wallet just to look up a name?
+
+Reading names requires no wallet or signing key. Writes require the appropriate account's authorization. Start with the [Lookup quickstart](/quickstart).

@@ -5,7 +5,9 @@ description: "Resolve complete payment instructions, read display names and disc
 
 Use `/v1/payment` when sending a payment. Use records and identity routes for profiles, and holdings routes to discover names that you can then verify on chain.
 
-All routes below use the [public API base URL](/api/overview).
+All routes below use the [public API base URL](/api/overview). For addresses on other blockchains, use the separate [network address routes](/api/network-addresses).
+
+Name routes accept a relative child label such as `pay.alice`: `/v1/payment/nova/pay.alice` resolves `pay.alice.nova`. The namespace needs compatible subname contracts and a policy that permits resolution. Use the [subname API](/api/subnames) for creation, policy and child listings.
 
 ## Complete payment
 
@@ -60,6 +62,8 @@ Returns current payment instructions with selected name and profile records:
 | `generation` | Ownership generation as a decimal string, or `null` when unavailable |
 | `text` | `avatar` and `url` values; either can be `null` |
 
+This response includes those two profile fields. Use [Lookup `profile(name)`](/sdk/identity) for the standard profile schema, including description, organization, location and social handles.
+
 The identity fields are comparisons against this name:
 
 | Field | Meaning |
@@ -85,15 +89,21 @@ Payment, metadata, profile text and scoped reverse reads must succeed. These sep
 
 These current-read routes use `Cache-Control: no-store`. Never convert a failed read into a memo-free destination.
 
-## Indexed name record
+<span id="indexed-name-record" />
+
+## Exact name record
 
 ```http
 GET /v1/names/{namespace}/{label}
 ```
 
-Returns a profile-oriented view of indexed name lifecycle and namespace operator fields. Issuance timestamps and ledgers can be `null` when older history is incomplete.
+Returns current ownership metadata read through Lookup, enriched with indexed issuance history. Current fields include `name`, `namespace`, `holder`, `builtinAddress`, decimal-string `generation`, `expiresAt`, `active`, ownership policy and operator. The response marks these chain reads with `source: "chain"` and `verified: true`.
 
-Use this route for discovery and display. Verify holder, activity, ownership policy and expiry through current contract reads before making an authoritative decision. Use `/v1/payment` for receiving instructions.
+For a child, the response also includes `child: true`, `parent`, `subnamePolicy` and `ownership: "parent"`. The holder is the parent holder. A child's policy-dependent activity does not create independent transfer or renewal rights.
+
+`issuedAt`, `issuedLedger` and `txHash` are historical enrichments. They become `null` when the indexed holder or generation does not match current state. `historyPending` indicates incomplete current-generation issuance history. Index failure does not replace current ownership with a cached value; failed chain reads remain errors.
+
+Use this route for ownership displays. `builtinAddress` may differ from the effective Resolver destination; use `/v1/payment` for receiving instructions.
 
 ## Verified reverse and Primary names
 
@@ -158,6 +168,8 @@ GET /v1/names/by-holder/{address}?cursor={opaque-cursor}&limit=100
 Accepts G or C holder addresses. Results contain `holder`, `names`, `nextCursor`, `hasMore`, `truncated` and `coverage`, ordered by name ID ascending. `limit` is 1–100 and defaults to 100.
 
 Follow `nextCursor` until pagination is complete, then inspect coverage. These are indexed candidates: verify each current holder and active state through Lookup metadata, or use SDK `namesOfPage`.
+
+To enumerate a parent's child labels, use the [on-chain subname listing](/api/subnames#read-policy-and-child-state). Its offset pagination and historical child records differ from this indexed holdings route.
 
 Invalid addresses return `400 bad_address`. Invalid pagination returns `400 bad_cursor` or `400 bad_pagination`.
 

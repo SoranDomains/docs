@@ -7,7 +7,7 @@ A reverse lookup turns an address into a verified display name. Use `reverse` fo
 
 Use the five [live wallet examples](/live-examples#check-address-to-name-lookup) to test both directions. Each has an elected Nova reverse name and Primary name; the hello-world contract example is forward-only.
 
-Lookup 0.10.2 supports G/C account identities and complete M-address identities. M single reads require universal mode and a Lookup with `muxed_identity_version() == 1`; the current [testnet deployment](/reference/release-status) provides it.
+Lookup 0.11.0 supports G/C account identities and complete M-address identities. M single reads require universal mode and a Lookup with `muxed_identity_version() == 1`; the current [testnet deployment](/reference/release-status) provides it.
 
 ```ts
 const scoped = await soran.reverse("nova", address);
@@ -19,6 +19,10 @@ const candidates = await soran.reverseNames(address, ["nova", "acme"]);
 ## How verification works
 
 A returned name must be canonical and active. Its current generation and routing must forward-resolve to the requested address in the expected namespace. A required memo is allowed in a G account identity proof and remains part of the separate payment instruction.
+
+A supported [subname](/sdk/subnames), such as `pay.alice.nova`, can also be elected. Its proof depends on the live parent binding and subname policy. Parent ownership changes or child suspension invalidate the previous live answer. The receiving identity authorizes its election; control of the parent name alone does not authorize an election for another address.
+
+Combine an elected name with its [profile](/sdk/identity) to show an avatar, description or social links. Additional [network addresses](/sdk/network-addresses) are forward records; these reverse and Primary methods identify Stellar G/C/M destinations.
 
 **G/C Primary and reverse identify an account.** They do not identify an individual customer or subaccount behind a pooled exchange address. A customer's name and memo should not be presented as the identity of everyone using that address.
 
@@ -48,7 +52,7 @@ Use the [Holder SDK](/holder/managing-your-name#muxed-display-names) to create e
 
 ## History screens
 
-For several addresses in a history screen, use Lookup 0.10.2's history helpers:
+For several addresses in a history screen, use Lookup 0.11.0's history helpers:
 
 ```ts
 const addresses = [account, m420]; // preserves full G/C/M identities
@@ -65,7 +69,7 @@ for (const row of preferred) {
 
 Each accepts up to **256 identities**, preserves order and duplicates, and attaches the ledger/time of each successful call to its rows. The helper checks the Lookup anchor and batch capability once, then requests up to **16 Primary identities** or **32 identities in one namespace** per call. A leading host budget failure halves the current batch until it fits. The smaller size is used for the remaining rows. Ordinary contract errors appear as `kind: "error"`; restoration, transport, ABI and single-item budget failures reject the helper. Catch those failures and show an unavailable state.
 
-Use `primaryBatch(addresses)` or `reverseBatch(namespace, addresses)` for one explicit contract invocation. They return `{ledger, timestamp, results}` and do not split a failed call. `primaryBatchReadLimit()` returns `16`; `batchReadLimit()` returns `32`. Older or custom namespace contracts can still need smaller batches. These helpers return elected display names, not an inventory of names owned by an address. The [contract reference](/api/onchain-resolution#history-screens-and-multiple-addresses) describes the raw ABI.
+Use `primaryBatch(addresses)` or `reverseBatch(namespace, addresses)` for one explicit contract invocation. They return `{ledger, timestamp, results}` and do not split a failed call. Query `primaryBatchReadLimit()` and `batchReadLimit()` before forming batches. The current deployment advertises `16` and `32`, respectively; compatible older deployments can report lower limits. Older or custom namespace contracts can also need smaller batches. These helpers return elected display names, not an inventory of names owned by an address. The [contract reference](/api/onchain-resolution#history-screens-and-multiple-addresses) describes the raw ABI.
 
 G/C entries still have the underlying proof limitations below. A `none` result does not establish that no stored declaration exists. Re-resolve payment instructions before paying; a display-name result is not a destination.
 

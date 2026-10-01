@@ -1,6 +1,6 @@
 ---
 title: "Universal Lookup contract"
-description: "Resolve names, payment instructions and elected display names directly through Soroban RPC."
+description: "Resolve payments, network addresses, profiles and subnames directly through Soroban RPC."
 ---
 
 ## On-chain resolution
@@ -8,6 +8,8 @@ description: "Resolve names, payment instructions and elected display names dire
 Call **Universal Lookup** to resolve any Soran name. It follows the Registry to the namespace's current contracts and checks the result. You can use this ABI directly, without a Soran SDK or HTTP API.
 
 For payments, call `resolve_destination(name)`. It returns the complete destination, including a memo or muxed routing ID when needed. The example below uses **Stellar SDK 17** and the current **testnet** deployment.
+
+For addresses on other blockchains, use the separate `chain_address` interface. Supported subnames such as `pay.alice.nova` use the same name-based payment, text and identity reads after capability checks. The [network address](/sdk/network-addresses) and [subname](/sdk/subnames) guides provide application examples.
 
 ## Shared testnet contracts
 
@@ -107,7 +109,7 @@ MuxedPayment { account: Address, id: u64 }
 
 The original `resolve(name) -> Resolution` and `resolve_payment(name) -> Payment` retain their V1 shapes for direct G/C instructions but reject muxed records with `MuxedDestination`. `resolve_address(name) -> Address` also rejects required memos. Never use a rejected old read as permission to substitute the base G address.
 
-Canonical names contain exactly two 1–63-byte labels of lowercase ASCII letters/digits/interior hyphens. Classic G destinations permit None, unsigned 64-bit ID, 1–28 UTF-8 byte text or 32-byte hash. Contract C destinations support None only. Muxed destinations require a G base and a u64 ID, with no separate memo in this ABI. See [address types and complete examples](/concepts/payment-destinations).
+Canonical resolution names contain two labels (`alice.nova`) or three (`pay.alice.nova`). Each label uses 1–63 bytes of lowercase ASCII letters, digits or interior hyphens. Three-label names need subname-capable contracts; deeper nesting is rejected. Classic G destinations permit None, unsigned 64-bit ID, 1–28 UTF-8 byte text or 32-byte hash. Contract C destinations support None only. Muxed destinations require a G base and a u64 ID, with no separate memo in this ABI. See [address types and complete examples](/concepts/payment-destinations).
 
 ### Writing payment instructions
 
@@ -135,9 +137,9 @@ The [JavaScript decoding guide](/reference/lookup-decoding) lists every destinat
 
 ## Normalize name input
 
-Normalize user-entered names **before** calling the contract. Trim surrounding whitespace, reject non-ASCII name characters, lowercase, then validate exactly two labels. For example, `" Alice.Nova "` becomes `"alice.nova"`. Calling the contract with `"Alice.Nova"` directly returns `MalformedName` (`4`).
+Normalize user-entered names **before** calling the contract. Trim surrounding whitespace, reject non-ASCII name characters, lowercase, then validate two or three labels. For example, `" Pay.Alice.Nova "` becomes `"pay.alice.nova"`. Calling the contract with uppercase letters directly returns `MalformedName` (`4`).
 
-Each label must contain 1–63 ASCII letters, digits or interior hyphens. Reject extra dots, underscores, internal spaces and leading/trailing hyphens. Do not perform Unicode lookalike folding, IDNA conversion or URL parsing. Show the resulting canonical name in payment confirmation. Never lowercase or trim wallet addresses, memo text or profile values. A tested [normalization function](/reference/lookup-decoding#normalize-ui-input) is included with the decoder example.
+Each label must contain 1–63 ASCII letters, digits or interior hyphens; the full name is at most 191 bytes. Reject empty labels, deeper nesting, underscores, internal spaces and leading/trailing hyphens. Do not perform Unicode lookalike folding, IDNA conversion or URL parsing. Namespace arguments remain single labels. Show the resulting canonical name in payment confirmation. Never lowercase or trim wallet addresses, memo text or profile values. A [normalization function](/reference/lookup-decoding#normalize-ui-input) is included with the decoder example.
 
 ## Other read methods
 
@@ -146,6 +148,10 @@ Each label must contain 1–63 ASCII letters, digits or interior hyphens. Reject
 | `registry()` | Configured Registry Address |
 | `version()` | Numeric ABI version `2` |
 | `destination_version()` | Native destination ABI version `2` |
+| `multichain_version()` | Network address capability `1` |
+| `chain_policy(namespace:String)` | `Vec<u32>` of enabled destination coin types |
+| `chain_address(name:String,coin_type:u32)` | `Option<Bytes>` for that explicitly selected network |
+| `subname_version()` | Subname resolution capability `1` |
 | `primary()` | Optional configured Primary Address |
 | `namespace_metadata(namespace:String)` | Optional NamespaceMetadata |
 | `name_metadata(name:String)` | Optional NameMetadata |
@@ -159,6 +165,10 @@ Each label must contain 1–63 ASCII letters, digits or interior hyphens. Reject
 | `text(name:String,key:Symbol)` | Optional String |
 | `reverse(namespace:String,address:Address)` | Optional canonical account display name |
 | `primary_name(address:Address)` | Optional canonical Primary name |
+
+Network address payloads use typed binary encodings: EVM addresses are 20 bytes, Bitcoin uses scriptPubKey, and Solana uses a 32-byte public key. The [network SDK codecs](/sdk/network-addresses) encode and decode the supported catalogue. A disabled network returns `ChainDisabled`; a successful `None` means no current address for the enabled network. Namespace policy lives in its Resolver and is controlled by the namespace owner.
+
+Subname lifecycle reads and writes live in the namespace Registrar. Its `subname_policy`, `subname_record` and `subname_labels` methods support the [SDK](/sdk/subnames) and [HTTP](/api/subnames) interfaces. The parent holder controls child records. Receiving, profile, network address and identity reads validate the child's current parent binding and namespace policy.
 
 ```text
 NamespaceMetadata {
@@ -182,7 +192,7 @@ NameMetadata {
 
 ### Interpreting metadata
 
-Use metadata for ownership and profile views, not as a payment fallback. `builtin_address` can differ from effective Resolver instructions. Finite expiry occurs when ledger time is strictly greater than `expires_at`; zero means no ownership deadline. A name's metadata can remain available with `active=false` after expiry.
+Use metadata for ownership and profile views, not as a payment fallback. `builtin_address` can differ from effective Resolver instructions. Finite expiry occurs when ledger time is strictly greater than `expires_at`; zero means no ownership deadline. Metadata can remain available with `active=false` after expiry or while a child is suspended. Child metadata reports the parent holder and lifetime; it does not establish independent child ownership.
 
 `text` accepts a nonempty Symbol of at most 32 bytes and returns at most 4,096 UTF-8 bytes; larger historical values return `ReadTooLarge`. The raw `payment` text key is not a replacement for typed payment reads.
 
@@ -208,7 +218,7 @@ Compiled-contract tests cover 32 populated records in one namespace and 16 popul
 
 After a top-level host `Budget/ExceededLimit` error, halve the batch and retry. A one-item failure, restoration requirement, transport failure or ABI error remains a failure; never convert it to `None`. A successful batch gives all its results one ledger and timestamp. Separate calls can observe different ledgers.
 
-Lookup SDK 0.10.2 provides `primaryNames(addresses)` and `reverseMany(namespace, addresses)` for up to 256 inputs. They start at the deployed method limit, halve only after a leading host budget error, and retain each row's observation ledger/time. See [history examples](/sdk/reverse-and-primary#history-screens).
+Lookup SDK 0.11.0 provides `primaryNames(addresses)` and `reverseMany(namespace, addresses)` for up to 256 inputs. They start at the deployed method limit, halve only after a leading host budget error, and retain each row's observation ledger/time. See [history examples](/sdk/reverse-and-primary#history-screens).
 
 Deduplicate repeated addresses when your screen permits it. Key a short-lived display cache by network, Lookup contract and complete identity. Do not retain failed reads as permanent absence. Re-resolve payment instructions before payment; these methods return display names, not payment destinations.
 
@@ -293,12 +303,17 @@ Errors preserve their numeric ABI. Codes `23`–`26` belong to the muxed identit
 | 25 | `NotMuxedDisplayName` |
 | 26 | `InvalidMuxedRecord` |
 | 27 | `BatchTooLarge` |
+| 28 | `MigrationMismatch` |
+| 29 | `UnsupportedCoinType` |
+| 30 | `ChainDisabled` |
+| 31 | `InvalidChainAddress` |
+| 32 | `InvalidChainPolicy` |
 
 A dependency failure never means a memo-free result. Unsupported methods must not trigger a silent direct-read fallback.
 
 ### Error 7: missing or expired name
 
-Payment methods currently return `NameInactive` (`7`) when the Registrar has no live holder record. The error alone does not say whether a name was never issued or has expired.
+Payment methods return `NameInactive` (`7`) when the Registrar has no live holder record. The error alone does not distinguish an unissued or expired name from a suspended child or an invalidated parent binding.
 
 For a precise UI explanation, check `name_status_version() == 1`, then call `name_status(name)` through the same Lookup. Its result includes `name`, `ledger`, `timestamp` and one state, observed in a single invocation:
 
@@ -309,6 +324,7 @@ For a precise UI explanation, check `name_status_version() == 1`, then call `nam
 | `Unregistered` | The current Registrar returned no name record |
 | `Active(RegisteredName)` | The name is active at the returned timestamp |
 | `Expired(RegisteredName)` | The stored record has passed its ownership deadline |
+| `Suspended(RegisteredName)` | The child is within its ownership lifetime but the namespace has suspended subnames |
 | Read error or restoration required | Status unavailable; do not label the name unregistered |
 
 `RegisteredName` contains `registrar: Address`, `node: BytesN<32>`, `holder: Address`, `generation: u64` and `expires_at: u64`. For expired records, holder and generation describe the stored historical record. Expiry is inclusive: a record is active at `timestamp == expires_at` and expired after it. Zero means no deadline, not a permanent-ownership guarantee.

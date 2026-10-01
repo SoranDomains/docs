@@ -7,15 +7,17 @@ Soran reads namespace ownership, name lifecycle and payment instructions from co
 
 ## Contract authority
 
-Registry records namespace ownership. Its current implementation has no upgrade, forced reassignment or platform revocation method. Allocator handles claims for unowned namespaces and cannot overwrite an owned Registry node.
+Registry records namespace ownership and routing. The current allocation rules prevent Allocator from overwriting an owned namespace. Registry itself supports governance-authorized code upgrades: those rules are properties of the deployed implementation, not an immutable promise about future code.
 
-Namespace owners control issuance and eligible unlocked Registrar and Resolver upgrades. Holders control their records and permitted transfers. Payment recipients may be different accounts from either owner or holder. A completed [permanence lock](/concepts/ownership-guarantees) fixes eligible namespace code and routing; a name having no expiry does not do so.
+Namespace owners control issuance, supported-network policy, subname policy and owner-authorized Registrar and Resolver upgrades. An upgrade requires approval for the exact implementation and contract role. Holders control their records and permitted transfers. A subname is controlled by its parent holder; its recipient gains no editing rights.
+
+The governed testnet does not allow new permanent code locks. A name having no expiry does not remove reclaim or upgrade powers. [Ownership guarantees](/concepts/ownership-guarantees) separates these properties and explains historical locked deployments.
 
 Universal Lookup is governed separately. Its code can change immediately after governance approves an exact code hash, while its address remains the same. See [governance and upgrades](/concepts/governance).
 
 ## What reads verify
 
-Universal Lookup follows current Registry routing and checks the supported contracts, name activity, ownership generation and complete payment instruction. If a configured instruction is missing or invalid, the read fails. Metadata methods let you inspect ownership even when payment resolution fails.
+Universal Lookup follows current Registry routing and checks the supported contracts, name activity, ownership generation and complete payment instruction. Subnames also depend on their parent generation and namespace policy. Additional network addresses require an explicit network choice and an enabled namespace policy. If a configured instruction is missing or invalid, the read fails. Metadata methods let you inspect ownership even when payment resolution fails.
 
 Reverse and Primary answers must match current forward resolution. G/C elections identify an account without distinguishing customer memos. Each complete M address has its own election, with no fallback to its base G account or another routing ID. These elections establish a selected display name, not a person's identity.
 

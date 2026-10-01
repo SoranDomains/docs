@@ -1,0 +1,34 @@
+/* Documented Mintlify hooks only. Keep all diagram styles in our own namespace. */
+#page-title { letter-spacing: -0.035em; line-height: 1.15; }
+#content { font-size: 1rem; line-height: 1.8; }
+#content h2 { letter-spacing: -0.025em; margin-top: 3.25rem; padding-top: 1.75rem; border-top: 1px solid #e6ebe7; }
+#content h3 { letter-spacing: -0.015em; }
+#sidebar { font-size: 0.875rem; }
+#sidebar a, #sidebar button { border-radius: 6px; }
+#content a:not(.card) { text-underline-offset: 4px; }
+#content pre { font-size: 0.82rem; }
+#content table { line-height: 1.65; }
+.dark #content h2 { border-color: #28382f; }
+.soran-figure { margin: 1.75rem 0 2rem; }
+.soran-figure img { display: block; width: 100%; height: auto; margin: 0 !important; border-radius: 14px; }
+.soran-figure .soran-illustration-dark { display: none; }
+.dark .soran-figure .soran-illustration-light { display: none; }
+.dark .soran-figure .soran-illustration-dark { display: block; }
+.soran-figure figcaption { margin-top: 0.7rem; color: #64736b; font-size: 0.8rem; line-height: 1.6; }
+.dark .soran-figure figcaption { color: #a6b6ac; }
+.soran-status { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0 0 1.5rem; font-size: 0.8rem; color: #64736b; }
+.soran-status span { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600; color: #366a53; background: #edf4ef; border-radius: 5px; padding: 0.15rem 0.5rem; }
+.soran-status span::before { content: ''; width: 5px; height: 5px; background: #4e8e6c; border-radius: 50%; }
+.dark .soran-status { color: #a6b6ac; }
+.dark .soran-status span { color: #a1d8b9; background: #1d3327; }
+@media (min-width: 1280px) {
+  #content-area { width: calc(100% - 13rem); max-width: 50rem; }
+  #content, #header, #pagination, #footer { max-width: 44rem; }
+  #table-of-contents-layout { width: 13rem; padding-left: 1.5rem; }
+  #table-of-contents { max-width: 11.5rem; }
+}
+@media (max-width: 600px) {
+  #content { line-height: 1.75; }
+  #content h2 { margin-top: 2.5rem; padding-top: 1.5rem; }
+  .soran-figure { margin: 1.5rem 0; }
+}

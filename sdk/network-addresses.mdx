@@ -1,0 +1,63 @@
+---
+title: "Resolve addresses across networks"
+description: "Read and publish a name's explicitly selected blockchain address with the Soran SDKs."
+---
+
+Use **Lookup 0.11.0** to resolve a Soran name to an address on a selected network. Use **Holder 0.10.0** to publish that address. The namespace owner chooses which networks are available through [feature settings](/owner/feature-settings).
+
+Start with a configured [Lookup client](/sdk/installation). These methods also accept a supported subname such as `pay.alice.nova`.
+
+## Read a destination
+
+```ts
+const networks = await soran.chainPolicy("nova");
+if (!networks.includes("ethereum")) {
+  throw new Error("This namespace has not enabled Ethereum addresses");
+}
+
+const address = await soran.chainAddress("alice.nova", "ethereum");
+if (address === null) {
+  console.log("No Ethereum address is published for this name");
+} else {
+  console.log(address);
+}
+```
+
+The selected network is part of the lookup. An Ethereum record cannot substitute for a Base record, even when both use the same address format. A successful `null` means no current record exists for the enabled network. Disabled networks, inactive names and failed reads produce errors.
+
+## Supported network IDs
+
+| Networks | SDK IDs |
+| --- | --- |
+| Bitcoin, Ethereum, Solana | `bitcoin`, `ethereum`, `solana` |
+| Optimism, Polygon, Base, Arbitrum | `optimism`, `polygon`, `base`, `arbitrum` |
+| BNB Smart Chain, Avalanche C-Chain | `bsc`, `avalanche` |
+| XRP Ledger, Tron | `xrp`, `tron` |
+| Arc, Tempo, XRPL EVM | `arc`, `tempo`, `xrpl-evm` |
+
+`CHAIN_NETWORKS` exports the full catalogue, including labels, coin types and CAIP-2 identifiers. These are destination-network mainnet records even when Soran runs on Stellar testnet. Address validation cannot establish where an account holds funds.
+
+XRP Ledger supports classic addresses and mainnet X-addresses. Use an X-address when a destination tag is required; its tag is preserved. `xrp` and `xrpl-evm` are independent records.
+
+## Publish or clear an address
+
+With a configured [Holder client](/holder/managing-your-name):
+
+```ts
+declare const ethereumAddress: string;
+
+await me.setChainAddress("alice.nova", "ethereum", ethereumAddress);
+
+// Removal remains available while the network is disabled.
+await me.clearChainAddress("alice.nova", "ethereum");
+```
+
+Only the current holder can authorize these writes. The SDK validates the selected network and address format before submitting. A name ownership change prevents the previous holder's records from resolving.
+
+Stellar uses [`resolvePayment`](/sdk/resolving-names), which preserves required memos and muxed IDs. Additional network records do not execute payments or bridge assets. Your application sends through its chosen network integration after resolving and reviewing the destination.
+
+## Handle unavailable results
+
+Lookup reports `CHAIN_DISABLED`, `UNSUPPORTED_NETWORK` or `MULTICHAIN_UNSUPPORTED` for those specific conditions. RPC, simulation and malformed-response failures remain errors. Do not replace an unsuccessful read with a different network or a generic profile text field.
+
+Read again near payment confirmation and show the network alongside the address. The [HTTP API](/api/network-addresses) exposes the same network-specific read model.

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="ecosystem-dark-title ecosystem-dark-desc">
+  <title id="ecosystem-dark-title">One registry, many namespaces</title>
+  <desc id="ecosystem-dark-desc">The shared Registry routes each namespace to its Registrar and Resolver. Illustrative namespaces nova, orbit and terra manage names such as alice.nova, sam.orbit and lee.terra.</desc>
+  <rect width="1200" height="650" fill="#171A19"/>
+  <g font-family="Inter, Arial, sans-serif" fill="#EFF4F0">
+    <text x="48" y="78" font-size="22" font-weight="600" letter-spacing="2" fill="#96A59C">SHARED NAMING SYSTEM</text>
+    <text x="48" y="132" font-size="42" font-weight="600" letter-spacing="-1.2">One registry. Many namespaces.</text>
+    <text x="48" y="175" font-size="24" fill="#96A59C">A shared directory connects independently operated namespaces.</text>
+
+    <rect x="48" y="216" width="1104" height="320" rx="12" fill="#1D231F" stroke="#35443C" stroke-width="2"/>
+    <path d="M48 272H1152 M48 360H1152 M48 448H1152" fill="none" stroke="#35443C" stroke-width="2"/>
+    <text x="80" y="252" font-size="22" font-weight="500" fill="#96A59C">Registry entry</text>
+    <text x="390" y="252" font-size="22" font-weight="500" fill="#96A59C">Namespace contracts</text>
+    <text x="826" y="252" font-size="22" font-weight="500" fill="#96A59C">Example name</text>
+
+    <g fill="none" stroke="#35443C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M250 316H360 M351 310L360 316L351 322"/>
+      <path d="M250 404H360 M351 398L360 404L351 410"/>
+      <path d="M250 492H360 M351 486L360 492L351 498"/>
+      <path d="M690 316H794 M785 310L794 316L785 322"/>
+      <path d="M690 404H794 M785 398L794 404L785 410"/>
+      <path d="M690 492H794 M785 486L794 492L785 498"/>
+    </g>
+    <g font-size="28" font-weight="600" fill="#84D4AC">
+      <text x="80" y="326">nova</text>
+      <text x="80" y="414">orbit</text>
+      <text x="80" y="502">terra</text>
+    </g>
+    <g font-size="24">
+      <text x="390" y="325">Registrar + Resolver</text>
+      <text x="390" y="413">Registrar + Resolver</text>
+      <text x="390" y="501">Registrar + Resolver</text>
+    </g>
+    <g fill="#253D30">
+      <rect x="812" y="289" width="304" height="54" rx="6"/>
+      <rect x="812" y="377" width="304" height="54" rx="6"/>
+      <rect x="812" y="465" width="304" height="54" rx="6"/>
+    </g>
+    <g font-size="28" font-weight="600" fill="#84D4AC">
+      <text x="834" y="326">alice.nova</text>
+      <text x="834" y="414">sam.orbit</text>
+      <text x="834" y="502">lee.terra</text>
+    </g>
+
+    <path d="M48 583H80" stroke="#84D4AC" stroke-width="3"/>
+    <text x="96" y="591" font-size="22" fill="#96A59C">Registry stores routing. Namespace contracts manage names.</text>
+  </g>
+</svg>

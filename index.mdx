@@ -1,35 +1,90 @@
 ---
 title: "What is Soran?"
-description: "Use readable names for Stellar wallets, payment instructions and smart contracts."
+description: "Shared namespaces. Recognizable identities. Addresses across blockchains."
+mode: "wide"
 ---
 
-Soran turns a name such as `alice.yourbrand` into a Stellar payment destination. An organization claims a **namespace** such as `yourbrand`, then lets people claim names in its own app using rules stored on chain.
+import { Illustration } from "/snippets/illustration.jsx";
 
-A name can resolve to a classic **G account**, a **G account with a memo**, a **muxed M address**, or a **C contract address**. The address and any required routing information stay together on chain. Try [the live examples](/live-examples) to see each type.
+<div className="soran-status"><span>Testnet</span><a href="/reference/release-status">Current availability and releases →</a></div>
+
+Soran is a naming protocol built on Stellar. Organizations operate **namespaces**, people hold **names** inside them, and apps use a shared registry to find what those names point to.
+
+<Illustration name="ecosystem" priority alt="A shared registry connects nova, orbit and terra to their namespace contracts and names such as alice.nova." caption="Illustrative namespaces: different organizations, one shared naming system." />
+
+A name like `alice.nova` can carry Alice's profile, receiving addresses on several blockchains, and names such as `shop.alice.nova` beneath it. One name gives apps a place to look for the information Alice chooses to publish.
+
+## A namespace of your own
+
+<span id="claim-once-then-issue-names" />
+
+In `alice.nova`, **nova** is the namespace. **alice** is a name within it. A wallet, community, or business can operate a namespace and offer names to its users under its own registration rules.
+
+Think of the coordination role ICANN plays in the Internet's naming system: different organizations operate different parts of a shared system. Soran brings that organizational pattern to on-chain namespaces. These are Stellar-based names with Soran's own rules; they do not automatically become Internet DNS domains.
+
+An organization [applies for a namespace](/concepts/claiming-a-namespace). Public applications pass through an objection window before they can be awarded. The **Registry** records who owns each namespace and which contracts manage it.
+
+The useful part is what happens between organizations: an app that integrates Soran can look up a name from another namespace through the same shared infrastructure.
+
+## The Registrar: how people get names
+
+Each namespace has a **Registrar**, a smart contract that applies its rules for issuing and managing names. The namespace owner chooses who can register, whether a name has a price, and the supported ownership policy.
+
+<Illustration name="registrar" alt="The nova namespace owner sets registration rules; its Registrar applies them when issuing alice.nova to Alice." />
+
+You might offer free names during signup, let eligible users claim their own names, or issue them from your app. The person or account holding a name is its **holder**. That holder manages the name's records under the namespace's policy.
+
+Explore [automatic username claiming](/owner/automatic-claiming) or [names and namespaces](/concepts/names-and-namespaces).
+
+## A name with a profile
+
+A Soran name can carry an avatar, description, website, and social links. Apps can read those records to show a recognizable identity alongside an address. The holder publishes the profile; social links are self-described rather than independently verified accounts.
+
+<Illustration name="profiles" alt="An alice.nova profile card with a portrait, website and social links connects to supporting wallet and community apps." caption="A holder-published profile gives apps a name, avatar, and links to display." />
+
+A receiving account can also choose a **display name** within a namespace and a **primary name** across namespaces. Apps verify that the chosen name still points back to the account before using it.
+
+Learn about [profiles and social identity](/concepts/profiles), then [publish your profile](/holder/profile).
+
+## One name, addresses across blockchains
+
+The **Resolver** stores the records a name points to. For Stellar, that includes an address and any required payment memo. It can also store a separate receiving address for each additional network the namespace enables.
+
+<Illustration name="multichain" alt="alice.nova resolves to a separate destination for Stellar, Ethereum, Bitcoin or Solana, according to the network the app requests." caption="The sender chooses a network. The name supplies the destination for that network." />
+
+Soran supports address records for Bitcoin, Ethereum, Solana, and other [supported networks](/concepts/multichain-addresses#supported-networks). A wallet reads the requested network's record, then handles the payment on that network. Name resolution does not move funds.
+
+Stellar destinations keep their routing details together: a classic account with an optional memo, a complete muxed address, or a contract address. Read [Stellar payment destinations](/concepts/payment-destinations) or [add network addresses](/holder/network-addresses).
+
+## Names beneath your name
+
+When your namespace enables subnames, you can create one additional level beneath a name you hold. Alice might use `pay.alice.nova` for personal payments and `shop.alice.nova` for her store.
+
+<Illustration name="subnames" alt="Alice controls alice.nova and its two child names, pay.alice.nova and shop.alice.nova, each with separate receiving details." />
+
+Each child can have its own addresses and profile records. The parent holder controls it, even when its receiving address belongs to someone else. Children follow their parent's ownership and lifetime; transferring the parent invalidates its old children.
+
+Read [how subnames work](/concepts/subnames) or [create a subname](/holder/subnames). Additional network addresses and subnames require compatible namespace contracts and the owner's [feature settings](/owner/feature-settings).
+
+## How apps read the shared system
+
+<span id="one-on-chain-read-entry-point" />
+
+**Universal Lookup** is the common read entry point. It follows the Registry to the namespace's contracts, checks the name, and returns the requested current records. A wallet can read names without running a separate address book for every organization.
+
+<Illustration name="resolution" alt="An app looks up alice.nova through Soran Lookup to read a Stellar address and memo, profile, or enabled network address." caption="Lookup reads the current records. The wallet handles any payment separately." />
+
+The SDKs make these reads and name-management actions easier to integrate. You can also use the HTTP API or call the contracts directly. [Explore the protocol architecture](/concepts/architecture).
+
+<span id="read-the-ownership-policy" />
+
+Each namespace's policies and contracts determine which changes remain possible. A name without an expiry is not automatically permanent. [Understand ownership and governance](/concepts/ownership-guarantees) before choosing a namespace.
+
+## Start with what you want to do
 
 <CardGroup cols={2}>
-  <Card title="Resolve a name" icon="magnifying-glass" href="/quickstart">Get a complete payment destination with the Lookup SDK.</Card>
-  <Card title="Offer usernames in your app" icon="building" href="/owner/automatic-claiming">Set claim rules, reserve names and choose a username price.</Card>
-  <Card title="Manage a name you hold" icon="wallet" href="/holder/managing-your-name">Change payment details, choose a display name or transfer a name.</Card>
-  <Card title="Call the contracts directly" icon="code" href="/api/onchain-resolution">Use the on-chain ABI without a Soran SDK or HTTP API.</Card>
+  <Card title="Build with Soran" icon="code" href="/quickstart">Resolve your first name, then add identity and network-aware lookups.</Card>
+  <Card title="Run a namespace" icon="building" href="/concepts/claiming-a-namespace">Offer names to your users and choose the rules that apply.</Card>
+  <Card title="Make your name useful" icon="user" href="/holder/managing-your-name">Manage receiving details, publish a profile, and create subnames.</Card>
+  <Card title="Try real examples" icon="magnifying-glass" href="/live-examples">Explore current testnet names and their payment instructions.</Card>
 </CardGroup>
-
-## One on-chain read entry point
-
-Wallets, explorers and apps read **Universal Lookup**. It finds the namespace's current Registrar and Resolver through the Registry, then returns the validated result. The SDK wraps this contract; a Soran database is not required for resolution.
-
-The **namespace owner** sets issuance rules. The **holder** owns a name under those rules. The **recipient** receives payments. These can be different people: for example, you can hold a name that points to an exchange account with your deposit memo.
-
-## Claim once, then issue names
-
-A public namespace application costs **5,000 XLM on testnet**, paid upfront into escrow. It passes through a public objection window before it can be awarded. [The outcome determines the payment or refund](/concepts/claiming-a-namespace).
-
-Username claims are separate. The namespace owner can offer free claims or set a flat XLM price paid to their treasury. Once enabled, the contract processes eligible claims without a separate owner approval for each person. Optional eligibility rules can restrict claims to the organization's users.
-
-## Read the ownership policy
-
-Soran has no mandatory annual ownership fee. Each namespace's policy determines whether names can expire, be reclaimed or become permanent. Network and storage costs still apply.
-
-A zero expiry does not by itself mean a name is permanent. [Ownership guarantees](/concepts/ownership-guarantees) explains what holders can rely on, and what owners can change.
-
-Start with the [current testnet addresses and package versions](/reference/release-status). Mainnet is not available yet.

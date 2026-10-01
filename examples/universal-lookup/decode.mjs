@@ -69,7 +69,7 @@ export function normalizeName(input) {
   requireValue(!/[^\x00-\x7f]/.test(trimmed), 'Use ASCII name characters');
   const canonical = trimmed.toLowerCase();
   const labels = canonical.split('.');
-  requireValue(labels.length === 2 && labels.every(label => label.length >= 1 && label.length <= 63 && /^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?$/.test(label)), 'Use name.namespace with 1–63 characters per label');
+  requireValue((labels.length === 2 || labels.length === 3) && labels.every(label => label.length >= 1 && label.length <= 63 && /^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?$/.test(label)), 'Use name.namespace or child.name.namespace with 1–63 characters per label');
   return canonical;
 }
 

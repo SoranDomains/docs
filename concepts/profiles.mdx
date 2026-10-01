@@ -1,0 +1,57 @@
+---
+title: "Profiles and social identity"
+description: "Give your name a public profile that supporting wallets and apps can read."
+---
+
+import { Illustration } from '/snippets/illustration.jsx';
+
+A Soran name can tell an app who you are as well as where to send a payment. You can attach an avatar, a short description, a website and social handles to `alice.nova`. A supporting app reads those records from Soran instead of asking you to create the same profile again.
+
+This is Soran's social identity layer: a name you control, public information you choose to publish, and a way for apps to recognize your wallet.
+
+<Illustration
+  name="profiles"
+  alt="A Soran name connects its holder's public profile with supporting wallets and apps."
+  caption="Publish a profile once. Supporting apps can read the records attached to your name."
+/>
+
+## What belongs in a profile?
+
+Soran defines eight standard fields that integrations can look for:
+
+| Field | Example use |
+| --- | --- |
+| `avatar` | The URL of your profile image |
+| `description` | A short introduction |
+| `url` | Your personal or organization website |
+| `org` | Your organization |
+| `location` | A location you choose to share |
+| `email` | A public contact address |
+| `twitter` | Your Twitter/X handle |
+| `github` | Your GitHub handle |
+
+You choose which fields to publish. A designer might share a portfolio and avatar; a community contributor might share a GitHub handle and short biography. Applications decide which fields to display. They can also agree on additional text-record keys for their own integrations.
+
+The Resolver verifies that the current holder authorized a record. It does not verify that a social account, organization or website belongs to that person. Treat profile information as the holder's public statement.
+
+## Connect a wallet to a name
+
+Profiles and display names work together. A **namespace display name** lets an app look up an address and find its chosen name within a namespace. A **primary name** selects one of those verified names across namespaces.
+
+For example, Alice can publish a profile on `alice.nova`, then choose it as her wallet's primary name. A supporting wallet can show that name and profile beside her address.
+
+The receiving address authorizes its display-name election, and the name must resolve back to that address. Holding a name that pays someone else does not grant control over the recipient's identity.
+
+## Your records follow your control of the name
+
+The holder publishes profile records through the Holder SDK or a configured MCP integration. The current Soran app provides display-name and primary-name controls; profile-field publishing uses those developer tools. For subname profiles, use the Holder SDK: published MCP 0.9.6 accepts ordinary `name.namespace` names only.
+
+If ownership changes, the former holder's records stop appearing as the new holder's profile. An expired name does not provide an active identity. For a [subname](/concepts/subnames), the parent holder controls its profile.
+
+Profile records are public on-chain text. Clearing a field retracts its current value by writing an empty string; it does not erase blockchain history. Publish information you intend to share publicly.
+
+## Next steps
+
+- [Publish your profile](/holder/profile) with the Holder SDK.
+- [Read profiles and wallet identities](/sdk/identity) in your app.
+- [Understand display names and primary names](/sdk/reverse-and-primary).

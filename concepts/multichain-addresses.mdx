@@ -1,0 +1,57 @@
+---
+title: "One name, multiple networks"
+description: "Use one Soran name for separate receiving addresses on Stellar and other supported blockchains."
+---
+
+import { Illustration } from '/snippets/illustration.jsx';
+
+You can share `alice.nova` whether someone wants to send you assets on Stellar, Bitcoin, Ethereum or another supported network. Your name can publish a separate receiving address for each network your namespace enables.
+
+The sender chooses the network. Their app looks up that network's record, shows the destination and asks them to approve the transfer. The name stays familiar while the underlying addresses remain distinct.
+
+<Illustration
+  name="multichain"
+  alt="One Soran name branches into separate Stellar, Bitcoin, Ethereum and Solana receiving destinations."
+  caption="The sender chooses a network. Their app resolves that network's separate receiving address."
+/>
+
+## How it works
+
+Imagine Alice uses Ethereum for one project and Base for another. She can save an Ethereum address and a Base address under the same name. An app resolving `alice.nova` for Base reads the Base record. It does not assume the Ethereum address is also valid for Base, even though both networks use `0x` addresses.
+
+These records live in Soran's Resolver contracts on Stellar. They identify destinations on other networks; Soran does not move funds between those networks, swap assets or bridge a payment. The sending wallet still needs to support the chosen network and asset.
+
+<Note>
+The additional network records use **mainnet receiving addresses**, including when the Soran naming contracts are on Stellar testnet. The naming network and the destination network are separate choices.
+</Note>
+
+## Supported networks
+
+The current address formats cover these 14 networks:
+
+| Family | Networks |
+| --- | --- |
+| Bitcoin | Bitcoin |
+| Ethereum and EVM networks | Ethereum, Optimism, Polygon, Base, Arbitrum, BNB Smart Chain, Avalanche C-Chain, Arc, Tempo, XRPL EVM |
+| Other networks | Solana, XRP Ledger, Tron |
+
+Stellar uses its own [payment instructions](/concepts/payment-destinations), including optional memos and complete muxed addresses. Those instructions remain separate from other-network records.
+
+For XRP Ledger, a full mainnet X-address preserves a required destination tag. XRPL EVM is a separate network with its own `0x` record.
+
+## Who controls each address?
+
+The namespace owner chooses which networks holders may use. The holder chooses the receiving address for each enabled network. A recipient can differ from the holder; receiving payments does not give that wallet control of the name.
+
+Disabling a network stops its saved addresses from resolving and prevents new address writes. The records stay stored and become available again if the owner re-enables that network. Holders can still clear a disabled network's record through the SDK.
+
+An app must handle a missing address or disabled network explicitly. It must not substitute another network's address. Changes of name ownership also invalidate the former holder's records.
+
+## Start using network addresses
+
+Open a name's public record to see its enabled networks. Older namespace contracts may need an update before these controls are available; installing an SDK alone does not enable a namespace.
+
+- [Add your network addresses](/holder/network-addresses).
+- [Resolve a network address in your app](/sdk/network-addresses).
+- [Use separate addresses on subnames](/concepts/subnames).
+- [Check package and deployment availability](/reference/release-status).

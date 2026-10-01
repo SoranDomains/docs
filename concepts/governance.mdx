@@ -3,7 +3,9 @@ title: "Governance and upgrades"
 description: "Who can change each contract and what an upgrade means for your integration."
 ---
 
-All six contracts in the governed testnet deployment support authorized code upgrades at the same address. Registry, Primary, Allocator and Universal Lookup use protocol governance. A namespace Registrar or Resolver also requires its current namespace owner. Irreversible code locks are disabled while this testnet design is being evaluated.
+Soran separates protocol coordination from namespace operation. Protocol governance manages the shared contracts and approves Registrar and Resolver implementations. Each namespace owner chooses whether to install an approved implementation and enable its optional features.
+
+Registry, Primary, Allocator and Universal Lookup support authorized code upgrades at the same address. Namespace Registrar and Resolver upgrades also require the current namespace owner. The separate Funding contract has its own governance-authorized upgrade path. The governed testnet does not permit new irreversible code locks.
 
 The current testnet Allocator also has **no mandatory code-upgrade wait**. This policy was activated on 8 September 2026; see [release status](/reference/release-status#allocator-upgrade). Namespace claim, objection and reopening windows still apply.
 
@@ -41,6 +43,7 @@ The upgrade timing is separate from allocation rules. Claim windows and objectio
 | Registrar and Resolver | Current namespace owner authorizes a role-specific implementation approved by Registry governance |
 | Primary | Registry governance authorizes the exact current and replacement Wasm hashes |
 | Universal Lookup | Governed exact-hash code replacement with zero mandatory delay |
+| Funding | Its governance account authorizes code upgrades |
 
 Replacing a Resolver creates separate storage; its records do not move automatically. An upgrade at the same address still needs compatible storage and authorization rules. Allocator upgrades must preserve existing claims, fees and credits. The governed testnet rejects new permanent code locks. Historical locked contracts retain their original restrictions.
 
@@ -52,6 +55,8 @@ Registry and Primary accept `upgrade(expected_hash, new_hash)`. The configured g
 
 For namespace contracts, governance first calls Registry's `approve_implementation(role, hash, true)`: role `0` is Registrar and role `1` is Resolver. The current namespace owner then authorizes the child's `upgrade(new_wasm_hash)`. Registry checks the current native pair and approved role/hash, then updates that namespace's recorded executable pin and upgrade counter atomically.
 
-`native_code(node)` exposes the expected Registrar and Resolver hashes for an existing namespace. `template_hashes()` describes defaults for new deployments. Changing factory defaults does not change existing namespace addresses. Revoking an implementation approval blocks future use; it does not undo a completed upgrade.
+`native_code(node)` exposes the expected Registrar and Resolver hashes for an existing namespace. `template_hashes()` describes defaults for new deployments. Changing factory defaults does not upgrade existing namespace contracts. The 1 October release installed shared Lookup and Primary support and approved new namespace templates; existing owners still choose when to upgrade. Network-address permissions and subname creation must also be enabled separately.
+
+Revoking an implementation approval blocks future use; it does not undo a completed upgrade. Approval alone does not establish that a downgrade preserves every feature or stored record. Use the console or matching Owner SDK to review the current and proposed implementations before signing.
 
 Address stability does not remove governance trust or make every future storage change compatible. Inspect current code and read live payment instructions when using a name.

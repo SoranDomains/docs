@@ -1,18 +1,20 @@
 ---
 title: "Quickstart"
-description: "Read and recheck complete address-and-memo instructions through Universal Lookup."
+description: "Resolve your first name, inspect its identity, and choose what to build next."
 ---
 
 Resolve a Soran name into its complete payment instructions, then recheck them before sending. Reading requires no wallet or signing key.
 
-This guide uses **Lookup 0.10.2**, Stellar SDK 17 and the current [testnet deployment](/reference/release-status).
+You need **Node.js 22.12 or newer** and a JavaScript or TypeScript project. This guide uses **Lookup 0.11.0**, Stellar SDK 17, and the current [testnet deployment](/reference/release-status).
+
+By the end, you will have a complete Stellar payment destination and know how to read the name's ownership and identity.
 
 ## Configure one shared reader
 
-Install Lookup 0.10.2 with Stellar SDK 17:
+Install Lookup 0.11.0 with Stellar SDK 17:
 
 ```bash
-npm install @sorandomains/lookup@0.10.2 @stellar/stellar-sdk@^17
+npm install @sorandomains/lookup@0.11.0 @stellar/stellar-sdk@^17
 ```
 
 Supply the current Registry, Lookup and Primary together:
@@ -38,8 +40,13 @@ Start with a [live testnet name](/live-examples). Read its address and memo toge
 ```ts
 const payment = await soran.resolvePayment("Alice.Nova");
 console.log(payment.address, payment.memo);
+```
 
-// Display both fields for review, then recheck near confirmation.
+**What you get:** a Stellar address and a memo object. The memo type is `none`, `id`, `text`, or `hash`. Keep the returned pair together; an address alone can leave out required routing information.
+
+Display both fields for review. Near the user's confirmation, recheck that the instruction has not changed:
+
+```ts
 if (!(await soran.verifyPayment("alice.nova", payment))) {
   throw new Error("Payment instructions changed; review them again");
 }
@@ -69,4 +76,13 @@ const displayName = name ? await soran.primaryOf(name.holder) : null;
 
 Use [namespace assurance](/sdk/assurance) to assess Resolver provenance. It does not freeze holder records or remove Lookup governance and RPC trust.
 
-Continue with [payment semantics](/sdk/resolving-names), [SDK configuration](/sdk/installation), or the [direct contract ABI](/api/onchain-resolution).
+## Choose your next step
+
+<CardGroup cols={2}>
+  <Card title="Read profiles" icon="user" href="/sdk/identity">Load the avatar, description, and links a name's holder publishes.</Card>
+  <Card title="Resolve other networks" icon="globe" href="/sdk/network-addresses">Request the address for an explicitly selected network.</Card>
+  <Card title="Work with subnames" icon="diagram-project" href="/sdk/subnames">Read child names and understand their parent-bound ownership.</Card>
+  <Card title="Offer usernames" icon="building" href="/owner/automatic-claiming">Integrate eligible username claims into your own application.</Card>
+</CardGroup>
+
+For more control, read [payment semantics](/sdk/resolving-names), [SDK configuration](/sdk/installation), or the [direct contract ABI](/api/onchain-resolution).

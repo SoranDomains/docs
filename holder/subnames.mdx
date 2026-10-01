@@ -1,0 +1,84 @@
+---
+title: "Create and manage subnames"
+description: "Create a child name, choose its receiving details and manage it through the parent name."
+---
+
+If you hold `alice.nova`, you can create names such as `shop.alice.nova` and `tips.alice.nova`. You control their records through the parent name, while each can receive at a different destination.
+
+## Before you begin
+
+Your parent name must be active. Its namespace needs compatible Registrar and Resolver contracts, with the subname policy set to **Enabled**. Connect the parent holder's wallet. The current naming format allows one child level, not another child beneath `shop.alice.nova`.
+
+## Create a subname in the app
+
+1. Find your parent name through [Soran's lookup](https://soran.domains/lookup) and open its public record.
+2. In **Subnames**, choose **Manage subnames** and connect the parent holder wallet.
+3. Enter a label such as `shop` in **New subname**.
+4. Choose **Review & create subname**, review the network cost and approve the wallet request.
+5. Follow **Open shop.alice.nova** after confirmation.
+
+The new subname initially receives at your holder wallet. On its record page, you can change its Stellar payment instructions or add enabled network addresses. If your intended destination needs a memo or muxed routing ID, save the complete instruction before sharing the subname for payments.
+
+You should see the subname listed beneath its parent and its public record marked **Parent-controlled**. Receiving at another wallet does not transfer control to that wallet.
+
+## Create a subname from code
+
+Use **Holder 0.10.0** with **Lookup 0.11.0** and the same [deployment configuration](/reference/release-status). This example uses a classic account's wallet signer:
+
+```ts
+import { SoranHolder, DEPLOYMENTS, type TxSigner } from "@sorandomains/holder";
+import { Soran } from "@sorandomains/lookup";
+
+declare const walletSigner: TxSigner;
+const me = new SoranHolder({ ...DEPLOYMENTS.testnet, signer: walletSigner });
+const soran = new Soran({ network: "testnet" });
+const holderAddress = await walletSigner.publicKey();
+
+const parent = await soran.nameMetadata("alice.nova");
+if (!parent?.active || parent.holder !== holderAddress) {
+  throw new Error("Connect the active parent holder");
+}
+if (await me.subnamePolicy("nova") !== "enabled") {
+  throw new Error("New subnames are not enabled");
+}
+const previous = await me.subnameRecord("shop.alice.nova");
+
+await me.createSubname("shop.alice.nova", holderAddress, {
+  parentGeneration: parent.generation,
+  previousGeneration: previous?.generation ?? null,
+});
+
+console.log(await soran.resolvePayment("shop.alice.nova"));
+```
+
+The generation values bind the write to the parent and child state you reviewed. An already-active child cannot be created again. A failed read must not be treated as an absent record.
+
+Creation accepts a G/C destination without a memo. Start with your own holder address when the intended recipient needs additional routing details. Then use `setPayment`, `setChainAddress` or `setProfile` with the complete child name to publish its records.
+
+## List or remove subnames
+
+```ts
+const page = await me.subnames("alice.nova", { offset: 0, limit: 16 });
+console.log(page.records, page.nextOffset);
+```
+
+The list includes historical and removed records. Use current metadata or payment resolution to check whether a subname works now.
+
+In the app, choose **Remove shop** on the parent's record. In code, reread both records before removing:
+
+```ts
+const parentNow = await soran.nameMetadata("alice.nova");
+const childNow = await me.subnameRecord("shop.alice.nova");
+if (!parentNow || !childNow) throw new Error("Records unavailable");
+
+await me.removeSubname("shop.alice.nova", {
+  parentGeneration: parentNow.generation,
+  generation: childNow.generation,
+});
+```
+
+## Understand what can change
+
+Stopping new creation leaves existing subnames usable. Suspension pauses resolution and editing, while removal remains available. Parent expiry pauses its subnames; renewing the same ownership restores valid records.
+
+Transfer, reclaim or reissue of the parent invalidates its subnames. Removing and recreating a child starts fresh records. Subnames cannot be transferred or renewed independently. See [subname control and lifecycle](/concepts/subnames) before offering them to others.

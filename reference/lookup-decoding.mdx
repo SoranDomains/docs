@@ -66,7 +66,7 @@ A muxed result uses `result: ["NativePayment", ["Muxed", { account: G, id: 420n 
 
 ## Status and batch shapes
 
-The additive status and batch capabilities each report version `1`; the payment ABI remains version `2`. With raw `scValToNative`, `name_status` returns:
+The status capability reports version `1`; the current batch capability reports version `3`, and the payment ABI remains version `2`. Check each capability independently. With raw `scValToNative`, `name_status` returns:
 
 ```js
 {
@@ -90,10 +90,11 @@ The additive status and batch capabilities each report version `1`; the payment 
 | No issued record | `["Unregistered"]` |
 | Active | `["Active", record]` |
 | Expired | `["Expired", record]` |
+| Suspended child | `["Suspended", record]` |
 
-`record` has the five fields illustrated above. For an expired state, its nonzero `expires_at` must be less than the result's `timestamp`. Validate the returned name and node against your request. The downloadable vectors contain exact valid node bytes.
+`record` has the five fields illustrated above. For an expired state, its nonzero `expires_at` must be less than the result's `timestamp`. A suspended child remains within its parent's ownership lifetime but cannot resolve under the current namespace policy. Validate the returned name and node against your request, hashing labels from the namespace inward for a child. The downloadable vectors contain exact valid node bytes for their recorded cases.
 
-For batch inputs, encode a G/C address as `[Symbol("Direct"), Address(G_or_C)]` and a muxed route as `[Symbol("Muxed"), {account: Address(G), id: U64(id)}]`. These describe XDR construction; they are not JavaScript constructors. The full input is a vector of at most two identity variants. Both `primary_names` and `reverse_names` return this native shape:
+For batch inputs, encode a G/C address as `[Symbol("Direct"), Address(G_or_C)]` and a muxed route as `[Symbol("Muxed"), {account: Address(G), id: U64(id)}]`. These describe XDR construction; they are not JavaScript constructors. The current limits are 32 identities for `reverse_names` and 16 for `primary_names`; query the deployed method's limit before forming a batch. Both return this native shape:
 
 ```js
 {
@@ -121,7 +122,7 @@ Download [lookup-returns-v1.json](/reference/vectors/lookup-returns-v1.json), or
 - **23 rejection cases:** malformed variants, missing or extra fields, incorrect XDR types, invalid UTF-8, invalid memo sizes, C-with-memo, incorrect muxed bases and truncated XDR.
 - The Lookup executable hash and relevant embedded spec entries used to encode the fixtures. The payment fixture file retains its original hash; those return types are unchanged by the additive read upgrade.
 
-Download [lookup-read-extensions-v1.json](/reference/vectors/lookup-read-extensions-v1.json) for **9 valid status/batch results and 9 rejection cases**. It includes all five states, the inclusive expiry boundary, no-expiry records, empty/mixed batch results, name/node mismatches, inconsistent expiry and incorrect result counts or wire types. These fixtures are encoded from the upgraded contract's embedded spec; they do not measure network resource use.
+Download [lookup-read-extensions-v1.json](/reference/vectors/lookup-read-extensions-v1.json) for **9 valid status/batch results and 9 rejection cases**. This retained fixture set includes the original five states, the inclusive expiry boundary, no-expiry records, empty/mixed batch results, name/node mismatches, inconsistent expiry and incorrect result counts or wire types. Separate example tests cover the added `Suspended` state, child-name hashing and expanded batch limits. The fixtures retain their recorded contract revision; they do not measure network resource use.
 
 Every vector contains a base64 ScVal return value. Valid vectors also contain the expected `scValToNative` result. JSON cannot represent bigint or typed byte arrays, so the file uses `{"$bigint":"77"}` for `77n` and `{"$bytes":"0001..."}` for a byte array. These markers describe the test file; **the SDK does not return those marker objects**. Ordinary `null` remains null.
 
@@ -135,7 +136,7 @@ npm ci
 npm test
 ```
 
-To compare your decoder, parse each `xdrBase64` with `xdr.ScVal.fromXDR(value, "base64")`, decode it, and compare its tagged JSON representation with `expectedNative`. Every item in `invalid` must fail the relevant typed decoder even if generic ScVal decoding succeeds. `decode-reads.mjs` validates status against `expectedName` and batches against `expectedCount`. The combined suite runs **77 tests**.
+To compare your decoder, parse each `xdrBase64` with `xdr.ScVal.fromXDR(value, "base64")`, decode it, and compare its tagged JSON representation with `expectedNative`. Every item in `invalid` must fail the relevant typed decoder even if generic ScVal decoding succeeds. `decode-reads.mjs` validates status against `expectedName`. Its `decodeBatchNamesXdr(base64, expectedCount, limit = 32)` checks the exact result count and method limit; pass `16` for a current Primary batch, or the lower limit reported by an older supported deployment.
 
 ## Generated bindings
 
@@ -181,14 +182,16 @@ The Rust Stellar CLI also supports `stellar contract bindings typescript --netwo
 
 ## Normalize UI input
 
-Use the example's `normalizeName` before encoding a name argument. It trims surrounding whitespace, rejects remaining non-ASCII characters before case conversion, lowercases and validates the two labels. For example:
+Use the example's `normalizeName` before encoding a resolution-name argument. It trims surrounding whitespace, rejects remaining non-ASCII characters before case conversion, lowercases and validates two or three labels. For example:
 
 ```js
 normalizeName(" Alice.Nova "); // "alice.nova"
+normalizeName(" Pay.Alice.Nova "); // "pay.alice.nova"
 normalizeName("alice..nova"); // throws
+normalizeName("more.pay.alice.nova"); // throws; one child level only
 normalizeName("Kate.nova");   // throws; no Unicode lookalike conversion
 ```
 
-The contract itself accepts canonical lowercase ASCII only. Normalization is a UI convenience, not a change to contract rules. Never apply it to addresses, memo text or arbitrary record values.
+Each label has 1–63 ASCII bytes, with a maximum of 191 bytes for a full child name. Namespace arguments remain single labels. The contract itself accepts canonical lowercase ASCII only, and child reads require subname-capable contracts. Normalization is a UI convenience, not a change to contract rules. Never apply it to addresses, memo text or arbitrary record values.
 
 For registration-state explanations and batch-read limits, see [name status](/api/onchain-resolution#error-7-missing-or-expired-name) and [history screens](/api/onchain-resolution#history-screens-and-multiple-addresses).

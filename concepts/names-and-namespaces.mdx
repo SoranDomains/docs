@@ -3,28 +3,31 @@ title: "Names and namespaces"
 description: "How names fit under a namespace and how Soran stores and resolves them."
 ---
 
-In `alice.nova`, `nova` is the **namespace** and `alice` is the **name label**. The namespace owner sets the rules for issuing names. Each issued name has a holder and a payment destination, which can be different addresses. Soran supports exactly these two labels; it does not support deeper subdomains.
+import { Illustration } from "/snippets/illustration.jsx";
 
-## Contract roles
+In `alice.nova`, **nova** is the namespace and **alice** is the name label. A namespace owner chooses the rules for issuing names. A holder manages an issued name under those rules.
 
-```mermaid
-flowchart TD
-  Client[Wallet, explorer or app] --> Lookup[Universal Lookup]
-  Lookup --> Registry[Registry: namespace ownership and routing]
-  Lookup --> Registrar[Registrar: holder, generation and expiry]
-  Lookup --> Resolver[Resolver: address, optional memo, text and reverse]
-  Lookup --> Primary[Primary: G/C account display name]
-  Holder[Name holder] --> Resolver
-  Owner[Namespace owner] --> Registrar
-```
+When the namespace enables subnames, the holder can add one child level, such as `shop.alice.nova`. The parent holder controls that child; its receiving address can belong to someone else.
 
-Apps read through Universal Lookup, which follows the namespace's current contracts. Registry stores namespace ownership and routing. Registrar stores name ownership and lifecycle. Resolver stores payment and profile records, plus G/C reverse selections. Primary stores G/C account display-name selections. Universal Lookup also stores the separate elections for complete M addresses.
+<Illustration name="subnames" alt="The holder of alice.nova controls the child names pay.alice.nova and shop.alice.nova." />
+
+## Three different roles
 
 | Role | What it controls |
 | --- | --- |
-| Namespace owner | Issuance and namespace settings under the contract policy |
-| Holder | An issued name and its records under that policy |
-| Recipient | The account or contract receiving payments; destination-account authorization controls display-name elections |
+| Namespace owner | Issuance, supported features, and namespace settings under the contract policy. |
+| Holder | An issued name, its records, and supported children under that policy. |
+| Recipient | The address receiving payments; destination-account authorization controls display-name elections. |
+
+For example, Alice can hold `alice.nova` while its Stellar destination points to an exchange account with her required deposit memo. The exchange receives the payment; it does not gain control of Alice's name.
+
+## Contract roles
+
+Apps read through **Universal Lookup**, which follows the namespace's current contracts. The **Registry** stores namespace ownership and routing. The **Registrar** stores name ownership and lifecycle. The **Resolver** stores payment, network-address, and profile records.
+
+The **Primary** contract handles cross-namespace name selections for classic and contract accounts. Universal Lookup also handles elections for complete muxed addresses.
+
+[See the illustrated architecture →](/concepts/architecture)
 
 ## Namespace contract addresses
 
@@ -44,7 +47,7 @@ The console can [prepare branded addresses](/platform/issuing-names#automatic-br
 
 ## Labels
 
-Each canonical label is 1–63 bytes of lowercase ASCII letters, digits and interior hyphens. Leading/trailing hyphens, whitespace and non-ASCII input are invalid. A full name is at most 127 bytes.
+Each canonical label is 1–63 bytes of lowercase ASCII letters, digits and interior hyphens. Leading/trailing hyphens, whitespace and non-ASCII input are invalid. A two-label name is at most 127 bytes. A supported three-label subname is at most 191 bytes. Soran supports one optional child level, not arbitrary nesting.
 
 The contracts require canonical lowercase input. The SDK accepts ASCII uppercase and lowercases it **after rejecting non-ASCII**. It does not trim whitespace or normalize Unicode lookalikes. Punycode is stored literally; avoid rendering a decoded lookalike as verified identity.
 
@@ -53,6 +56,7 @@ The contracts require canonical lowercase input. The SDK accepts ASCII uppercase
 ```text
 namespaceNode = sha256(ZERO32 || sha256(namespace))
 nameNode      = sha256(namespaceNode || sha256(label))
+childNode     = sha256(nameNode || sha256(childLabel))
 ```
 
 Labels are canonical bytes. Nodes are 32 raw bytes; a 64-character hex rendering is not interchangeable with those bytes. The SDK's `namehash(namespace)` and `node(name)` each return a `Promise<Uint8Array>` containing those 32 bytes. Metadata fields such as `NameMetadata.node` instead use a hex string.

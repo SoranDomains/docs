@@ -1,0 +1,59 @@
+---
+title: "Enable networks and subnames"
+description: "Choose which additional address networks and subnames your namespace offers to holders."
+---
+
+As a namespace owner, you decide whether holders can add addresses on other blockchains and create subnames such as `pay.alice.nova`. These settings apply immediately to existing and future names in your namespace.
+
+The two features have separate policies. Additional networks start disabled, and subname creation starts disabled. Installing a contract update does not switch either feature on.
+
+## Check your namespace contracts
+
+Open **Contract updates** in the console. Review the available updates with the wallet that currently owns your namespace.
+
+Network addresses need a compatible Resolver. Subname creation needs compatible Registrar and Resolver contracts. Integrators also need a Lookup deployment supporting the features they read. Existing namespaces retain their installed contracts until their owners approve updates; a newer app or SDK alone cannot add the capability.
+
+See [release status](/reference/release-status) for the shared deployment and package versions, and [governance](/concepts/governance) for update authority.
+
+## Choose address networks
+
+In **Settings → Network addresses**, select the networks your holders may use, then review and sign the policy change. A holder can publish one address for each selected network on their name page.
+
+With a configured [Owner client](/owner/issuing-from-code) using **Owner 0.12.0**:
+
+```ts
+const enabled = await owner.chainPolicy("nova");
+console.log(enabled);
+
+// Replaces the complete allowlist.
+await owner.setChainPolicy("nova", ["ethereum", "bitcoin", "solana"]);
+```
+
+The list replaces the previous selection. Include every network you want to keep enabled. Passing `[]` disables all additional networks while leaving Stellar payment instructions unchanged.
+
+Disabling a network hides its addresses and blocks new address writes. Stored records remain; re-enabling exposes records belonging to the current active ownership generation. Holders can still clear a disabled record through the SDK.
+
+## Choose a subname policy
+
+Open **Settings → Subnames** and choose:
+
+| Policy | Effect |
+| --- | --- |
+| `enabled` | Parent holders can create and manage children |
+| `creation-disabled` | New children are blocked; existing children remain usable |
+| `suspended` | Children stop resolving and cannot be edited; holders can still remove them |
+
+```ts
+const policy = await owner.subnamePolicy("nova");
+await owner.setSubnamePolicy("nova", "enabled");
+```
+
+Subnames remain controlled by the parent holder and follow the parent's lifetime. They can have different receiving addresses. Parent transfer, reclaim or reissue invalidates existing child bindings. Read [subname ownership](/concepts/subnames) before enabling the feature.
+
+## Who authorizes changes?
+
+The current on-chain namespace owner signs policy changes. Console admin and issuer roles do not grant that authority. Namespace ownership also does not grant permission to edit a holder's records.
+
+After signing, refresh the live policy before inviting holders to use the feature. If submission is pending, check the original transaction before signing another change.
+
+Continue with [network address integration](/sdk/network-addresses) or [subname integration](/sdk/subnames).

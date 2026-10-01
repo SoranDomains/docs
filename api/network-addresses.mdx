@@ -1,0 +1,80 @@
+---
+title: "Network address API"
+description: "Read network-specific destinations and prepare holder or namespace-owner policy transactions."
+---
+
+Use the [public API](/api/overview) to read additional blockchain addresses. Every request selects a network explicitly, and reads send `Cache-Control: no-store`. The namespace must have compatible contracts and the owner must enable the requested network.
+
+## Read policy and addresses
+
+```http
+GET /v1/chain-policy/nova
+```
+
+An example policy response:
+
+```json
+{ "version": 1, "namespace": "nova", "networks": ["ethereum", "bitcoin"] }
+```
+
+```http
+GET /v1/chain-address/nova/alice/ethereum
+GET /v1/chain-address/nova/pay.alice/ethereum
+```
+
+Both return `{ name, network, address }`. The second route reads `pay.alice.nova`. `address` is a canonical address string or `null` when no current record exists for that enabled network. The [SDK guide](/sdk/network-addresses#supported-network-ids) lists supported IDs.
+
+An unavailable read never returns a substitute address from Stellar, another network or profile text. Stellar's complete receiving instruction remains available from the [payment endpoint](/api/resolution#complete-payment).
+
+## Prepare a holder record
+
+Send one action per request:
+
+```http
+POST /records/prepare
+Content-Type: application/json
+
+{
+  "name": "alice.nova",
+  "chainAddress": {
+    "network": "ethereum",
+    "address": "0x1111111111111111111111111111111111111111"
+  }
+}
+```
+
+The address above illustrates the format; replace it with your intended destination. Use `address: null` to remove a record, including while its network is disabled.
+
+A successful preparation returns `ok`, unsigned `xdr`, `holder`, `signer`, `namespace`, `resolverId` and `network` (the Soroban network passphrase). Preparing does not save the record. Review the intended name, destination network, address, Resolver, signing account and transaction costs before the current holder signs.
+
+Submit the signed transaction with `POST /records/submit` and `{ "signedXdr": "..." }`. A `202` pending response requires checking the original `txHash`; see [submission handling](/api/overview#submission-responses).
+
+## Prepare a namespace policy
+
+Use a wallet session [scoped to the namespace](/owner/activating-a-namespace#prepare-through-the-api). The session account must be its current on-chain owner.
+
+```http
+POST /console/chain-policy/prepare
+Authorization: Bearer <session-token>
+X-Soran-Namespace: nova
+Content-Type: application/json
+
+{ "namespace": "nova", "networks": ["ethereum", "bitcoin"] }
+```
+
+The array replaces the full allowlist. The response includes unsigned `xdr`, `signer`, `namespace`, `resolverId`, `network` and `ok`. After owner approval, use `POST /console/tx/submit` with `{ "xdr": "<signed transaction>" }` and the same session and namespace headers.
+
+## Failure meanings
+
+| Response | Meaning |
+| --- | --- |
+| `400 unsupported_network`, `invalid_chain_address` | Invalid requested network or address |
+| `409 chain_disabled` | Namespace policy excludes the network |
+| `409 multichain_unsupported` | A checked implementation does not support this interface |
+| `403 not_namespace_owner` | Session wallet cannot change the namespace policy |
+| `400 wallet_session_required` | Policy preparation needs a wallet-backed session |
+| `409 namespace_changed` | Session selection, header or body namespace disagree |
+| `409 contract_holder_requires_adapter` / `contract_owner_requires_adapter` | This preparation flow needs a compatible contract-wallet adapter |
+| `503 chain_unavailable` | The service could not establish current contract state |
+
+Inactive names and missing namespaces also produce errors. Preserve those errors separately from a successful `address: null`.
