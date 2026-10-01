@@ -13,12 +13,14 @@ npm test
 - `decodeDestinationXdr(base64)`: validate a `PaymentDestination` ScVal and
   return its native array/object shape, preserving bigint IDs and memo bytes.
 - `normalizeName(input)`: trim outer whitespace, reject non-ASCII name
-  characters, lowercase and validate `name.namespace`.
+  characters, lowercase and validate `name.namespace` or `child.name.namespace`.
 - `nativeJson(value)`: encode bigint and byte arrays for fixture comparison.
 
 `decode-reads.mjs` exports `decodeNameStatusXdr(base64, expectedName)` and
-`decodeBatchNamesXdr(base64, expectedCount)`. They validate registration-state
-and batch results against the request, returning raw native shapes.
+`decodeBatchNamesXdr(base64, expectedCount, limit = 32)`. They validate registration-state
+and batch results against the request, returning raw native shapes. Status includes
+the `Suspended` child state. Pass the deployed method's advertised batch limit;
+current reverse batches allow 32 identities and Primary batches allow 16.
 
 The fixtures are in `../../reference/vectors/lookup-returns-v1.json` and
 `../../reference/vectors/lookup-read-extensions-v1.json`. Valid
@@ -28,7 +30,9 @@ bigint as `{"$bigint":"77"}` and bytes as `{"$bytes":"0001..."}`; actual SDK
 values are bigint and Uint8Array.
 
 These are synthetic ABI fixtures encoded from the deployed testnet Lookup
-spec. They do not attest a live name, payment destination or transaction.
+spec at their recorded revisions. The fixture files remain unchanged; additional
+tests cover child namehashes, suspension and larger batch bounds. They do not
+attest a live name, payment destination or transaction.
 The decoder validates returned data; it does not perform a lookup, check
 contract provenance, sign or send a payment. Check the RPC simulation outcome,
 restoration requirements and your deployment configuration before decoding.

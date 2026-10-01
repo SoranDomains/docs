@@ -18,7 +18,7 @@ Use the [current deployment addresses](/reference/release-status) and the [store
 
 ## Network fees
 
-Network execution and storage fees are separate from any username price, including a zero price. Owner 0.9.0 and Holder 0.8.0 default `maxNetworkFeeStroops` to `50_000_000n` (5 XLM) per transaction, including storage restoration. Native operations also respect `maxNativeFeeStroops`; when both options are set, the lower limit applies. They reject a higher estimate before signing. See [write-client fee limits](/sdk/installation#write-client-fee-limit).
+Network execution and storage fees are separate from any username price, including a zero price. Owner 0.12.0 and Holder 0.10.0 default `maxNetworkFeeStroops` to `50_000_000n` (5 XLM) per transaction, including storage restoration. Native operations also respect `maxNativeFeeStroops`; when both options are set, the lower limit applies. They reject a higher estimate before signing. See [write-client fee limits](/sdk/installation#write-client-fee-limit).
 
 Initial storage rent can exceed that limit. Review the estimate before explicitly choosing a higher limit; this does not change the on-chain username price.
 
@@ -27,6 +27,7 @@ Initial storage rent can exceed that limit. Review the estimate before explicitl
 | Contract | Method | Result |
 | --- | --- | --- |
 | Registrar | `claim_version()` | `u32`, exactly `1` |
+| Registrar | `contract_claim_version()` | `u32`, exactly `1` when G and C claimants are supported |
 | Registry | `owner_epoch(ns_node)` | `u64` ownership epoch |
 | Registry | `template_hashes()` | `(Registrar Wasm hash, Resolver Wasm hash)` |
 | Registry | `native_contracts(ns_node)` | `(Registrar Address, Resolver Address)` after the native binding checks |
@@ -56,6 +57,9 @@ Administrative writes require the current Registry owner. Console operator roles
 | `claim_config` | none | `Option<ClaimConfig>` |
 | `configure_claims` | `settings: ClaimSettings` | `ClaimConfig` |
 | `set_claim_enabled` | `enabled: bool` | `ClaimConfig` |
+| `set_renewal_grace` | `secs: u64` | `u64`, the new policy version; duration must be 0–7,776,000 seconds |
+| `renewal_grace` | none | `u64`, configured duration; defaults to `0` |
+| `renewal_grace_effective_from` | none | `Option<u64>`, activation timestamp; absence means no expiry is protected |
 
 ### Reserve and assign labels
 
@@ -111,12 +115,13 @@ The Owner SDK exposes simple assignment. Calling the atomic reserved method for 
 
 A quote reports availability, reservation, current configuration, ownership epoch,
 record generation/expiry and lifetime usage. It does not reserve the label.
+Availability respects the applicable renewal grace period, not just the expiry timestamp.
 `available: true` alone does not mean claiming is enabled or that the wallet is
 eligible. Inspect all relevant fields and the current policy.
 
 ### Submit a claim
 
-Public claims use a **G claimant as holder and fee payer**. The
+Current public claims support a **G or C claimant as holder and username-fee payer**. Check `contract_claim_version() == 1` before using a C claimant; `claim_version() == 1` alone does not establish that support. A C claimant needs an integration with its contract wallet's authorization rules, and a separate G transaction source pays network fees. The
 receiving destination can independently be G without a memo, G with ID/Text/Hash
 memo, M with its muxed ID, or C without a memo. The transaction records future
 receiving instructions; it does not make a payment to that destination.
@@ -153,9 +158,7 @@ The claimant's authorization has these children, in order:
 2. Resolver `initialize_destination(label, claimant, fresh_generation, destination)`.
 
 The optional G approver's claim authorization has no children. The approver does
-not authorize a fee transfer or substitute for claimant authorization. Native
-account signer/threshold rules apply. The backend signs an authorization entry,
-while the claimant independently signs the transaction.
+not authorize a fee transfer or substitute for claimant authorization. G identities use native account signer/threshold rules; a C claimant uses its contract's `__check_auth` implementation. The backend signs the approver's authorization entry independently of the claimant's authorization and the transaction-source signature.
 
 An intent binds network, Registry, Registrar, namespace, request ID, execution
 window, label, claimant, complete destination, Resolver, existing generation/expiry,
@@ -228,8 +231,11 @@ than 100 years from execution and within the signed result bounds. Zero-expiry o
 permanent names cannot use it. The legacy owner renewal method also rejects zero
 extension and leases beyond the same 100-year bound.
 
-An expired holder may renew only before reissue wins. There is no guaranteed grace
-period. `preview_destination` returns the exact-generation receiving instructions,
+The owner can configure renewal grace from zero (the default) through 90 days. Enabling it protects names whose expiry is at or after its activation timestamp. Changing one positive duration to another retains that cutoff; disabling and re-enabling starts a new activation. Each change advances the claim policy version. Grace prevents ordinary reissue until ledger time is strictly greater than `expiry + applicable grace`; it does not keep an expired name resolving or remove any owner reclaim power.
+
+After that protection ends, an expired holder can still renew while it remains the recorded holder and no reissue has won, unless the owner has reserved the now-reissuable label. Read both grace getters and the current name state; a nonzero duration without an activation timestamp provides no protection.
+
+`preview_destination` returns the exact-generation receiving instructions,
 including when inactive. It rejects mismatched generations and invalid configured
 payment records. Ordinary payment resolution still rejects expired names. Preview
 is not a new payment destination or a bypass of live resolution.
@@ -283,6 +289,9 @@ Existing Registrar error codes `1–20` retain their values. The native claim me
 | 40 | `RenewalLeaseLimit` |
 | 41 | `DestinationInitializationFailed` |
 | 42 | `FeeSettlementFailed` |
+| 52 | `InvalidRenewalGrace` |
+
+These are the claim and renewal-related codes, not the full Registrar error catalogue. Code `37` remains in the ABI; current contract-claim capability `1` permits both G and C claimants.
 
 ### Related contract errors
 

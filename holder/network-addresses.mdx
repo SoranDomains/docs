@@ -1,0 +1,70 @@
+---
+title: "Add network addresses"
+description: "Publish and manage separate receiving addresses for the networks your namespace supports."
+---
+
+Add network addresses to a name you hold so someone can look up the right destination for their chosen blockchain. Each network has its own record, even when two networks use the same address format.
+
+## Before you begin
+
+You need an active name, the holder wallet and a namespace whose Resolver supports network addresses. The namespace owner must enable each network you want to use. For a subname, its parent holder manages the addresses and the subname must permit record edits.
+
+Have the recipient's complete receiving address for the selected **mainnet** ready. Additional network records are mainnet destinations even when Soran's naming contracts run on Stellar testnet.
+
+## Use the app
+
+This flow requires a classic G-account holder, or a G-account parent holder for a subname. A C-contract holder needs a separate contract-authorization integration; a fee-paying G account cannot edit on its behalf merely by connecting a wallet.
+
+1. Open [Soran's lookup](https://soran.domains/lookup), find your name and open its public record.
+2. In **Network addresses**, choose **Manage network addresses** and connect the holder wallet.
+3. Find the enabled network and enter its mainnet receiving address.
+4. Choose **Review & save**, review the transaction cost and approve the wallet request.
+5. Check the refreshed record. **Refresh network addresses** reads the saved values again.
+
+Repeat for each network you want to publish. Choose **Remove address** to clear an existing record.
+
+Public visitors can use **Copy address** to recheck and copy a saved destination. That button appears when the record is being viewed, rather than edited by the holder.
+
+If the section says no networks are enabled, the namespace owner must [enable them in the console's **Settings**](/owner/feature-settings). Older namespace contracts may also need an update. A wallet connected as the recipient has no editing authority unless it also holds the name.
+
+## Use the SDK
+
+This example uses **Holder 0.10.0** and **Lookup 0.11.0**. [Configure the wallet signer](/holder/managing-your-name#connect-your-wallet) and use one matching [deployment](/reference/release-status).
+
+```ts
+import { SoranHolder, DEPLOYMENTS, type TxSigner } from "@sorandomains/holder";
+import { Soran } from "@sorandomains/lookup";
+
+declare const walletSigner: TxSigner;
+declare const myEthereumAddress: string;
+
+const me = new SoranHolder({ ...DEPLOYMENTS.testnet, signer: walletSigner });
+const soran = new Soran({ network: "testnet" });
+
+const enabled = await soran.chainPolicy("nova");
+if (!enabled.includes("ethereum")) throw new Error("Ethereum is not enabled");
+
+await me.setChainAddress("alice.nova", "ethereum", myEthereumAddress);
+const saved = await soran.chainAddress("alice.nova", "ethereum");
+console.log(saved);
+```
+
+The SDK validates the selected network's address format before requesting a signature. After confirmation, `chainAddress` returns its canonical address. It returns `null` when a supported, enabled network has no current address record. A disabled network, unsupported contract or failed read remains an error.
+
+To clear the record:
+
+```ts
+await me.clearChainAddress("alice.nova", "ethereum");
+```
+
+Clearing through the SDK remains available when the namespace disables that network. Other records stay separate.
+
+## Keep the network and routing details together
+
+Use network IDs such as `bitcoin`, `ethereum`, `base`, `solana` and `xrp`; see [supported networks](/concepts/multichain-addresses#supported-networks) for the full set. An Ethereum record does not automatically populate Base or another EVM network.
+
+For XRP Ledger, use the full mainnet X-address when the recipient requires a destination tag. A classic `r...` address cannot preserve that tag. `xrpl-evm` is a separate network.
+
+Stellar addresses, memos and muxed destinations use [payment instructions](/concepts/payment-destinations) and `setPayment`. Publishing a network address performs no swap, bridge or transfer.
+
+Namespace policy changes can pause an address's resolution, and a name ownership change invalidates the old holder's records. A sending app should resolve the selected network again before approving a payment.

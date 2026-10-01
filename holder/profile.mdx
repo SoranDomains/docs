@@ -1,0 +1,80 @@
+---
+title: "Publish your profile"
+description: "Add an avatar, description, website and social handles to a name you control."
+---
+
+Publish a profile on `alice.nova` so supporting wallets and apps can show information you choose to share. You can update individual fields or publish several together.
+
+The current app lets you choose display names and primary names. Use the **Holder SDK** or a configured local MCP integration to publish profile fields. Published MCP 0.10.0 supports profile writes for ordinary names and subnames; the hosted MCP service is read-only. See [agent access](/agents/access#child-names).
+
+## Before you begin
+
+You need an active name, its holder's authorization and a namespace with a compatible Resolver. For a subname, you need the parent holder's authorization and a policy that permits record edits.
+
+This example uses **Holder 0.10.0** and **Lookup 0.11.0** with a wallet signer for a classic Stellar account. Use the matching [deployment configuration](/reference/release-status) for every client.
+
+```bash
+npm install @sorandomains/holder@0.10.0 @sorandomains/lookup@0.11.0 @stellar/stellar-sdk@^17
+```
+
+```ts
+import { SoranHolder, DEPLOYMENTS, type TxSigner } from "@sorandomains/holder";
+import { Soran } from "@sorandomains/lookup";
+
+declare const walletSigner: TxSigner; // Your connected wallet adapter.
+
+const me = new SoranHolder({
+  ...DEPLOYMENTS.testnet,
+  signer: walletSigner,
+});
+const soran = new Soran({ network: "testnet" });
+```
+
+See [wallet setup](/holder/managing-your-name#connect-your-wallet) for the signer interface. Contract-owned names require a compatible contract-wallet authorization integration.
+
+## Publish fields
+
+Replace the example name and content with your own:
+
+```ts
+const receipts = await me.setProfile("alice.nova", {
+  description: "Designer and community contributor",
+  url: "https://alice.example",
+  avatar: "https://alice.example/avatar.png",
+  github: "alice-example",
+});
+
+console.log(receipts.map(({ key, hash }) => ({ key, hash })));
+```
+
+The standard keys are `org`, `url`, `email`, `description`, `avatar`, `location`, `twitter` and `github`. An avatar value is a text reference to an image, not an uploaded image file.
+
+`setProfile` submits **one transaction per key**, in order. Review the wallet requests and network costs. If a later write fails, earlier confirmed fields remain published. Keep the returned transaction references and check an uncertain submission before retrying.
+
+## Read the result
+
+```ts
+const profile = await soran.profile("alice.nova");
+console.log(profile.description, profile.url);
+```
+
+After confirmation, the returned object contains your published, nonempty standard fields. Applications choose which fields to display. A failed read is an error, not proof that a profile is empty.
+
+The contract verifies who authorized the records. It does not verify ownership of the website or social accounts they describe.
+
+## Update or retract a field
+
+```ts
+await me.setText("alice.nova", "description", "Building a new community project");
+await me.clearText("alice.nova", "github");
+```
+
+`clearText` writes an empty value that standard profile readers treat as unset. It does not erase blockchain history. Text keys use 1–32 letters, numbers or underscores; each value can contain at most 4,096 UTF-8 bytes. Payment instructions use `setPayment`, not a profile field.
+
+Your profile stops representing an active name when it expires. A transfer or reissue prevents the former holder's records from appearing as the new holder's profile.
+
+## Choose how your wallet appears
+
+If the name resolves to an address you control, you can elect it as that address's display name and then its primary name. Follow [account display names](/holder/managing-your-name#account-display-names) or use the name record's **Display name** controls in the app.
+
+For application integration, continue with [identity and discovery](/sdk/identity).

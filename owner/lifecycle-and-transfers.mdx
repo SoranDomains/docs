@@ -1,9 +1,9 @@
 ---
 title: "Lifecycle and transfers"
-description: "Owner operations, separate namespace transfers and the irreversible permanence lock."
+description: "Renew or reclaim names, transfer a namespace and understand routing and upgrade controls."
 ---
 
-Use the [Owner SDK](/owner/issuing-from-code) to renew or reclaim eligible names, transfer your namespace, change its Resolver or make it permanent. These operations require the current namespace owner's authorization, except transfer acceptance, which the proposed new owner signs.
+Use the [Owner SDK](/owner/issuing-from-code) to renew or reclaim eligible names, transfer your namespace or change its Resolver. These operations require the current namespace owner's authorization, except transfer acceptance, which the proposed new owner signs. The governed testnet rejects new permanence locks.
 
 ## Reclaim, renew and treasury
 
@@ -22,6 +22,8 @@ These are separate operations; choose the one you need.
 | `setTreasury` | Changes custody for future reclaims. Change the public username fee recipient separately through `configureClaims`. |
 
 Owner renewal accepts an explicit extension. The [holder renewal flow](/holder/managing-your-name#renew-a-finite-name) instead extends by the immutable policy term and has an early-renewal window. A finite name expires only when ledger time is strictly greater than its expiry.
+
+The Registrar also exposes owner-authorized `set_renewal_grace(secs)`, with a zero default and a maximum of 90 days. Grace blocks ordinary reissue for eligible expiries; it does not preserve resolution after expiry or disable owner reclaim. Enabling grace establishes an expiry cutoff. Positive duration changes retain it, while disabling and re-enabling creates a new cutoff. Owner 0.12.0 has no dedicated grace helper, so use the [contract interface](/api/native-claiming#renew-a-name) with the current owner's authorization.
 
 ## Transfer the namespace
 

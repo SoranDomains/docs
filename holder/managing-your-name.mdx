@@ -1,14 +1,33 @@
 ---
 title: "Managing your name"
-description: "Publish an atomic on-chain address and optional memo, profile records and account display names."
+description: "Choose receiving addresses, publish a profile, create subnames and manage a name you hold."
 ---
 
-Use **Holder 0.8.0** to manage names you hold: change receiving details, publish a profile, elect display names, transfer a name or renew an eligible lease.
+Your Soran name can carry receiving addresses, a public profile and subnames for different purposes. The holder controls its records; the namespace's policy determines rights such as transfer and renewal.
+
+| I want to… | Start here |
+| --- | --- |
+| Change my Stellar address or required memo | [Payment instructions](#address-and-memo-together) |
+| Add Bitcoin, Ethereum or other network addresses | [Network addresses](/holder/network-addresses) |
+| Add an avatar, website or social handles | [Publish your profile](/holder/profile) |
+| Show my name when an app looks up my wallet | [Account display names](#account-display-names) |
+| Create `shop.alice.nova` under my name | [Create subnames](/holder/subnames) |
+| Transfer or renew my name | [Transfer](#name-transfer) · [Renewal](#renew-a-finite-name) |
+
+## Open your name in the app
+
+Find your name through [Soran's lookup](https://soran.domains/lookup) and open its public record. You can inspect the holder, ownership conditions and receiving instructions without signing in to the operator console.
+
+Choose **Manage this name** in **Payment and identity**, then **Connect your wallet**. The holder can change Stellar payment instructions. The wallet controlling the receiving address can choose its display and primary names. **Network addresses** and **Subnames** have their own management controls on the same page.
+
+The app's wallet editing flow uses a classic G account. A name held by a C contract needs an integration that supplies that contract's authorization; connecting its fee-paying G wallet does not make the G wallet the holder.
+
+Profile fields use the Holder SDK or a configured MCP integration. The examples below use **Holder 0.10.0**. Check [release status](/reference/release-status) for package and namespace contract requirements.
 
 ## Connect your wallet
 
 ```bash
-npm install @sorandomains/holder@0.8.0 @stellar/stellar-sdk@^17
+npm install @sorandomains/holder@0.10.0 @stellar/stellar-sdk@^17
 ```
 
 ```ts
@@ -35,7 +54,7 @@ const me = new SoranHolder({
 
 Use one matching [deployment configuration](/reference/release-status). `walletSigner` implements `publicKey()` and `signTransaction(xdr, options)`. A backend can use `keypairSigner` with a securely supplied secret. Keep signing keys out of frontend configuration.
 
-This adapter uses a classic G transaction-source account. A contract-owned name needs a compatible contract authorization integration. M destinations are payment routes, not signer identities.
+This example uses a classic G transaction-source account. For a contract-held name, supply the Holder SDK's `contractWallet` adapter as well as a G transaction payer. The C wallet authorizes supported actions using the format its deployed `__check_auth` accepts. M destinations are payment routes, not signer identities.
 
 ## Claim a username
 
@@ -45,7 +64,13 @@ This adapter uses a classic G transaction-source account. A contract-owned name 
 
 See the [signup and recovery examples](/owner/automatic-claiming#claim-from-your-application). Claiming `alice.nova` is separate from applying for the top-level namespace `nova`.
 
+Both G accounts and C contract wallets can claim on compatible Registrars. C claiming requires `contract_claim_version() == 1`; choosing a C receiving destination alone does not make that contract the claimant or upgrade an older Registrar.
+
 ## Address and memo together
+
+In the app, enter the complete destination under **Payment and identity**. Choose **Add a memo** if the recipient requires one, enter its exact type and value, then choose **Sign & update**. After confirmation, check the refreshed payment instructions.
+
+From code, use `setPayment` to update the address and memo together:
 
 ```ts
 await me.setPayment("alice.nova", {
@@ -68,7 +93,7 @@ The native Resolver updates both fields atomically on chain. Memos are optional:
 | --- | --- |
 | `setPayment(name, destination)` | Set the complete G/M/C destination and memo. Use this for required memos and M routes. |
 | `setRecord(name, address)` | Update a memo-free Resolver address. The contract refuses a write that would discard a required memo or M routing ID. |
-| `setAddress(name, address)` | Change the Registrar's built-in target, which Resolver instructions may override. The SDK first requires a current direct memo-free payment. |
+| `setAddress(name, address)` | Change an ordinary name's Registrar target, which Resolver instructions may override. The SDK first requires a current direct memo-free payment. This method does not edit subnames. |
 
 Read the effective address and memo with [Lookup's `resolvePayment`](/sdk/resolving-names).
 
@@ -76,20 +101,25 @@ G supports `none`, `id`, `text` and `hash` memos. M and C support `none` only. P
 
 ## Profile records
 
-```ts
-await me.setProfile("alice.nova", {
-  org: "Alice Co",
-  url: "https://alice.example",
-});
-await me.setText("alice.nova", "description", "My profile");
-await me.clearText("alice.nova", "description");
-```
+Use `setProfile` to publish standard fields such as your avatar, description, website and social handles, including on a subname you control. It submits one transaction per key, in order; earlier confirmed writes remain if a later field fails. The current holder authorizes the records, while the information itself is self-published. Published MCP 0.10.0 also supports these writes on ordinary names and subnames through a configured local signer; hosted MCP is read-only.
 
-`setProfile` submits one transaction per key, in order. If a later key fails, earlier writes remain in place.
+`clearText` retracts a field by writing an empty value; it does not erase blockchain history. Standard profile readers treat empty text as unset. Payment memos use `setPayment`, not text records. Follow [Publish your profile](/holder/profile) for the complete example and read-back step.
 
-`clearText` writes an empty value; it does not delete the stored record. Standard profile readers treat empty text as unset. Payment memos must be changed through `setPayment`, not text records.
+## Network addresses
+
+Publish a separate address for each additional network your namespace enables. The app's **Network addresses** section and the SDK's `setChainAddress` manage these records. Stellar continues to use `setPayment`.
+
+These are mainnet destination addresses, even when Soran's naming contracts are on Stellar testnet. Follow [Add network addresses](/holder/network-addresses) to save and verify them.
+
+## Subnames
+
+When your namespace enables subnames, you can create one child level under a name you hold, such as `shop.alice.nova`. The parent holder controls each child's receiving instructions and profile. A different receiving wallet does not gain ownership.
+
+Use [Create and manage subnames](/holder/subnames) for the app flow and SDK examples. The existing `setPayment`, `setRecord`, profile and display-name methods accept child names. Claiming, `setAddress`, individual name transfers and renewals remain operations on ordinary `name.namespace` names.
 
 ## Account display names
+
+In the name's **Display name** controls, choose **Set as display name**, then optionally **Set as primary name**. The receiving wallet must authorize these choices. In code:
 
 ```ts
 await me.setReverse("alice.nova");
@@ -135,7 +165,7 @@ Operators can maintain existing elections with the contract's permissionless `to
 
 ## Name transfer
 
-The current holder proposes a transfer:
+For an ordinary name such as `alice.nova`, the current holder proposes a transfer:
 
 ```ts
 await me.proposeNameTransfer("alice.nova", recipientAddress);
@@ -151,6 +181,8 @@ The intended recipient then accepts with its own Holder client:
 
 The explicit intent binds the pending proposal, sender, recipient, generation and expiry. Acceptance preserves the name's expiry and advances generation. Namespace transfer policy and name activity gates apply.
 
+Changing the parent name's ownership invalidates its existing subnames. They cannot be transferred independently; the new holder recreates the children they want.
+
 To withdraw a pending proposal, call `me.cancelNameTransfer("alice.nova")` instead. Transferring one name is separate from [transferring its namespace](/owner/lifecycle-and-transfers#transfer-the-namespace).
 
 ## Renew a finite name
@@ -162,12 +194,17 @@ Use `renewName` with a `RenewIntent` binding the holder, generation, existing ex
 | Rule | Holder renewal behavior |
 | --- | --- |
 | Earliest renewal | Last `min(30 days, term)` of a finite lease |
-| After expiry | Allowed only while the recorded generation has not been reissued; no guaranteed grace period |
+| After expiry | Allowed while the same recorded ownership generation remains, subject to reservation rules |
+| Exclusive renewal grace | Owner-configured, from 0 to 90 days; defaults to 0 and protects eligible expiries from reissue |
 | Extension | One immutable term from `max(now, expiry)`, no more than 100 years from execution |
 | Fees | No separate username renewal fee; network/storage costs apply |
 | Independence | Public-claim pause, app eligibility and namespace ownership epochs do not block renewal |
 
 Zero-term names and stale generations are ineligible. Renewal preserves generation and reactivates its stored receiving instructions. Owner reclaim rights still follow namespace policy.
+
+An eligible grace period delays reissue; it does not keep an expired name resolving or transferable. Enabling grace protects expiries at or after activation, not names already expired then. A reserved name cannot be renewed by the old holder once it becomes reissuable. Read the current Registrar's grace settings before relying on a renewal window.
+
+Subnames have no separate renewal. Renewing the same parent ownership restores its valid subnames; a reissued parent does not restore the former holder's children.
 
 See the [exact lifecycle ABI](/api/native-claiming#transfer-and-renewal) before constructing a transfer or renewal intent.
 

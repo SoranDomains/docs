@@ -3,11 +3,19 @@ title: "Testnet and contract addresses"
 description: "Current contract addresses, SDK versions, endpoints and fees for integrating with Soran."
 ---
 
-Soran is available on **Stellar testnet**. Mainnet is not available yet. Lookup and Primary received a storage-cost update on **11 September 2026**, at their existing addresses. MCP received a namespace-selection and submission-recovery update on **13 September 2026**. The deployment manifest records contract verification and package/service checks separately.
+Soran is available on **Stellar testnet**. Mainnet is not available yet. This page reflects contract, app and SDK releases verified on **1 October 2026**. The [deployment manifest](https://raw.githubusercontent.com/SoranDomains/docs/main/reference/deployments/testnet.json) records each verification separately.
 
 <span id="verified-claim-behavior" />
 
-The current setup supports automatic username claims, G accounts with or without a memo, muxed M addresses and C contract destinations. Reverse and Primary lookup support the complete M address, including its routing ID.
+The current release includes profiles and social links, complete Stellar payment destinations, addresses on 14 additional networks, and one subname level such as `mail.alice.yourbrand`. **Availability depends on the namespace:** shared contract support and published SDKs do not automatically upgrade an existing namespace or enable its policies.
+
+| Capability | What you need |
+| --- | --- |
+| Profiles and social links | A compatible Resolver and the current holder’s signature |
+| Stellar payment destinations | Complete G/M/C instructions, including any required memo or muxed ID |
+| Additional network addresses | A compatible Resolver and an owner-enabled network allowlist |
+| Subnames | Compatible Registrar and Resolver code, then owner-enabled creation |
+| Reverse and Primary names | The receiving identity’s authorization and a current forward match |
 
 For a working integration, start with the [quickstart](/quickstart) or try the [live examples](/live-examples).
 
@@ -31,7 +39,7 @@ Setting or clearing a display name in Lookup or Primary no longer renews the sha
 
 Reading a name through RPC simulation does not submit a transaction or charge an on-chain fee. A lookup invoked inside a submitted transaction contributes to that transaction's resource costs. Always simulate writes for a current fee estimate.
 
-The [Lookup upgrade](https://stellar.expert/explorer/testnet/tx/57b77ddfbcd3aa34eb71b41a03c412449a09cca567826b532de63b9ed2cd4d1c) and [Primary upgrade](https://stellar.expert/explorer/testnet/tx/42169053b6d19d516970cf54095b6d249cff7e9499b6c1fbdbfaa9b218c96d33) are confirmed. Existing records, contract methods and SDK versions are unchanged. See [storage lifetime](/reference/contract-storage#ttl-and-restoration).
+The [Lookup upgrade](https://stellar.expert/explorer/testnet/tx/57b77ddfbcd3aa34eb71b41a03c412449a09cca567826b532de63b9ed2cd4d1c) and [Primary upgrade](https://stellar.expert/explorer/testnet/tx/42169053b6d19d516970cf54095b6d249cff7e9499b6c1fbdbfaa9b218c96d33) are confirmed. That release preserved existing records and contract methods. See [storage lifetime](/reference/contract-storage#ttl-and-restoration).
 
 ## Namespace-funded sponsorship
 
@@ -45,18 +53,28 @@ The [Funding deployment](https://stellar.expert/explorer/testnet/tx/27984e617be4
 
 ## SDK versions
 
-Use these published versions together. Each supports Stellar SDK 17. Lookup reads names; Holder claims and manages them; Owner configures namespaces; MCP provides access for agents.
+The core SDKs below were published and verified on 1 October 2026. They require **Node.js 22.12 or newer** and Stellar SDK 17. Lookup reads names; Holder manages names and subnames; Owner configures namespaces.
 
 | Package | Current version |
 | --- | --- |
-| [Lookup](https://www.npmjs.com/package/@sorandomains/lookup) | **0.10.2** |
-| [Holder](https://www.npmjs.com/package/@sorandomains/holder) | **0.8.0** |
-| [Owner](https://www.npmjs.com/package/@sorandomains/owner) | **0.9.0** |
-| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.9.5** |
+| [Lookup](https://www.npmjs.com/package/@sorandomains/lookup) | **0.11.0** |
+| [Holder](https://www.npmjs.com/package/@sorandomains/holder) | **0.10.0** |
+| [Owner](https://www.npmjs.com/package/@sorandomains/owner) | **0.12.0** |
+| [MCP](https://www.npmjs.com/package/@sorandomains/mcp) | **0.10.0** |
 
-**MCP 0.9.5** adds local `deploy_namespace_resolver` and read-only `confirm_namespace_resolver`, including official vanity-address preparation and acceptance of existing attested Resolvers without the prefix. See [Resolver setup](/owner/activating-a-namespace#complete-resolver-setup).
+Published **MCP 0.10.0** uses the core SDK versions above and also requires Node.js 22.12 or newer. Its resolution, metadata, identity and history tools accept one child level such as `mail.alice.yourbrand`. Local profile and payment tools also support children, with authorization from the parent holder. Use the SDKs for child creation, removal, subname-policy changes and additional-network address operations; MCP does not expose dedicated tools for these actions. See [child-name support](/agents/access#child-names).
 
-MCP 0.9.5 selects the requested namespace in its private API session, sends the required namespace header, and preserves transaction identifiers after an uncertain submission. Update the pinned local package and restart the MCP process before retrying an activation that failed with `namespace_required`. See [activation and recovery](/owner/activating-a-namespace#activate-through-mcp).
+The local MCP package includes namespace activation, Resolver setup and submission recovery. See [agent access](/agents/access) and [Resolver setup](/owner/activating-a-namespace#complete-resolver-setup).
+
+## Subnames and network addresses
+
+The [1 October Lookup upgrade](https://stellar.expert/explorer/testnet/tx/381229a5c15622574ef4323832ae556ec96ecbaa1f849652b517a53f9f208ce0) and [Primary upgrade](https://stellar.expert/explorer/testnet/tx/bfe07f07fa68e6c7e349fe78e0ff0547b403668b2eecad679b59d977d555f0cf) installed shared subname support. Lookup also supports explicit network-address reads. Their existing addresses are unchanged.
+
+Registry governance [selected compatible Registrar and Resolver templates](https://stellar.expert/explorer/testnet/tx/9bdb67c418a9fbcf5701dd7df5accf4bcd71631c387429f3c4ff70ef2a960958) for new namespace deployments. **Existing namespace contracts and policies were not changed by this rollout.** The console and HTTP API include the corresponding interfaces, and the published core SDKs expose the read and write methods.
+
+For an existing namespace, its owner must install the compatible contracts and choose the policy. Additional networks start disabled. Subnames start with creation disabled; enabling creation is separate from installing the code. A subname remains controlled by its parent holder and is not independently transferable.
+
+Additional network IDs describe destination mainnets, even while Soran runs on Stellar testnet. Publishing an address does not send funds or bridge assets. Stellar retains its complete address-and-memo flow.
 
 ## Shared testnet contract addresses
 
@@ -151,6 +169,8 @@ Use the same Universal Lookup address for both namespaces. Try `nikcle.orange`, 
 | Lookup `batch_read_version()` | `3` |
 | Lookup `batch_read_limit()` | `32` namespace identities |
 | Lookup `primary_batch_limit()` | `16` Primary identities |
+| Lookup `multichain_version()` | `1` |
+| Lookup and Primary `subname_version()` | `1` |
 | Resolver `payment_version()` and `destination_version()` | `2` |
 | Registrar `claim_version()` | `1` |
 | Resolver `initialization_version()` | `1` |
@@ -158,15 +178,17 @@ Use the same Universal Lookup address for both namespaces. Try `nikcle.orange`, 
 | Allocator `reopen_version()` | `1` |
 | Registry namespace deployment salt | `1` |
 
+Registrar and Resolver versions are namespace-specific. New approved templates support subnames; the Resolver template also supports network-address records. Read each namespace’s capabilities before offering these features.
+
 Lookup's muxed identity extension is active at the same contract address. See the [full-M methods](/api/onchain-resolution#muxed-identity-extension) and [storage schema](/reference/contract-storage#muxed-identity-storage).
 
 ### Name status and history reads
 
 The [9 September Lookup upgrade](https://stellar.expert/explorer/testnet/tx/34ac6a1189a83f6ea33692b4a9dca65324e147653b9ef8d74800c6eedc7ff907) keeps the same contract address, storage and existing methods. `name_status` distinguishes missing namespaces, missing Registrars, unregistered names, active names and expired records in one observation. Existing payment error codes remain compatible.
 
-The [10 September batch optimization](https://stellar.expert/explorer/testnet/tx/5c444700a524c0a2454ad94cd3822562e7774a5d16c219e6c0599046d6910c91) keeps all contract addresses unchanged. `reverse_names` accepts up to **32** G/C/full-M identities in one namespace; `primary_names` accepts up to **16** across namespaces. Current native contracts combine related reads and share namespace verification work while still checking each live forward destination. Lookup 0.10.2 history helpers split calls when a host budget limit requires it and preserve each row's ledger/time. See [contract methods](/api/onchain-resolution#history-screens-and-multiple-addresses), [SDK examples](/sdk/reverse-and-primary#history-screens) and [exact JavaScript/XDR shapes](/reference/lookup-decoding#status-and-batch-shapes).
+The [10 September batch optimization](https://stellar.expert/explorer/testnet/tx/5c444700a524c0a2454ad94cd3822562e7774a5d16c219e6c0599046d6910c91) keeps all contract addresses unchanged. `reverse_names` accepts up to **32** G/C/full-M identities in one namespace; `primary_names` accepts up to **16** across namespaces. Current native contracts combine related reads and share namespace verification work while still checking each live forward destination. Lookup 0.11.0 history helpers split calls when a host budget limit requires it and preserve each row's ledger/time. See [contract methods](/api/onchain-resolution#history-screens-and-multiple-addresses), [SDK examples](/sdk/reverse-and-primary#history-screens) and [exact JavaScript/XDR shapes](/reference/lookup-decoding#status-and-batch-shapes).
 
-Live checks preserved the payment and elected-name answers for `nikcle.nova`, `robert.nova`, `mux.nova` and the forward-only contract example `cyclops.nova`. Generated TypeScript bindings also read the new methods successfully. Expiry boundaries and malformed dependency responses were checked in compiled-contract tests.
+The current SDK release preserves these history methods and complete Stellar payment reads.
 
 <span id="pending-allocator-upgrade" />
 
@@ -177,6 +199,8 @@ The Allocator records [case-specific rulings and explanations](/reference/namesp
 Those upgrades added case-specific rulings, removed the mandatory wait for new governance-approved code proposals and fixed XLM settlement to G accounts that do not yet exist. A payout can create the account when it meets the required reserve; if the transfer fails, the recipient receives a recoverable credit. The upgrades are recorded separately in the deployment manifest.
 
 The 10 September governed migration also upgraded Allocator code in place and retained its escrow. Namespace claim and objection windows, the 5,000 XLM fee and refund entitlements remain unchanged. See [governance and upgrades](/concepts/governance#allocator-upgrade-flow).
+
+[1 October storage maintenance](https://stellar.expert/explorer/testnet/tx/d3b2860542986e3f7a5eb4c36b602912e9c1f596470992d87a63d725abb76055) renewed Allocator code storage without changing its executable code. The HTTP API includes this maintenance update; contract addresses, application fees and claim windows stayed unchanged.
 
 ## Hosted services
 
@@ -189,17 +213,17 @@ The 10 September governed migration also upgraded Allocator code in place and re
 | Nova claim app and Whois | [Open Nova](https://nova-claim-app.throbbing-cloud-0f8e.workers.dev/) |
 | SDK demonstration app | [Open Soran Studio](https://soran-studio.throbbing-cloud-0f8e.workers.dev/) |
 
-These services use the current deployment. Hosted MCP identifies itself as **0.9.4**, checked on **14 September 2026**; signing tools are [local-only](/agents/access#native-usernames-in-local-mode). Billing and marketplace features are disabled on this setup. Check [service status](/api/status) when integrating.
+The console and HTTP API include the 1 October subname and network-address interfaces. Hosted MCP runs **0.10.0**, verified independently of npm publication on **1 October 2026**, and exposes the read tools for child names. Signing tools are [local-only](/agents/access#native-usernames-in-local-mode). Package releases and hosted-service updates have separate verification records in the manifest. Billing and marketplace features are available only when enabled on a deployment. Check [service status](/api/status) when integrating.
 
-The 8 September console/API update checks [current namespace ownership](/platform/console#current-ownership-checks), preserves the transaction hash after an [interrupted submission](/api/overview#submission-responses), and lets you recover an interrupted renewal before attempting another. Owners can now [set all five activation rules](/owner/activating-a-namespace), including disabling holder transfers or setting a default expiry term. The API and local MCP accept the same explicit policy, preserve the two preset defaults, and verify the requested rules before signing. The console also checks a maximum network fee and a short transaction expiry before wallet approval. Its name-management page supports full muxed identities through Universal Lookup.
+Namespace activation, [current ownership checks](/platform/console#current-ownership-checks) and [submission recovery](/api/overview#submission-responses) remain available. Always use the selected namespace’s live policy and contract capabilities.
 
 <span id="upcoming-updates" />
 
 ## Governed testnet deployment
 
-The 10 September migration preserves the Universal Lookup and Allocator addresses. Registry, Primary and Nova's Registrar and Resolver use the successor addresses above. Match them with Lookup **0.10.2**, Owner **0.9.0**, Holder **0.8.0** and MCP **0.9.5**.
+The 10 September migration preserved the Universal Lookup and Allocator addresses. Registry, Primary and Nova’s Registrar and Resolver use the successor addresses above. Later upgrades retain these addresses. Use the current core SDK versions with this deployment; MCP manages its own dependency versions.
 
-All six active contracts support authorized upgrades at the same address. Namespace child upgrades require the current namespace owner and protocol approval for the exact contract role and code hash. The governed testnet does not permit irreversible code locks. Name expiry and owner reclaim policy remain separate settings. See [governance](/concepts/governance).
+The active naming contracts support authorized upgrades at the same address. Namespace Registrar and Resolver upgrades require the current namespace owner and protocol approval for the exact contract role and code hash. The governed testnet does not permit irreversible code locks. Name expiry and owner reclaim policy remain separate settings. See [governance](/concepts/governance).
 
 The migration retains existing names, payment destinations, exact memo values and full muxed routing IDs. Display-name lookups verify the complete destination; an M destination is not a base-G election. Pending namespace applications retain their original claim windows, escrow and refund entitlements.
 

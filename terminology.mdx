@@ -1,0 +1,53 @@
+---
+title: "Terminology"
+description: "The names, roles, and contracts you will encounter in Soran."
+---
+
+## Names and people
+
+| Term | Meaning |
+| --- | --- |
+| **Namespace** | A top-level name such as `nova`, operated by an organization or other namespace owner. |
+| **Name** | An issued name such as `alice.nova`, held under the namespace's rules. |
+| **Subname** | One child beneath a name, such as `shop.alice.nova`, controlled by the parent holder. |
+| **Namespace owner** | The account authorized to configure namespace issuance and supported features. |
+| **Holder** | The address that controls a name under its namespace policy. |
+| **Recipient** | The address receiving a payment. It can differ from the holder. |
+| **Operator role** | An owner, admin, or issuer role in the console. Console access and on-chain ownership are separate. |
+
+## Contracts
+
+| Term | Job |
+| --- | --- |
+| **Registry** | Records namespace ownership and routes readers to namespace contracts. |
+| **Allocator** | Handles namespace applications, claim windows, and objection outcomes. |
+| **Registrar** | Applies namespace rules and records name ownership and lifecycle. |
+| **Resolver** | Stores and supplies payment destinations, profile records, and other supported records. |
+| **Universal Lookup** | The shared read entry point that follows and validates a name's current records. |
+| **Primary** | Stores a preferred name across namespaces for supported account types. |
+
+[See how the contracts fit together →](/concepts/architecture)
+
+## Identity and addresses
+
+**Profile** is the set of holder-published text records associated with a name: for example, an avatar, description, website, and social links.
+
+**Display name** is an address's elected name within a namespace, verified against forward resolution. A **primary name** is its preferred name across namespaces.
+
+**Payment destination** is the complete instruction needed to route a Stellar payment: the address and any required memo. A muxed address includes its routing ID inside the address itself.
+
+**Network address** is a receiving address for an explicitly selected additional blockchain network. A name can have different addresses on different enabled networks.
+
+## Ownership and availability
+
+**Claim window** is the public objection period for a namespace application. A successful application **awards** the namespace. Username registration inside that namespace is a separate process.
+
+**Ownership policy** describes whether and how names expire, can be reclaimed, or can obtain a permanence guarantee. Read the actual policy; zero expiry alone does not prove permanence.
+
+**Generation** is an ownership counter. It prevents records from a previous holder or an earlier child-name instance from being reused as current records.
+
+**Storage TTL** is Stellar's ledger-entry availability clock. Archival and ownership expiry are different events; restoring stored data does not transfer ownership.
+
+**Resolver assurance** describes contract provenance and the checked Resolver configuration. It does not freeze a holder's records or prove that a payment destination belongs to a particular person.
+
+**Indexed discovery** finds candidate names or events through a hosted index. Results can be incomplete; direct verification establishes the current state of a returned candidate.

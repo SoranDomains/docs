@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="720" viewBox="0 0 600 720" role="img" aria-labelledby="registrar-mobile-light-title registrar-mobile-light-desc">
+  <title id="registrar-mobile-light-title">Rules become names</title>
+  <desc id="registrar-mobile-light-desc">The namespace owner sets the rules. Its Registrar applies them and issues alice.nova to a holder.</desc>
+  <rect width="600" height="720" fill="#F5F7F6"/>
+  <g font-family="Inter, Arial, sans-serif" fill="#16251E">
+    <text x="32" y="78" font-size="44" font-weight="600" letter-spacing="-1">Rules become names.</text>
+    <text x="32" y="124" font-size="30" fill="#65756D">From owner policy to holder.</text>
+
+    <g fill="#FFFFFF" stroke="#D9E2DC" stroke-width="2">
+      <rect x="32" y="168" width="536" height="132" rx="12"/>
+      <rect x="32" y="354" width="536" height="132" rx="12"/>
+      <rect x="32" y="540" width="536" height="148" rx="12"/>
+    </g>
+    <g fill="none" stroke="#65756D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M300 311V342 M292 334L300 342L308 334"/>
+      <path d="M300 497V528 M292 520L300 528L308 520"/>
+    </g>
+
+    <text x="60" y="219" font-size="28" fill="#65756D">01 / Owner sets policy</text>
+    <text x="60" y="270" font-size="42" font-weight="600" letter-spacing="-0.6">Namespace rules</text>
+
+    <text x="60" y="405" font-size="28" fill="#65756D">02 / Contract applies it</text>
+    <text x="60" y="456" font-size="42" font-weight="600" letter-spacing="-0.6">Registrar</text>
+    <path d="M493 438L505 450L527 425" fill="none" stroke="#267254" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <text x="60" y="587" font-size="28" fill="#65756D">03 / Name issued to holder</text>
+    <rect x="60" y="609" width="300" height="56" rx="6" fill="#E5F1E9"/>
+    <text x="78" y="651" font-size="42" font-weight="600" letter-spacing="-1" fill="#267254">alice.nova</text>
+  </g>
+</svg>

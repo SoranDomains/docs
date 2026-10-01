@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="registrar-dark-title registrar-dark-desc">
+  <title id="registrar-dark-title">From namespace rules to a name</title>
+  <desc id="registrar-dark-desc">The namespace owner sets registration and ownership rules. Its Registrar contract checks eligibility, records the holder and applies the name lifetime. The issued name alice.nova is held by Alice's wallet.</desc>
+  <rect width="1200" height="650" fill="#171A19"/>
+  <g font-family="Inter, Arial, sans-serif" fill="#EFF4F0">
+    <text x="48" y="78" font-size="22" font-weight="600" letter-spacing="2" fill="#96A59C">ISSUING A NAME</text>
+    <text x="48" y="132" font-size="42" font-weight="600" letter-spacing="-1.2">From namespace rules to a name.</text>
+    <text x="48" y="175" font-size="24" fill="#96A59C">The owner sets the policy. The Registrar applies it.</text>
+
+    <g font-size="22" font-weight="500" fill="#96A59C">
+      <text x="48" y="230">01 / Set the rules</text>
+      <text x="416" y="230">02 / Apply the rules</text>
+      <text x="784" y="230">03 / Issue a name</text>
+    </g>
+
+    <g fill="#1D231F" stroke="#35443C" stroke-width="2">
+      <rect x="48" y="252" width="320" height="278" rx="12"/>
+      <rect x="416" y="252" width="320" height="278" rx="12"/>
+      <rect x="784" y="252" width="368" height="278" rx="12"/>
+    </g>
+    <g fill="none" stroke="#35443C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M48 318H368 M416 318H736 M784 318H1152"/>
+      <path d="M378 391H404 M397 385L404 391L397 397"/>
+      <path d="M746 391H772 M765 385L772 391L765 397"/>
+    </g>
+
+    <text x="76" y="295" font-size="28" font-weight="600" fill="#84D4AC">nova</text>
+    <text x="176" y="295" font-size="22" fill="#96A59C">namespace</text>
+    <text x="76" y="362" font-size="22" fill="#96A59C">Registration</text>
+    <text x="76" y="396" font-size="25" font-weight="500">Who can claim</text>
+    <text x="76" y="452" font-size="22" fill="#96A59C">Ownership</text>
+    <text x="76" y="486" font-size="24" font-weight="500">How names are held</text>
+
+    <text x="444" y="295" font-size="28" font-weight="600">Registrar</text>
+    <g fill="none" stroke="#84D4AC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M445 370L451 376L463 363"/>
+      <path d="M445 425L451 431L463 418"/>
+      <path d="M445 480L451 486L463 473"/>
+    </g>
+    <g font-size="22">
+      <text x="479" y="378">Checks eligibility</text>
+      <text x="479" y="433">Records holder</text>
+      <text x="479" y="488">Applies lifetime</text>
+    </g>
+
+    <text x="812" y="295" font-size="22" font-weight="500" fill="#96A59C">Issued name</text>
+    <rect x="812" y="347" width="312" height="64" rx="6" fill="#253D30"/>
+    <text x="837" y="391" font-size="40" font-weight="600" letter-spacing="-0.7" fill="#84D4AC">alice.nova</text>
+    <text x="812" y="452" font-size="22" fill="#96A59C">Holder</text>
+    <text x="812" y="486" font-size="25" font-weight="500">Alice’s wallet</text>
+
+    <path d="M48 583H80" stroke="#84D4AC" stroke-width="3"/>
+    <text x="96" y="591" font-size="22" fill="#96A59C">The holder manages the name within its namespace policy.</text>
+  </g>
+</svg>

@@ -1,0 +1,72 @@
+---
+title: "How Soran works"
+description: "Follow a name from its namespace to the contracts that make it useful."
+---
+
+import { Illustration } from "/snippets/illustration.jsx";
+
+Soran separates namespace coordination, name ownership, and name records. This lets organizations choose how they issue names while apps use a common way to read them.
+
+## The Registry connects namespaces
+
+The **Registry** is the shared directory. For a namespace such as `nova`, it records the owner and the contracts responsible for its names. It gives an integrated app a starting point for any namespace.
+
+The **Allocator** handles public namespace applications, including the claim window and objections. Once a namespace is awarded, the owner can set up its contracts. Applying for a namespace and claiming a username inside it are separate actions.
+
+[Learn how namespace applications work →](/concepts/claiming-a-namespace)
+
+## The Registrar manages names
+
+A namespace's **Registrar** records the holder, ownership generation, receiving target, and expiry of its names. It applies registration and lifecycle rules when names are issued, claimed, renewed, or transferred.
+
+<Illustration name="registrar" alt="A namespace owner sets rules that its Registrar applies when issuing names." />
+
+The namespace owner chooses supported policies. A holder manages their name within those rules. For a child such as `shop.alice.nova`, control follows the holder of `alice.nova`.
+
+## The Resolver stores records
+
+A **Resolver** supplies the records that make a name useful:
+
+- A Stellar payment destination, including any required memo.
+- Receiving addresses on the additional networks enabled by the namespace.
+- Profile text such as an avatar, description, website, and social links.
+- Namespace display-name selections for supported receiving accounts.
+
+Native records belong to an ownership generation. When ownership changes, an earlier holder's records do not become the new holder's profile or destinations.
+
+## Universal Lookup joins the pieces
+
+<Illustration name="resolution" alt="Soran Lookup reads alice.nova and returns the requested address, profile or network address records." />
+
+A typical lookup follows this sequence:
+
+1. Your app asks **Universal Lookup** for a name and the kind of record it needs.
+2. Lookup follows the Registry's current namespace routing.
+3. It checks the Registrar's name state and the requested Resolver data.
+4. It returns the result for your app to display or use.
+
+A missing or unavailable read does not establish that a name is unowned, has no memo, or has no records. A successful read describes that moment. Payment apps must preserve complete routing instructions and recheck them near confirmation.
+
+Universal Lookup reads data; the user's wallet authorizes and sends any payment separately.
+
+## Display names work in the other direction
+
+Forward resolution starts with a name. A display-name read starts with an account and asks which name to show. Soran verifies that the elected name still points back to that account.
+
+The **Primary** contract coordinates a preferred name across namespaces for classic and contract accounts. Universal Lookup also supports elections for complete muxed addresses, including their embedded routing IDs.
+
+[Understand reverse and primary names →](/sdk/reverse-and-primary)
+
+## Choose your integration
+
+| Interface | Use it for |
+| --- | --- |
+| Lookup SDK | Read names, profiles, network addresses, and display names from the configured contracts. |
+| Owner SDK | Configure a namespace and issue or manage names under its policies. |
+| Holder SDK | Manage your name, profile, addresses, and supported subnames. |
+| HTTP API | Hosted reads, discovery, indexed history, and transaction preparation. |
+| Direct contract calls | Read or write the on-chain interfaces from your own integration. |
+
+Hosted discovery can have incomplete coverage. The SDK can read the contracts directly for the requested name. Read [the trust model](/concepts/trust-model) for the roles of governance, RPC providers, and hosted services.
+
+[Build your first lookup →](/quickstart)

@@ -1,0 +1,71 @@
+---
+title: "Subname API"
+description: "Read parent-controlled child names and prepare creation, removal or namespace policy changes."
+---
+
+These routes expose one child level, such as `pay.alice.nova`. Public reads need no API key and send `Cache-Control: no-store`. Child control belongs to the parent holder; its receiving address can differ. See [subnames](/concepts/subnames) for the ownership model.
+
+## Read policy and child state
+
+```http
+GET /v1/subname-policy/nova
+GET /v1/subnames/nova/alice/pay
+GET /v1/subnames/nova/alice?offset=0&limit=16
+```
+
+The policy response contains `namespace`, `version: 1`, `policy`, `registrarId` and `owner`. Policies are `enabled`, `creation-disabled` and `suspended`.
+
+A single-child response contains `name`, `parent`, `parentContext`, `policy`, `registrarId` and `record`. `record: null` means no stored child record. When present, the record includes:
+
+| Field | Meaning |
+| --- | --- |
+| `exists` | Stored child has not been removed |
+| `active` | Child exists, parent is active, ownership binding matches and policy permits resolution |
+| `validBinding`, `controller` | Whether the stored parent generation matches; its holder or `null` |
+| `parentGeneration`, `generation` | Exact decimal-string ownership and child generations |
+| `address` | Stored initial destination; use payment resolution for current instructions |
+| `expiresAt`, `policy`, `source` | Parent expiry, current namespace policy and `"chain"` |
+
+The list response has `parent`, `parentContext`, `policy`, `registrarId`, `subnames`, `offset`, `nextOffset` and `source`. It includes removed and stale children. Continue with `nextOffset` until `null`. Limits are 1–16, defaulting to 16; a full final page may require another empty read.
+
+## Prepare creation or removal
+
+Read the parent and child first. Use their actual generations in this illustrative first-creation request:
+
+```http
+POST /subnames/prepare
+Content-Type: application/json
+
+{
+  "name": "pay.alice.nova",
+  "action": "create",
+  "parentGeneration": "0",
+  "generation": null,
+  "address": "<valid G or C destination>"
+}
+```
+
+`generation` is `null` only when no child record has ever been stored. Recreation uses the previous child's generation. Removal uses `action: "remove"`, the current child generation and no `address` field.
+
+Preparation returns `ok`, unsigned `xdr`, `name`, `holder`, `signer`, `registrarId`, `namespace` and `network`. This route requires a G parent holder; a C receiving destination is still permitted. Review the name, generations, destination, contract, network and fees before the parent holder signs. Submit with `POST /records/submit` and `{ "signedXdr": "..." }`.
+
+## Change namespace policy
+
+The current owner uses a [namespace-scoped wallet session](/owner/activating-a-namespace#prepare-through-the-api):
+
+```http
+POST /console/subname-policy/prepare
+Authorization: Bearer <session-token>
+X-Soran-Namespace: nova
+Content-Type: application/json
+
+{ "namespace": "nova", "policy": "enabled" }
+```
+
+The response returns unsigned `xdr`, `signer`, `registrarId`, `namespace`, `network` and `ok`. Submit the approved transaction through `/console/tx/submit` with `{ "xdr": "<signed transaction>" }` and the same headers.
+
+## Handle changed or unavailable state
+
+`409 subname_generation_mismatch` requires fresh state and review. Creation can return `subname_creation_disabled`, `subnames_suspended` or `name_taken`; an inactive parent returns `404 parent_inactive`. Capability mismatch returns `409 subnames_unsupported`, while dependency failures remain errors such as `503 chain_unavailable`.
+
+Policy changes require the owner's wallet: `403 not_namespace_owner` rejects other accounts; `400 wallet_session_required` rejects sessions without a wallet. The hosted prepare routes require G holders and owners. They return `409 contract_holder_requires_adapter` or `contract_owner_requires_adapter` for C authority; use a separate compatible contract-wallet integration, since these routes do not accept an adapter. A pending submission requires [checking the original transaction](/api/overview#submission-responses), not creating a replacement immediately.

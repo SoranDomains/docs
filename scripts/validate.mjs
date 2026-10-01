@@ -47,6 +47,18 @@ for (const p of pages) {
 let checkedLinks = 0;
 for (const [p, body] of contents) {
   const noCode = body.replace(/```[\s\S]*?```/g, '');
+  // Keep reusable artwork references valid alongside ordinary page links.
+  for (const [, name] of noCode.matchAll(/<Illustration\s+name="([^"]+)"/g)) {
+    for (const suffix of ['', '-dark', '-mobile', '-mobile-dark']) {
+      const asset = `images/${name}${suffix}.svg`;
+      try { await stat(resolve(root, asset)); }
+      catch { fail.push(`${relative(root,p)}: missing illustration ${asset}`); }
+    }
+  }
+  for (const [, target] of noCode.matchAll(/\bfrom\s+["'](\/snippets\/[^"']+)["']/g)) {
+    try { await stat(resolve(root, target.slice(1))); }
+    catch { fail.push(`${relative(root,p)}: missing snippet ${target}`); }
+  }
   const links = [...noCode.matchAll(/\]\(([^\s)]+)(?:\s+"[^"]*")?\)/g), ...noCode.matchAll(/href="([^"]+)"/g)];
   for (const [,target] of links) {
     if (/^(https?:|mailto:|tel:)/.test(target)) continue;

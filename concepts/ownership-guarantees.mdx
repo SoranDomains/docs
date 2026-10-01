@@ -14,9 +14,15 @@ A name's ownership rules come from its namespace. Before accepting a name, check
 
 These properties can overlap. A reclaimable name can have no expiry date, for example. **No expiry does not mean permanent:** the owner may still have reclaim or upgrade powers.
 
+## Expiry and renewal grace
+
+Namespace owners can configure up to 90 days of renewal grace; the default is zero. Applicable grace protects an expired name from ordinary reissue while its recorded holder renews. It does not extend active resolution, transfer rights or storage lifetime, and it does not remove an owner's reclaim power. An expired name and its children stop resolving until a permitted renewal reactivates them.
+
+Protection begins with names expiring at or after the policy's activation timestamp. Positive duration changes retain that cutoff; disabling and re-enabling creates a new one. Check the current duration and activation timestamp rather than assuming every expired name receives the same protection. See [renewal rules](/api/native-claiming#renew-a-name).
+
 ## Governed testnet policy
 
-The current testnet does not permit `make_permanent` or irreversible Resolver locks. All active contracts remain upgradeable through the [governance process](/concepts/governance). A non-reclaimable, no-expiry policy does not remove those upgrade powers.
+The current testnet does not permit `make_permanent` or irreversible Resolver locks. The active naming contracts support authorized upgrades through the [governance process](/concepts/governance). A non-reclaimable, no-expiry policy does not remove those upgrade powers.
 
 The `permanent` field remains in the ABI for historical deployments and compatibility. Historical permanent locks retain their original meaning; do not present them as an option available on the governed testnet.
 
@@ -32,6 +38,14 @@ const name = await soran.nameMetadata("alice.nova");
 ```
 
 Use namespace and name metadata to display ownership status. [`assurance()`](/sdk/assurance) has a narrower purpose: it checks Resolver provenance, not the full ownership guarantee or Lookup's own code.
+
+## Subnames and receiving records
+
+A child such as `mail.alice.yourbrand` belongs under `alice.yourbrand`. The parent holder controls it and can remove it. It has no independent transfer, sale or renewal. Parent expiry suspends its use; renewal in the same ownership generation can restore it. A parent transfer, reclaim or reissue invalidates the old child binding.
+
+The namespace owner can stop new subnames while leaving existing ones usable, or suspend all subname resolution and record edits. Even a child beneath a historically permanent namespace remains subject to its parent holder and subname policy.
+
+Additional network addresses are also subject to the namespace owner's enabled-network policy. Disabling a network hides its records without deleting them. These permissions are separate from whether the parent name expires or can be reclaimed.
 
 ## Holder records and historical locks
 

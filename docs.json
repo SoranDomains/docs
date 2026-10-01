@@ -3,127 +3,144 @@
   "theme": "mint",
   "name": "Soran",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#3C7C62",
+    "light": "#78B99A",
+    "dark": "#2F6B53"
   },
   "favicon": "/favicon.svg",
   "navigation": {
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Lookup SDK on npm",
-          "href": "https://www.npmjs.com/package/@sorandomains/lookup",
-          "icon": "npm"
-        },
-        {
-          "anchor": "Owner SDK on npm",
-          "href": "https://www.npmjs.com/package/@sorandomains/owner",
-          "icon": "npm"
-        },
-        {
-          "anchor": "Holder SDK on npm",
-          "href": "https://www.npmjs.com/package/@sorandomains/holder",
-          "icon": "npm"
-        },
-        {
-          "anchor": "SDKs on GitHub",
-          "href": "https://github.com/SoranDomains/sdk",
-          "icon": "github"
-        }
-      ]
-    },
     "groups": [
       {
-        "group": "Get started",
+        "group": "Documentation",
         "pages": [
-          "index",
-          "quickstart",
-          "live-examples",
-          "reference/release-status"
-        ]
-      },
-      {
-        "group": "Concepts",
-        "pages": [
-          "concepts/names-and-namespaces",
-          "concepts/payment-destinations",
-          "concepts/ownership-guarantees",
-          "concepts/claiming-a-namespace",
-          "concepts/trust-model",
-          "concepts/governance"
-        ]
-      },
-      {
-        "group": "Lookup SDK",
-        "pages": [
-          "sdk/installation",
-          "sdk/resolving-names",
-          "sdk/reverse-and-primary",
-          "sdk/assurance",
-          "sdk/identity",
-          "sdk/reference"
-        ]
-      },
-      {
-        "group": "Owner SDK",
-        "pages": [
-          "owner/activating-a-namespace",
-          "owner/issuing-from-code",
-          "owner/automatic-claiming",
-          "owner/lifecycle-and-transfers"
-        ]
-      },
-      {
-        "group": "Holder SDK",
-        "pages": [
-          "holder/managing-your-name"
-        ]
-      },
-      {
-        "group": "For AI agents",
-        "pages": [
-          "agents/access"
-        ]
-      },
-      {
-        "group": "HTTP API",
-        "pages": [
-          "api/overview",
-          "api/resolution",
-          "api/events",
-          "api/claim-fees",
-          "api/directory",
-          "api/market",
-          "api/status"
-        ]
-      },
-      {
-        "group": "Running a namespace",
-        "pages": [
-          "platform/console",
-          "platform/issuing-names",
-          "platform/webhooks",
-          "platform/billing",
-          "platform/marketplace"
-        ]
-      },
-      {
-        "group": "Contract reference",
-        "pages": [
-          "api/onchain-resolution",
-          "reference/lookup-decoding",
-          "reference/contract-storage",
-          "reference/namespace-objections",
-          "api/native-claiming",
-          "reference/successor-claim-storage",
-          "reference/migration-storage"
-        ]
-      },
-      {
-        "group": "Historical reference",
-        "pages": [
-          "reference/legacy-contract-storage"
+          {
+            "group": "Learn",
+            "expanded": false,
+            "pages": [
+              "index",
+              "concepts/names-and-namespaces",
+              "concepts/architecture",
+              "concepts/profiles",
+              "concepts/multichain-addresses",
+              "concepts/subnames",
+              "concepts/payment-destinations"
+            ]
+          },
+          {
+            "group": "Use Soran",
+            "expanded": false,
+            "pages": [
+              {
+                "group": "Your name",
+                "expanded": false,
+                "pages": [
+                  "holder/managing-your-name",
+                  "holder/profile",
+                  "holder/network-addresses",
+                  "holder/subnames"
+                ]
+              },
+              {
+                "group": "Your namespace",
+                "expanded": false,
+                "pages": [
+                  "concepts/claiming-a-namespace",
+                  "platform/console",
+                  "platform/issuing-names",
+                  "owner/automatic-claiming",
+                  "owner/feature-settings",
+                  "platform/webhooks",
+                  "platform/billing",
+                  "platform/marketplace"
+                ]
+              }
+            ]
+          },
+          {
+            "group": "Build",
+            "expanded": false,
+            "pages": [
+              "quickstart",
+              "live-examples",
+              {
+                "group": "Lookup SDK",
+                "expanded": false,
+                "pages": [
+                  "sdk/installation",
+                  "sdk/resolving-names",
+                  "sdk/network-addresses",
+                  "sdk/subnames",
+                  "sdk/reverse-and-primary",
+                  "sdk/identity",
+                  "sdk/assurance",
+                  "sdk/reference"
+                ]
+              },
+              {
+                "group": "Owner SDK",
+                "expanded": false,
+                "pages": [
+                  "owner/activating-a-namespace",
+                  "owner/issuing-from-code",
+                  "owner/lifecycle-and-transfers"
+                ]
+              },
+              {
+                "group": "HTTP API",
+                "expanded": false,
+                "pages": [
+                  "api/overview",
+                  "api/resolution",
+                  "api/network-addresses",
+                  "api/subnames",
+                  "api/events",
+                  "api/claim-fees",
+                  "api/directory",
+                  "api/market",
+                  "api/status"
+                ]
+              },
+              "agents/access"
+            ]
+          },
+          {
+            "group": "Protocol",
+            "expanded": false,
+            "pages": [
+              "concepts/ownership-guarantees",
+              "concepts/trust-model",
+              "concepts/governance",
+              {
+                "group": "Contract reference",
+                "expanded": false,
+                "pages": [
+                  "api/onchain-resolution",
+                  "reference/lookup-decoding",
+                  "reference/contract-storage",
+                  "reference/namespace-objections",
+                  "api/native-claiming",
+                  "reference/successor-claim-storage",
+                  "reference/migration-storage"
+                ]
+              }
+            ]
+          },
+          {
+            "group": "Resources",
+            "expanded": false,
+            "pages": [
+              "reference/release-status",
+              "faq",
+              "terminology",
+              {
+                "group": "Historical reference",
+                "expanded": false,
+                "pages": [
+                  "reference/legacy-contract-storage"
+                ]
+              }
+            ]
+          }
         ]
       }
     ]
@@ -141,7 +158,7 @@
     ],
     "primary": {
       "type": "button",
-      "label": "Open the console",
+      "label": "Open Soran",
       "href": "https://soran.domains"
     }
   },

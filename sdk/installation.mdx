@@ -3,15 +3,17 @@ title: "Installation and configuration"
 description: "Configure the matching Universal Lookup, Registry, Primary and Stellar network."
 ---
 
-Install **Lookup 0.10.2** to read names, payment instructions and identity records. It needs no signer. The testnet preset uses the current [Registry, Lookup and Primary deployment](/reference/release-status).
+Install **Lookup 0.11.0** to read names, payment instructions and identity records. It needs no signer. The testnet preset uses the current [Registry, Lookup and Primary deployment](/reference/release-status).
 
 ```bash
-npm install @sorandomains/lookup@0.10.2 @stellar/stellar-sdk@^17
+npm install @sorandomains/lookup@0.11.0 @stellar/stellar-sdk@^17
 ```
 
-The supported Stellar SDK peer range is `>=17 <18`. The package is ESM with TypeScript types and supports Node, browsers and workers.
+Use Node.js 22.12 or newer. The supported Stellar SDK peer range is `>=17 <18`. The package is ESM with TypeScript types and supports Node, browsers and workers.
 
-To write records, use the [Holder SDK](/holder/managing-your-name). To issue names or configure a namespace, use the [Owner SDK](/owner/issuing-from-code). Their `TxSigner` adapters use a classic G account as the transaction source. Contract-wallet authorization requires a compatible integration of its own.
+To write records, use the [Holder SDK](/holder/managing-your-name). To issue names or configure a namespace, use the [Owner SDK](/owner/issuing-from-code). Their `TxSigner` adapters use a classic G account as the transaction source.
+
+Holder also accepts a `contractWallet` adapter with a C `address` and `signAuthorization` callback for supported contract-wallet operations, including native claims. The C wallet authorizes the exact Soroban invocation through its `__check_auth` implementation; the separate G transaction signer pays network fees and submits. This requires wallet-specific authorization code and Registrar `contract_claim_version() == 1` for claims. It does not imply every Holder method or hosted prepare route supports C holders; the current [network-address write methods](/sdk/network-addresses#publish-or-clear-an-address) use the G signer.
 
 ## Universal mode is the default
 
@@ -89,12 +91,12 @@ See [reference](/sdk/reference) for methods, result types and typed failures.
 
 ## Write-client fee limit
 
-Owner **0.9.0** and Holder **0.8.0** include a shared per-transaction fee ceiling. Use the matching [release configuration](/reference/release-status).
+Owner **0.12.0** and Holder **0.10.0** include a shared per-transaction fee ceiling. Use the matching [release configuration](/reference/release-status).
 
 Add `maxNetworkFeeStroops` to either write client's configuration to cap the total network fee for each transaction, including storage restoration:
 
 ```ts
-// Options for Owner 0.9.0 or Holder 0.8.0.
+// Options for Owner 0.12.0 or Holder 0.10.0.
 const feeOptions = {
   maxNetworkFeeStroops: 50_000_000n, // 5 XLM per transaction
 };

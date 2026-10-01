@@ -1,9 +1,36 @@
 ---
-title: "Identity and discovery"
-description: "Read profiles and verified holdings pages with explicit continuation and coverage."
+title: "Profiles, identity and discovery"
+description: "Build a social profile from a name, show elected display names and discover verified holdings."
 ---
 
-Build a name profile from on-chain records, or discover the names held by an address. Discovery and history need a configured `hintUrl`; the SDK checks discovered holdings against current chain state.
+A Soran name can give your application a profile as well as a receiving address. Read a holder's avatar, description, website and social handles, then combine them with an elected display name. The same identity records work for supported subnames such as `work.alice.nova`.
+
+Start with a configured [Lookup client](/sdk/installation). The [profile concept](/concepts/profiles) explains the roles; the [holder guide](/holder/profile) shows how people publish their information.
+
+## Read a profile
+
+```ts
+import { PROFILE_KEYS } from "@sorandomains/lookup";
+// org, url, email, description, avatar, location, twitter, github
+const profile = await soran.profile("alice.nova");
+console.log(profile.avatar, profile.description, profile.twitter);
+
+const identity = await soran.identity("alice.nova");
+console.log(identity.details, identity.profile);
+```
+
+Values come from text records published by the current holder. Prior ownership generations do not appear. This establishes who published a value, not verified ownership of an external social account or a real-world identity. Escape text for display and validate URL schemes before making links.
+
+Use `text(name, key)` for other keys. Keys are not globally enumerable. They must be nonempty Soroban Symbols of at most 32 bytes. Lookup returns at most 4,096 UTF-8 bytes per value; oversized historical text throws instead of being truncated.
+
+## Combine identity reads
+
+| Method | What it combines | Behavior |
+| --- | --- | --- |
+| `identity(name)` | Name details, profile and holder/recipient/namespace-owner display names | Details and profile failures throw; optional display-name enrichments can be `null` |
+| `walletProfile(address)` | Primary, scoped reverse names, first holdings page and Primary's profile | Continue holdings with `holdings.nextCursor` |
+
+Display names are [explicit elections](/sdk/reverse-and-primary), separate from holding a name. These aggregates perform several reads and are not one atomic ledger snapshot.
 
 ## Holdings pages
 
@@ -20,7 +47,7 @@ if (page.hasMore) {
 2. Render the verified `names` and keep the page's verification and coverage information.
 3. When `hasMore` is true, pass `nextCursor` to the next request.
 
-The indexer supplies candidates. In universal mode, the SDK verifies each candidate's current holder and activity through Lookup. A failed check is counted separately from a proven stale or nonheld candidate.
+Discovery needs a configured `hintUrl`. The indexer supplies candidates; in universal mode, the SDK verifies their current holder and activity through Lookup. Failed checks are distinct from proven stale or nonheld candidates.
 
 | Field | Meaning |
 | --- | --- |
@@ -32,27 +59,6 @@ The indexer supplies candidates. In universal mode, the SDK verifies each candid
 Coverage is the indexer's report; it cannot prove that the indexer omitted nothing. `complete` describes this page's completion conditions, not an independent proof of every holding.
 
 `namesOf(address)` aggregates up to 1,000 candidates and throws `INCOMPLETE` for partial results. Use `namesOfPage` when your interface needs to display partial results or continue beyond that bound.
-
-## Profiles
-
-`profile(name)` reads these standard text keys through Lookup:
-
-```ts
-import { PROFILE_KEYS } from "@sorandomains/lookup";
-// org, url, email, description, avatar, location, twitter, github
-const profile = await soran.profile("alice.nova");
-```
-
-Values are text published by the current generation's holder. They are not verified real-world claims. Escape them for display and validate URL schemes before creating links.
-
-Use `text(name, key)` for other keys. Keys are not globally enumerable. They must be nonempty Soroban Symbols of at most 32 bytes. Lookup returns at most 4,096 UTF-8 bytes per value; oversized historical text throws instead of being truncated.
-
-## Aggregates and history
-
-| Method | What it combines | Failure and coverage behavior |
-| --- | --- | --- |
-| `identity(name)` | Name details, profile and holder/recipient/namespace-owner display names | Details and profile failures throw. Optional display-name enrichments can become `null`. |
-| `walletProfile(address)` | Primary, scoped reverse names, the first holdings page and Primary's profile | Continue holdings with `holdings.nextCursor`. It does not return every holding. |
 
 ### Address type and holdings
 
@@ -66,10 +72,8 @@ Use `text(name, key)` for other keys. Keys are not globally enumerable. They mus
 
 An M routing ID is not a name holder. `namesOf` and `namesOfPage` accept G/C holder addresses only. Holder and namespace-owner identity also use their G/C accounts.
 
-These aggregates perform several reads. They are not one atomic ledger snapshot. `details` checks for inconsistent generation/routing across its reads, but application code must still treat results as point-in-time data.
-
-### Read history
+## Read history
 
 `history(name)` returns up to 100 indexed events with transaction and ledger references. Use the HTTP [history and events cursors](/api/events) for durable pagination.
 
-History is informational. Contract state stores expiry timestamps, but it does not store a complete registration timeline. Event time differs from indexer ingestion time, and historical issuance metadata can be unknown.
+History needs `hintUrl` and is informational. Contract expiry timestamps do not provide a complete registration timeline. Event time differs from ingestion time, and historical issuance metadata can be unknown.

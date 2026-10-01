@@ -1,15 +1,73 @@
 ---
-title: "The console"
-description: "Manage a namespace, set up username registration and invite your team."
+title: "Manage your namespace"
+description: "Use the console to issue names, configure registration and choose the features your holders can use."
 ---
 
-Use the console at [soran.domains](https://soran.domains) to manage your namespace, issue names, configure username registration and invite your team. The current deployment runs on Stellar testnet. Billing and marketplace features appear **when enabled on a deployment**; both are disabled on this setup.
+Use the [Soran console](https://soran.domains/app) to run your namespace. You can issue names, let users claim them in your app, enable additional address networks and subnames, and invite operators to help.
+
+If you hold a name and want to change its receiving details or profile, start with [Managing your name](/holder/managing-your-name). Holder records are managed through the public name page or Holder SDK.
 
 ## Wallet sign-in
 
-Connect your wallet and sign the short-lived, one-time sign-in challenge. It authenticates your account and is not submitted as a network transaction. Check the app and network shown in your wallet before signing.
+1. Open the console and connect your wallet.
+2. Review and sign the short-lived, one-time sign-in challenge. It authenticates your account without submitting a network transaction.
+3. Select a namespace you own on chain or operate through a console invitation.
 
-You can then select a namespace you own on chain or operate through a console invitation. Switching namespaces changes your access scope. Signing out ends the server session.
+Switching namespaces changes your access scope. Signing out ends the server session. If you do not yet own a namespace, use **Register namespace** to begin the [public allocation process](/concepts/claiming-a-namespace).
+
+The current public deployment uses Stellar testnet. Check the app and network in your wallet before signing an on-chain action.
+
+## Common flows
+
+| Console area | Use it to |
+| --- | --- |
+| **Overview** | Check your namespace and its next setup step |
+| **Issuance** | [Activate a namespace and issue names](/platform/issuing-names) |
+| **Username registration** | [Let users claim names in your app](/owner/automatic-claiming) |
+| **All names** | Inspect issued names and take authorized renewal, reclaim or transfer actions |
+| **Settings** | [Choose additional networks and subname policy](/owner/feature-settings), and manage namespace settings |
+| **Contract updates** | Review available Registrar and Resolver updates |
+| **Sponsorship** | Set budgets for supported users' network fees |
+| **Team** | Invite or remove wallet-address operators |
+| **Developer tools** | Manage HTTP integrations and [webhooks](/platform/webhooks) |
+| **Allocations** | Follow namespace applications and their current state |
+
+**Billing** and **Marketplace** provide optional commercial features **when enabled on a deployment**. They are separate from the protocol's naming and resolution functions.
+
+For a new namespace, begin with activation in **Issuance**, choose your registration approach, then enable any additional features you want to offer. Each on-chain change needs its authorized signer and a confirmed transaction.
+
+## Username registration
+
+1. Open **Username registration** with the current namespace owner's wallet.
+2. Choose **Owner-issued names** or **Self-service claims**.
+3. For self-service claims, choose open registration, invited wallets or eligible users approved by your app. Set the username price, receiving G treasury and cumulative wallet limit.
+4. If your app approves eligibility, configure a separate approval account and its budgets.
+5. Reserve administrative labels, review the settings and enable claiming when your app integration is ready.
+
+Reserved assignment lets you issue an administrative label while keeping it reserved. Self-service mode replaces ordinary owner issuance, even while claims are paused.
+
+Your signup or account page uses the [Owner and Holder SDKs](/owner/automatic-claiming). Users can choose and authorize their names there without visiting the Soran console.
+
+The maximum network fee starts at 5 XLM per transaction, separate from the username price. It is a ceiling, not the amount charged. Review the estimate before increasing it. After an interrupted submission, use **Check transaction** before making another change.
+
+## Enable networks and subnames
+
+Open **Contract updates** if your namespace needs newer contracts. Network addresses need a compatible Resolver; subnames need compatible Registrar and Resolver contracts. An updated app alone does not change those contracts.
+
+Then open **Settings**:
+
+- **Network addresses** chooses which additional networks holders may publish destinations for.
+- **Subnames** enables creation, stops new creation while preserving existing children, or suspends their use.
+
+These choices apply to existing and future names. Installing an update does not enable the features automatically. Follow [Enable networks and subnames](/owner/feature-settings) for the exact policy effects.
+
+Holders can then [add network addresses](/holder/network-addresses) or [create subnames](/holder/subnames) on their public name pages. They can also [publish profile records](/holder/profile) through the Holder SDK. Namespace administration does not grant permission to edit a holder's Resolver records.
+
+## Sponsor onboarding
+
+In **Sponsorship**, you can cover supported network fees for username claims, namespace display-name elections and primary-name elections. Review the available coverage and set your funding limits before enabling a policy.
+
+Sponsoring a claim's network fee does not pay the username price you configured. The user still authorizes the claim and any purchase price.
 
 ## Operator roles
 
@@ -27,42 +85,14 @@ Console roles control access to the interface. Self-custody owner operations sti
 
 **Platform-operated:** the deployment's operating key owns and signs for the namespace. Permitted console actions use that signer. The mode depends on the on-chain owner key, not the namespace label.
 
-## Common flows
-
-| Console area | Use it to |
-| --- | --- |
-| **Issuance** | [Activate your namespace and issue names](/platform/issuing-names) |
-| **Username registration** | Set who can claim usernames in your app and what they pay |
-| **Names** | Inspect ownership, edit authorized records and transfer individual names |
-| **Team** | Invite or remove wallet-address operators |
-| **Developers** | Manage HTTP integrations and [webhooks](/platform/webhooks) |
-| **Billing / Market** | Use optional commercial features when enabled on a deployment |
-
-The namespace claim flow shows the upfront fee and refund terms before signing. If a claim-fee payout could not be delivered, the refund-credit control lets you inspect and retry it. Payment record changes store the address and memo together in the native Resolver.
-
-A transfer in the Names view is an **individual name transfer**. A whole namespace moves through Registry's separate proposal/acceptance process, described in [Owner lifecycle](/owner/lifecycle-and-transfers).
-
-After an interrupted submission, check the transaction outcome before retrying. A successful simulation does not confirm the transaction.
-
-## Username registration
-
-1. Open **Username registration** and connect the current namespace owner's wallet.
-2. Choose Manual or Public mode. For Public mode, choose open registration, invitations or app-approved eligibility.
-3. Set the username price, receiving G treasury and wallet quota. App-approved registration also needs an approval account and explicit approval budgets.
-4. Reserve administrative labels, review the live settings and enable registration.
-
-Use reserved assignment to issue an administrative label while keeping it reserved. Public mode blocks ordinary owner issuance even while claims are paused.
-
-The maximum network fee starts at 5 XLM per transaction, separate from the username price. This is a ceiling, not the amount charged. Review an estimate before raising the limit for storage rent or other network costs. If a submission is interrupted, use **Check transaction** before making another change.
-
-Connect the [Owner and Holder SDKs](/owner/automatic-claiming) to your app's own signup or account settings. Your users can claim there without visiting the Soran console.
-
 <span id="upcoming-ownership-checks" />
 
 ## Current ownership checks
 
-The console/API checks the selected namespace's current on-chain owner before allowing namespace administration. These checks are active in the 8 September 2026 update.
+The console checks the selected namespace's current on-chain owner before allowing namespace administration. After a namespace transfer, the previous owner's console team loses access. The new owner can refresh their wallet session, select the namespace and configure their own team or rotate webhook credentials.
 
-After a namespace transfer, the previous owner's console team loses access. The new owner can refresh their wallet session, select the namespace and configure their own team or rotate webhook credentials. If current ownership cannot be read, management waits until that check succeeds. An indexer delay does not require you to transfer the namespace again.
+If current ownership cannot be read, management waits until that check succeeds. An indexer delay does not require you to transfer the namespace again. Public lookups and holder-authorized name operations have their own access rules.
 
-These checks concern namespace administration. Public lookups and a holder's wallet-authorized name operations keep their own access rules.
+A transfer from **All names** moves an individual name. A whole namespace uses Registry's separate [proposal and acceptance process](/owner/lifecycle-and-transfers#transfer-the-namespace).
+
+After any interrupted write, check the original transaction before retrying. A successful simulation is an estimate and preflight check, not confirmation of a completed action.

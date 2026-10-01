@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 720" width="600" height="720" role="img" aria-labelledby="title desc">
+<title id="title">Read records with Soran Lookup</title><desc id="desc">An application looks up alice.nova through Soran Lookup. It selects Stellar address and memo details, a profile, or network addresses. Reading these records does not send a payment.</desc>
+<rect width="600" height="720" fill="#171A19"/>
+<g font-family="Inter, Arial, sans-serif" fill="#EFF4F0">
+
+<defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="6" refY="9" orient="0" markerUnits="userSpaceOnUse"><path d="M1 3L6 9L11 3" fill="none" stroke="#96A59C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<text x="34" y="62" font-size="28" font-weight="650" letter-spacing="1.4" fill="#84D4AC">NAME RESOLUTION</text>
+<text x="34" y="118" font-size="40" font-weight="650" letter-spacing="-1.1">A name becomes records.</text>
+<rect x="34" y="150" width="532" height="94" rx="22" fill="#202623" stroke="#35443C" stroke-width="2"/>
+<text x="300" y="213" text-anchor="middle" font-size="48" font-weight="650" letter-spacing="-1.7">alice<tspan fill="#84D4AC">.nova</tspan></text>
+<path d="M300 256V281" stroke="#96A59C" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="110" y="294" width="380" height="102" rx="22" fill="#243C30" stroke="#35443C" stroke-width="2"/>
+<text x="300" y="339" text-anchor="middle" font-size="40" font-weight="650" letter-spacing="-1.2">Soran Lookup</text>
+<text x="300" y="376" text-anchor="middle" font-size="28" fill="#96A59C">Read by record type</text>
+<path d="M300 406V422" stroke="#96A59C" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="34" y="434" width="532" height="62" rx="15" fill="#202623" stroke="#35443C" stroke-width="2"/>
+<rect x="34" y="449" width="4" height="32" rx="2" fill="#84D4AC"/>
+<text x="58" y="478" font-size="40" font-weight="600" letter-spacing="-1">Address + memo</text>
+<rect x="34" y="506" width="532" height="62" rx="15" fill="#202623" stroke="#35443C" stroke-width="2"/>
+<rect x="34" y="521" width="4" height="32" rx="2" fill="#C7ACEC"/>
+<text x="58" y="550" font-size="40" font-weight="600" letter-spacing="-1">Profile</text>
+<rect x="34" y="578" width="532" height="62" rx="15" fill="#202623" stroke="#35443C" stroke-width="2"/>
+<rect x="34" y="593" width="4" height="32" rx="2" fill="#9BBEFA"/>
+<text x="58" y="622" font-size="40" font-weight="600" letter-spacing="-1">Network addresses</text>
+<text x="34" y="680" font-size="28" fill="#96A59C">Reads records. Sends no payment.</text>
+</g></svg>

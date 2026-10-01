@@ -1,0 +1,65 @@
+---
+title: "Subnames"
+description: "Create separate identities and receiving destinations beneath a name you hold."
+---
+
+import { Illustration } from '/snippets/illustration.jsx';
+
+A subname adds a purpose to an existing name. If you hold `alice.nova`, you can create `shop.alice.nova` for your shop and `tips.alice.nova` for contributions. Each can publish its own receiving details, network addresses and profile records.
+
+You manage those subnames through your ownership of `alice.nova`. You do not need to apply for another namespace or transfer control to the wallet receiving the payments.
+
+<Illustration
+  name="subnames"
+  alt="The holder of alice.nova controls the child names pay.alice.nova and shop.alice.nova."
+  caption="The holder of alice.nova controls its subnames, even when they receive at different wallets."
+/>
+
+## Read the name from right to left
+
+In `shop.alice.nova`:
+
+| Part | What it means |
+| --- | --- |
+| `nova` | The namespace, operated under its own registration rules |
+| `alice` | The name held within that namespace |
+| `shop` | A subname controlled by the holder of `alice.nova` |
+
+Soran currently supports **one child level**: `child.name.namespace`. You cannot create another level beneath `shop.alice.nova`.
+
+Each part uses 1–63 ASCII letters, numbers or hyphens, with a letter or number at each end. Names are normalized to lowercase.
+
+## Give each subname a job
+
+A subname can point to a different Stellar destination from its parent, including a complete payment instruction with a required memo or muxed routing ID. It can also publish [other-network addresses](/concepts/multichain-addresses) and a [public profile](/concepts/profiles).
+
+For example, `shop.alice.nova` could route payments to a business account while `tips.alice.nova` routes them to Alice's personal wallet. The parent holder controls both records. Neither receiving wallet gains ownership merely by being named as a destination.
+
+Supporting apps resolve the complete subname through the same shared lookup system they use for ordinary names.
+
+## Namespace rules still apply
+
+The namespace owner sets one subname policy for its holders:
+
+| Policy | Effect |
+| --- | --- |
+| Enabled | Holders can create, edit and remove subnames. |
+| Stop new subnames | Existing subnames still work and can be edited or removed. |
+| Suspend subnames | Resolution and record editing pause. Saved records remain; holders can remove subnames. |
+
+Compatible Registrar and Resolver contracts are required. Subname creation starts disabled until the namespace owner enables it.
+
+## Subnames depend on their parent
+
+A subname is not independently transferable or renewable. When its parent expires, the subname stops resolving. Renewing the same ownership restores its valid records.
+
+A parent transfer, reclaim or reissue invalidates its existing subnames. The new holder must recreate the ones they want. Removing and recreating a subname starts a fresh record, so earlier receiving addresses and profile data do not silently return.
+
+Even under a permanent namespace, a subname remains controlled by its parent holder. Its lifecycle is different from an independently held name.
+
+## Next steps
+
+- [Create and manage subnames](/holder/subnames).
+- [Configure subname rules for your namespace](/owner/feature-settings).
+- [Understand names and namespaces](/concepts/names-and-namespaces).
+- [Compare ownership guarantees](/concepts/ownership-guarantees).

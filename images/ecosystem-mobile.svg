@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="720" viewBox="0 0 600 720" role="img" aria-labelledby="ecosystem-mobile-light-title ecosystem-mobile-light-desc">
+  <title id="ecosystem-mobile-light-title">Many namespaces, one shared registry</title>
+  <desc id="ecosystem-mobile-light-desc">Illustrative namespaces nova, orbit and terra each offer their own names: alice.nova, sam.orbit and lee.terra. The shared Registry routes apps to the namespace contracts.</desc>
+  <rect width="600" height="720" fill="#F5F7F6"/>
+  <g font-family="Inter, Arial, sans-serif" fill="#16251E">
+    <text x="32" y="78" font-size="44" font-weight="600" letter-spacing="-1">Many namespaces.</text>
+    <text x="32" y="124" font-size="30" fill="#65756D">One naming system.</text>
+
+    <g fill="#FFFFFF" stroke="#D9E2DC" stroke-width="2">
+      <rect x="32" y="164" width="536" height="116" rx="12"/>
+      <rect x="32" y="304" width="536" height="116" rx="12"/>
+      <rect x="32" y="444" width="536" height="116" rx="12"/>
+    </g>
+    <g fill="#E5F1E9">
+      <rect x="254" y="190" width="288" height="64" rx="6"/>
+      <rect x="254" y="330" width="288" height="64" rx="6"/>
+      <rect x="254" y="470" width="288" height="64" rx="6"/>
+    </g>
+    <g fill="none" stroke="#65756D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M191 222H233 M225 215L233 222L225 229"/>
+      <path d="M191 362H233 M225 355L233 362L225 369"/>
+      <path d="M191 502H233 M225 495L233 502L225 509"/>
+    </g>
+    <g font-size="42" font-weight="600" letter-spacing="-0.5">
+      <text x="56" y="237">nova</text>
+      <text x="56" y="377">orbit</text>
+      <text x="56" y="517">terra</text>
+    </g>
+    <g font-size="42" font-weight="600" letter-spacing="-1" fill="#267254">
+      <text x="272" y="237">alice.nova</text>
+      <text x="272" y="377">sam.orbit</text>
+      <text x="272" y="517">lee.terra</text>
+    </g>
+
+    <path d="M32 603H568" stroke="#D9E2DC" stroke-width="2"/>
+    <path d="M32 647H64" stroke="#267254" stroke-width="3"/>
+    <text x="84" y="661" font-size="40" font-weight="600">Shared registry</text>
+  </g>
+</svg>

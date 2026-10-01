@@ -1,9 +1,9 @@
 ---
 title: "Lookup SDK reference"
-description: "Universal reads, registration status, bounded history reads and typed failures in Lookup 0.10.2."
+description: "Payment, profile, network address and subname reads, with typed failures in Lookup 0.11.0."
 ---
 
-Use this reference for **Lookup 0.10.2**. Start with [installation](/sdk/installation) for configuration or [resolving payments](/sdk/resolving-names) for a practical flow.
+Use this reference for **Lookup 0.11.0**. Start with [installation](/sdk/installation) for configuration or [resolving payments](/sdk/resolving-names) for a practical flow.
 
 Lookup performs reads through Soroban RPC and optionally uses HTTP discovery/history. Writes belong to the [Owner](/owner/issuing-from-code) and [Holder](/holder/managing-your-name) SDKs.
 
@@ -37,13 +37,31 @@ Custom Registry/passphrase settings inherit no unrelated Lookup or Primary pin. 
 | `resolve(name)`, `record(name)`, `verify(name,address)` | Native memo-free address convenience methods |
 | `namespaceMetadata(namespace)` | Owner, current routing, policy, provenance and permanence, or `null`; universal only |
 | `nameMetadata(name)` | Holder, built-in target, generation, expiry, active/no-expiry flags, or `null`; universal only |
-| `nameStatus(name)` | Five-way registration state, name, ledger and timestamp; universal status capability `1` |
+| `nameStatus(name)` | Registration state including suspended children, name, ledger and timestamp; universal status capability `1` |
 | `text(name,key)` | One text value or `null` |
 | `assurance(name)` | Resolver provenance, not payment or Lookup-code attestation |
 | `namespace(namespace)`, `isAvailable(namespace)` | Owner/Resolver subset and namespace ownership absence check |
 | `details(name)` | Ownership metadata plus complete effective native payment |
 
 SDK metadata uses camelCase, such as `builtinAddress`, `expiresAt` and `namespacePermanent`. Contract ABI fields use snake_case. Generations and ownership timestamps are exact `bigint` values; encode them explicitly when producing JSON, usually as decimal strings.
+
+### Network addresses and subnames
+
+| Method | Result |
+| --- | --- |
+| `chainPolicy(namespace)` | `ChainNetwork[]` of currently enabled additional networks |
+| `chainAddress(name,network)` | Canonical address string or `null` for that explicitly selected network |
+| `subnamePolicy(namespace)` | `"enabled"`, `"creation-disabled"` or `"suspended"` |
+| `subnameRecord(name)` | Raw `SubnameRecord` or `null`, including removed/stale child state |
+| `subnames(parent,{offset?,limit?})` | On-chain child page: `parent`, `policy`, `records`, `offset`, `nextOffset` |
+
+Network reads require compatible multichain contracts and owner enablement. Disabled, unsupported, inactive and failed reads remain errors, distinct from a successful absent record. [Network examples](/sdk/network-addresses) show reads and holder writes.
+
+Subname pages use offsets and limits of 1–16, defaulting to 16. `SubnameRecord` contains `parentNode: Uint8Array`, `parentGeneration: bigint`, `generation: bigint`, `address: string` and `active: boolean`. A stored record's `active` flag alone does not establish current parent ownership, lifetime or namespace policy. Use current metadata and payment reads for live decisions. See [subname examples](/sdk/subnames).
+
+Supported resolution names have two or three labels. Parent registration/lifecycle operations and namespace inputs retain their original grammar.
+
+Child `details()` and `identity()` require Universal Lookup mode. They return `CONFIG` in direct mode because that path cannot provide complete child ownership metadata.
 
 ### Display names
 
@@ -54,15 +72,16 @@ SDK metadata uses camelCase, such as `builtinAddress`, `expiresAt` and `namespac
 | `reverseVerify(address,name)` | Scoped reverse comparison |
 | `reverseLookup(address,namespaces?)` | Primary then ordered namespace probes |
 | `reverseNames(address,namespaces?)` | Verified names among bounded namespace candidates |
-| `batchReadLimit()` | Supported contract input limit, currently `2` |
+| `batchReadLimit()` | Contract-advertised reverse batch limit, checked against the SDK maximum |
+| `primaryBatchReadLimit()` | Contract-advertised Primary batch limit, checked independently |
 | `primaryBatch(addresses)` | One bounded cross-namespace batch; `BatchNames` |
 | `reverseBatch(namespace,addresses)` | One bounded namespace batch; `BatchNames` |
 | `primaryNames(addresses)` | History helper for up to 256 identities; `ObservedIdentityName[]` |
 | `reverseMany(namespace,addresses)` | Namespace history helper for up to 256 identities; `ObservedIdentityName[]` |
 
-The new batch/history methods require universal mode and batch capability `1`. They accept G, C and complete M addresses. `primaryNames` (many addresses) differs from `reverseNames` (one address across namespace candidates). See [history examples and resource handling](/sdk/reverse-and-primary#history-screens).
+Batch/history methods require universal mode. The SDK supports batch capabilities `1`, `2` and `3` with their advertised limits; query both limit methods before forming batches. They accept G, C and complete M addresses. `primaryNames` (many addresses) differs from `reverseNames` (one address across namespace candidates). See [history examples and resource handling](/sdk/reverse-and-primary#history-screens).
 
-`nameStatus` returns `state.kind` as `namespaceMissing`, `registrarMissing`, `unregistered`, `active` or `expired`. Active/expired states include `state.record` with `registrar`, a hex `node`, `holder`, bigint `generation` and bigint `expiresAt`. The envelope's `ledger` is a number and `timestamp` is bigint. Status does not establish payment readiness or claimability.
+`nameStatus` returns `state.kind` as `namespaceMissing`, `registrarMissing`, `unregistered`, `active`, `expired` or `suspended`. Active, expired and suspended states include `state.record` with `registrar`, a hex `node`, `holder`, bigint `generation` and bigint `expiresAt`. The envelope's `ledger` is a number and `timestamp` is bigint. Status does not establish payment readiness or claimability.
 
 ### Profiles, discovery and helpers
 
@@ -118,6 +137,10 @@ Branch on `SoranError.code`:
 | `PAYMENT_REQUIRED` | An address-only call would discard a required memo |
 | `LEGACY_MEMO_UNKNOWN` | Legacy address data cannot establish memo requirements |
 | `INCOMPLETE` | The bounded holdings aggregate cannot return a complete result |
+| `CHAIN_DISABLED` | Namespace policy excludes the requested additional network |
+| `UNSUPPORTED_NETWORK` | The requested network ID is outside the supported catalogue |
+| `MULTICHAIN_UNSUPPORTED` | A checked implementation lacks the multichain interface |
+| `SUBNAMES_UNSUPPORTED` | A checked implementation lacks the subname interface |
 
 Recognized top-level Lookup contract failures also carry `contractCode` and `contractError`. Unknown formats stay unclassified; nested diagnostic strings are not promoted to top-level errors. Use these typed fields instead of parsing messages.
 

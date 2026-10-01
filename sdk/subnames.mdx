@@ -1,0 +1,71 @@
+---
+title: "Create and resolve subnames"
+description: "Integrate parent-controlled names such as pay.alice.nova, with explicit lifecycle and generation checks."
+---
+
+A holder of `alice.nova` can create `pay.alice.nova` when the namespace enables subnames. The parent holder controls its records, and the child can point to a different receiving address. Read [the ownership model](/concepts/subnames) first.
+
+The following examples use configured [Lookup](/sdk/installation) and [Holder](/holder/managing-your-name) clients, with **Lookup 0.11.0** and **Holder 0.10.0**.
+
+## Check support and inspect a child
+
+```ts
+const policy = await soran.subnamePolicy("nova");
+const child = await soran.subnameRecord("pay.alice.nova");
+console.log(policy, child?.generation);
+```
+
+The policy is `enabled`, `creation-disabled` or `suspended`. A raw child record contains `parentNode`, `parentGeneration`, `generation`, `address` and `active`. Generations are `bigint` values.
+
+`subnameRecord` includes removed records and bindings to earlier parent ownership generations. Its `active` flag alone does not establish that the child currently resolves. Check `nameMetadata` or `nameStatus` for current activity and use payment resolution for a receiving instruction.
+
+## Create after reviewing the current state
+
+```ts
+declare const destinationAddress: string; // Valid G or C destination
+
+const parent = await soran.nameMetadata("alice.nova");
+if (!parent?.active) throw new Error("The parent name is inactive");
+if (await soran.subnamePolicy("nova") !== "enabled") {
+  throw new Error("Subname creation is not enabled");
+}
+const previous = await soran.subnameRecord("pay.alice.nova");
+
+await me.createSubname("pay.alice.nova", destinationAddress, {
+  parentGeneration: parent.generation,
+  previousGeneration: previous?.generation ?? null,
+});
+```
+
+The expected generations bind your transaction to the parent and child state you reviewed. A child that is active in the current parent generation cannot be recreated. A new parent holder can recreate a child whose stored binding belongs to an older parent generation, using its previous child generation. If ownership or child state changes before submission, refresh and review the new state before preparing another transaction.
+
+Removal also requires both generations:
+
+```ts
+const current = await soran.subnameRecord("pay.alice.nova");
+if (!current) throw new Error("No stored child record");
+await me.removeSubname("pay.alice.nova", {
+  parentGeneration: current.parentGeneration,
+  generation: current.generation,
+});
+```
+
+Removal requires a live parent and a child bound to that parent's current generation. It remains available when the namespace suspends subnames, but it cannot remove a former holder's stale binding; recreation is the path to a fresh child under the new holder.
+
+## List and resolve children
+
+```ts
+const page = await soran.subnames("alice.nova", { offset: 0, limit: 16 });
+console.log(page.records, page.nextOffset);
+
+const payment = await soran.resolvePayment("pay.alice.nova");
+const profile = await soran.profile("pay.alice.nova");
+```
+
+Listing reads on-chain history and includes removed or stale children. Continue with `nextOffset` until it is `null`; a full last page can require one final empty read. Limits are 1–16 and default to 16. Owner and Holder clients expose the same three subname reads.
+
+Children have separate receiving, profile and enabled [network address records](/sdk/network-addresses). They do not inherit the parent's records. Their lifetime follows the parent, and parent transfer, reclaim or reissue invalidates existing bindings.
+
+Use Universal Lookup mode for `details()` and `identity()` on a child. Direct mode cannot provide complete child ownership metadata and returns `CONFIG` for these aggregates.
+
+Only one child level is supported. Names use two or three ASCII labels; deeper nesting is rejected. A child has no independent ownership, transfer or renewal operation. Namespace owners enable the feature through [policy settings](/owner/feature-settings).
